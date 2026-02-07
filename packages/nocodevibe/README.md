@@ -2,13 +2,16 @@
 
 A visual editor that sits beside your running React/Next.js app. Describe UI changes in plain english — Claude applies them to your codebase in real time.
 
+## How it works
+
+1. You run your dev server as usual
+2. `nocodevibe` opens an editor UI with a live preview of your app
+3. You describe changes (or click elements to reference them)
+4. Claude edits your source files directly
+
 ## Quick start
 
 ```bash
-# install globally
-npm i -g nocodevibe
-
-# or run directly
 npx nocodevibe
 ```
 
@@ -17,9 +20,14 @@ Then start your app on port `3000` and open `http://localhost:3001`.
 ## Usage
 
 ```bash
-npx nocodevibe                  # target :3000, editor :3001
-npx nocodevibe -p 4000          # target :4000
-npx nocodevibe -p 4000 -e 4001  # custom both
+# defaults: target app on :3000, editor on :3001
+npx nocodevibe
+
+# custom target port
+npx nocodevibe -p 4000
+
+# custom both
+npx nocodevibe -p 4000 -e 4001
 ```
 
 | Flag | Description | Default |
@@ -39,24 +47,6 @@ npx nocodevibe -p 4000 -e 4001  # custom both
 
 - Node.js 18+
 - [Claude CLI](https://docs.anthropic.com/en/docs/claude-code) installed and authenticated
-
-## Project structure
-
-```
-packages/nocodevibe/    # the npm package
-  cli.mjs               # CLI entry point
-  server.mjs            # editor + proxy server
-  index.html            # editor UI
-  selector.js           # element picker injected into preview
-app/                    # demo Next.js app
-```
-
-## Development
-
-```bash
-# start the demo app + editor together
-sh dev.sh
-```
 
 ## License
 

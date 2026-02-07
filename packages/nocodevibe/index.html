@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>nocodevibe</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #111111;
+      --surface-2: #1a1a1a;
+      --border: #2a2a2a;
+      --text: #fafafa;
+      --text-muted: #888;
+      --accent: #fff;
+      --accent-hover: #e0e0e0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .layout {
+      display: flex;
+      height: 100vh;
+    }
+
+    .panel-left {
+      width: 480px;
+      min-width: 380px;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+    }
+
+    .panel-right {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+    }
+
+    /* Header */
+    .header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header h1 {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      flex: 1;
+    }
+
+    .new-chat-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 6px;
+      width: 28px;
+      height: 28px;
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .new-chat-btn:hover { border-color: #444; color: var(--text); }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #333;
+      transition: background 0.3s;
+    }
+
+    .status-dot.connected { background: #22c55e; }
+    .status-dot.running { background: #f59e0b; animation: pulse 1s infinite; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Messages area */
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .messages::-webkit-scrollbar { width: 6px; }
+    .messages::-webkit-scrollbar-track { background: transparent; }
+    .messages::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+    .msg {
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 13px;
+      line-height: 1.6;
+      max-width: 100%;
+      word-wrap: break-word;
+    }
+
+    .msg.user {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      align-self: flex-end;
+    }
+
+    .msg.assistant {
+      background: transparent;
+      color: var(--text-muted);
+      font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, monospace;
+      font-size: 12px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+    }
+
+    .msg.error {
+      color: #ef4444;
+      font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, monospace;
+      font-size: 12px;
+    }
+
+    .msg.done {
+      color: #22c55e;
+      font-size: 12px;
+      padding: 8px 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* Thinking indicator */
+    .thinking {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, monospace;
+    }
+
+    .thinking .spinner {
+      display: flex;
+      gap: 3px;
+    }
+
+    .thinking .spinner span {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      animation: bounce 1.4s ease-in-out infinite;
+    }
+
+    .thinking .spinner span:nth-child(1) { animation-delay: 0s; }
+    .thinking .spinner span:nth-child(2) { animation-delay: 0.16s; }
+    .thinking .spinner span:nth-child(3) { animation-delay: 0.32s; }
+
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+      30% { transform: translateY(-4px); opacity: 1; }
+    }
+
+    /* Input area */
+    .input-area {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .input-wrapper {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+
+    textarea {
+      flex: 1;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 16px;
+      color: var(--text);
+      font-size: 13px;
+      font-family: inherit;
+      resize: none;
+      outline: none;
+      min-height: 44px;
+      max-height: 200px;
+      line-height: 1.5;
+      transition: border-color 0.2s;
+    }
+
+    textarea:focus { border-color: #444; }
+
+    textarea::placeholder { color: var(--text-muted); }
+
+    button.send {
+      background: var(--accent);
+      color: var(--bg);
+      border: none;
+      border-radius: 10px;
+      padding: 10px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      height: 44px;
+      transition: background 0.2s;
+    }
+
+    button.send:hover { background: var(--accent-hover); }
+    button.send:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* Preview panel */
+    .preview-header {
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface);
+    }
+
+    .preview-header .url {
+      font-family: "SF Mono", Menlo, monospace;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    .preview-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .refresh-btn, .cursor-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .refresh-btn:hover, .cursor-btn:hover { border-color: #444; color: var(--text); }
+
+    .cursor-btn.active {
+      border-color: #3b82f6;
+      color: #3b82f6;
+      background: rgba(59,130,246,0.1);
+    }
+
+    iframe {
+      flex: 1;
+      border: none;
+      background: white;
+    }
+
+    .welcome {
+      color: var(--text-muted);
+      font-size: 13px;
+      text-align: center;
+      margin-top: 40%;
+      line-height: 1.8;
+    }
+
+    .welcome strong {
+      color: var(--text);
+      font-size: 15px;
+      display: block;
+      margin-bottom: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <div class="panel-left">
+      <div class="header">
+        <div class="status-dot" id="statusDot"></div>
+        <h1>nocodevibe</h1>
+        <button class="new-chat-btn" id="newChatBtn" title="New Chat">+</button>
+      </div>
+      <div class="messages" id="messages">
+        <div class="welcome">
+          <strong>What would you like to build?</strong>
+          Describe your changes and they'll be applied live.
+        </div>
+      </div>
+      <div class="input-area">
+        <div class="input-wrapper">
+          <textarea
+            id="promptInput"
+            placeholder="Ask nocodevibe to make changes..."
+            rows="1"
+          ></textarea>
+          <button class="send" id="sendBtn">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-right">
+      <div class="preview-header">
+        <span class="url" id="previewUrl"></span>
+        <div class="preview-actions">
+          <button class="cursor-btn" id="cursorBtn" title="Select an element">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 4l7.07 17 2.51-7.39L21 11.07z"/>
+            </svg>
+          </button>
+          <button class="refresh-btn" id="refreshBtn">Refresh</button>
+        </div>
+      </div>
+      <iframe id="preview"></iframe>
+    </div>
+  </div>
+
+  <script>
+    const cfg = window.__NOCODEVIBE__ || { targetPort: 3000, editorPort: 3001 };
+    const DIRECT_URL = `http://localhost:${cfg.targetPort}`;
+    const PROXY_URL = `http://localhost:${cfg.editorPort}/preview`;
+
+    const messagesEl = document.getElementById("messages");
+    const promptInput = document.getElementById("promptInput");
+    const sendBtn = document.getElementById("sendBtn");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const preview = document.getElementById("preview");
+    const statusDot = document.getElementById("statusDot");
+    const previewUrl = document.getElementById("previewUrl");
+
+    previewUrl.textContent = `localhost:${cfg.targetPort}`;
+    preview.src = DIRECT_URL;
+
+    let ws;
+    let isRunning = false;
+    let currentAssistantMsg = null;
+    let thinkingEl = null;
+    let hasReceivedText = false;
+
+    const THINKING_MESSAGES = [
+      "Thinking",
+      "Reading files",
+      "Analyzing codebase",
+      "Writing code",
+      "Applying changes",
+    ];
+
+    function connect() {
+      ws = new WebSocket(`ws://${location.host}`);
+
+      ws.onopen = () => {
+        statusDot.classList.add("connected");
+        statusDot.classList.remove("running");
+      };
+
+      ws.onclose = () => {
+        statusDot.classList.remove("connected", "running");
+        setTimeout(connect, 2000);
+      };
+
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        handleMessage(msg);
+      };
+    }
+
+    function showThinking(label) {
+      removeThinking();
+      thinkingEl = document.createElement("div");
+      thinkingEl.className = "thinking";
+      thinkingEl.innerHTML = `
+        <div class="spinner"><span></span><span></span><span></span></div>
+        <span>${label}</span>
+      `;
+      messagesEl.appendChild(thinkingEl);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function removeThinking() {
+      if (thinkingEl) {
+        thinkingEl.remove();
+        thinkingEl = null;
+      }
+    }
+
+    function reattachThinking() {
+      if (thinkingEl) {
+        messagesEl.appendChild(thinkingEl);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+    }
+
+    function renderHistory(messages) {
+      const welcome = messagesEl.querySelector(".welcome");
+      if (welcome && messages.length > 0) welcome.remove();
+      for (const m of messages) {
+        addMessage(m.text, m.role === "user" ? "user" : "assistant");
+      }
+    }
+
+    function handleMessage(msg) {
+      switch (msg.type) {
+        case "history":
+          renderHistory(msg.messages);
+          break;
+
+        case "start":
+          isRunning = true;
+          hasReceivedText = false;
+          statusDot.classList.add("running");
+          currentAssistantMsg = null;
+          showThinking("Thinking");
+          break;
+
+        case "claude": {
+          const d = msg.data;
+
+          // Update thinking label based on tool usage — also start a new text block
+          if (d.type === "content_block_start" && d.content_block?.type === "tool_use") {
+            currentAssistantMsg = null;
+            const name = d.content_block.name || "";
+            if (/read|glob|grep/i.test(name)) showThinking("Reading files");
+            else if (/edit|write/i.test(name)) showThinking("Writing code");
+            else if (/bash/i.test(name)) showThinking("Running command");
+            else showThinking("Working");
+          }
+
+          // New text content block — start fresh element
+          if (d.type === "content_block_start" && d.content_block?.type === "text") {
+            currentAssistantMsg = null;
+          }
+
+          // Show text deltas
+          if (d.type === "content_block_delta" && d.delta?.text) {
+            hasReceivedText = true;
+            appendAssistantText(d.delta.text);
+            reattachThinking();
+          }
+
+          // Show text from assistant message content
+          if (d.type === "assistant" && d.message?.content) {
+            currentAssistantMsg = null;
+            for (const block of d.message.content) {
+              if (block.type === "text" && block.text) {
+                hasReceivedText = true;
+                appendAssistantText(block.text);
+                reattachThinking();
+                currentAssistantMsg = null;
+              }
+            }
+          }
+          break;
+        }
+
+        case "text":
+          break;
+
+        case "error":
+          break;
+
+        case "done":
+          isRunning = false;
+          removeThinking();
+          statusDot.classList.remove("running");
+          currentAssistantMsg = null;
+          addMessage(
+            msg.code === 0 ? "Done" : `Done (exit code: ${msg.code})`,
+            "done"
+          );
+          sendBtn.disabled = false;
+          if (cursorMode) setCursorMode(false);
+          else setTimeout(() => preview.src = preview.src, 1500);
+          break;
+      }
+    }
+
+    function appendAssistantText(text) {
+      if (!currentAssistantMsg) {
+        currentAssistantMsg = document.createElement("div");
+        currentAssistantMsg.className = "msg assistant";
+        messagesEl.appendChild(currentAssistantMsg);
+      }
+      currentAssistantMsg.textContent += text;
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function addMessage(text, cls) {
+      const el = document.createElement("div");
+      el.className = `msg ${cls}`;
+      el.textContent = text;
+      messagesEl.appendChild(el);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function send() {
+      const text = promptInput.value.trim();
+      if (!text || isRunning) return;
+
+      const welcome = messagesEl.querySelector(".welcome");
+      if (welcome) welcome.remove();
+
+      addMessage(text, "user");
+      ws.send(JSON.stringify({ type: "prompt", text }));
+      promptInput.value = "";
+      promptInput.style.height = "auto";
+      sendBtn.disabled = true;
+    }
+
+    sendBtn.addEventListener("click", send);
+
+    promptInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        send();
+      }
+    });
+
+    promptInput.addEventListener("input", () => {
+      promptInput.style.height = "auto";
+      promptInput.style.height = Math.min(promptInput.scrollHeight, 200) + "px";
+    });
+
+    refreshBtn.addEventListener("click", () => {
+      preview.src = preview.src;
+    });
+
+    const newChatBtn = document.getElementById("newChatBtn");
+    newChatBtn.addEventListener("click", () => {
+      ws.send(JSON.stringify({ type: "new-session" }));
+      messagesEl.innerHTML = `<div class="welcome">
+        <strong>What would you like to build?</strong>
+        Describe your changes and they'll be applied live.
+      </div>`;
+      sendBtn.disabled = false;
+    });
+
+    // Cursor element selector
+    const cursorBtn = document.getElementById("cursorBtn");
+    let cursorMode = false;
+
+    function setCursorMode(on) {
+      cursorMode = on;
+      cursorBtn.classList.toggle("active", on);
+      preview.src = on ? PROXY_URL : DIRECT_URL;
+    }
+
+    cursorBtn.addEventListener("click", () => {
+      setCursorMode(!cursorMode);
+    });
+
+    window.addEventListener("message", async (e) => {
+      if (e.data?.type === "element-selected") {
+        setCursorMode(false);
+
+        const params = new URLSearchParams();
+        if (e.data.className) params.set("className", e.data.className);
+        if (e.data.id) params.set("id", e.data.id);
+        if (e.data.textContent) params.set("text", e.data.textContent);
+        if (e.data.style) params.set("style", e.data.style);
+
+        let ref = "";
+        try {
+          const resp = await fetch("/find-source?" + params);
+          const result = await resp.json();
+          if (result && result.file) {
+            ref = result.file + ":" + result.line;
+          }
+        } catch {}
+
+        const text = promptInput.value;
+        const insertion = ref || e.data.html;
+        promptInput.value = text + " " + insertion + " ";
+        promptInput.style.height = "auto";
+        promptInput.style.height = Math.min(promptInput.scrollHeight, 200) + "px";
+        promptInput.focus();
+      } else if (e.data?.type === "selector-cancel") {
+        setCursorMode(false);
+      }
+    });
+
+    connect();
+  </script>
+</body>
+</html>

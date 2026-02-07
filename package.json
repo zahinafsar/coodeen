@@ -1,12 +1,13 @@
 {
-  "name": "v0-local",
+  "name": "nocodevibe",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "editor": "sh dev.sh"
   },
   "dependencies": {
     "next": "16.1.4",

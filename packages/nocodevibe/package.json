@@ -1,0 +1,18 @@
+{
+  "name": "nocodevibe",
+  "version": "0.1.1",
+  "type": "module",
+  "bin": {
+    "nocodevibe": "./cli.mjs"
+  },
+  "files": [
+    "cli.mjs",
+    "server.mjs",
+    "index.html",
+    "selector.js",
+    "README.md"
+  ],
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
