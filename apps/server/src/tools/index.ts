@@ -6,6 +6,7 @@ import { createGrepTool } from "./grep.js";
 import { createWebFetchTool } from "./webfetch.js";
 import { createWebSearchTool } from "./websearch.js";
 import { createCodeSearchTool } from "./codesearch.js";
+import { createImageFetchTool } from "./imagefetch.js";
 import { createPlanWriteTool, createPlanExitTool } from "./plan.js";
 
 /**
@@ -17,6 +18,7 @@ export function createTools(
   projectDir: string,
   mode: "agent" | "plan" = "agent",
   planPath?: string,
+  supportsVision = true,
 ) {
   const base = {
     read: createReadTool(projectDir),
@@ -25,6 +27,7 @@ export function createTools(
     webfetch: createWebFetchTool(),
     websearch: createWebSearchTool(),
     codesearch: createCodeSearchTool(),
+    imagefetch: createImageFetchTool(supportsVision),
   };
 
   if (mode === "plan" && planPath) {

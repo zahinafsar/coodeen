@@ -3,6 +3,7 @@ import { resolveProvider, isResolveError } from "./providers.js";
 import { message as messageDb } from "../db/index.js";
 import { createTools } from "../tools/index.js";
 import { getPlanPath, readPlan } from "../tools/plan.js";
+import { modelSupportsImage } from "./modelsConfig.js";
 
 /** SSE event types streamed to the client */
 export type AgentEvent =
@@ -129,7 +130,8 @@ export async function* runAgent({
   }
 
   // 4. Create tools scoped to the project directory (plan mode gets plan_write + plan_exit)
-  const tools = createTools(projectDir, mode, planPath);
+  const supportsVision = await modelSupportsImage(providerId, modelId);
+  const tools = createTools(projectDir, mode, planPath, supportsVision);
 
   // 4. Stream via Vercel AI SDK
   const result = streamText({

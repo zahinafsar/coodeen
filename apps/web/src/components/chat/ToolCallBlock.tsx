@@ -11,13 +11,13 @@ import {
   Pencil,
   FilePlus,
   Loader2,
-  Check,
   Terminal,
   Globe,
   Code,
   Link,
   ClipboardList,
   LogOut,
+  Image,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -39,6 +39,7 @@ const TOOL_META: Record<string, ToolMeta> = {
   webfetch: { icon: Link, label: "Fetch URL", color: "text-teal-400" },
   websearch: { icon: Globe, label: "Web Search", color: "text-cyan-400" },
   codesearch: { icon: Code, label: "Code Search", color: "text-orange-400" },
+  imagefetch: { icon: Image, label: "Fetch Image", color: "text-pink-400" },
   plan_write: { icon: ClipboardList, label: "Write Plan", color: "text-indigo-400" },
   plan_exit: { icon: LogOut, label: "Exit Plan Mode", color: "text-rose-400" },
 };
@@ -82,6 +83,8 @@ function getSubtitle(tc: ToolCall): string {
       return String(input.query ?? "");
     case "codesearch":
       return String(input.query ?? "");
+    case "imagefetch":
+      return String(input.url ?? "");
     case "plan_write":
       return "Updating plan...";
     case "plan_exit":
@@ -150,6 +153,15 @@ export function ToolCallBlock({ toolCall }: ToolCallBlockProps) {
         ? toolCall.output
         : JSON.stringify(toolCall.output, null, 2);
 
+  const imageOutput =
+    toolCall.name === "imagefetch" && toolCall.output && typeof toolCall.output === "object"
+      ? (toolCall.output as { base64?: string; mime?: string })
+      : null;
+  const imageDataUrl =
+    imageOutput?.base64 && imageOutput?.mime
+      ? `data:${imageOutput.mime};base64,${imageOutput.base64}`
+      : null;
+
   const hasExpandableContent = hasOutput && outputStr.length > 0;
 
   return (
@@ -213,9 +225,19 @@ export function ToolCallBlock({ toolCall }: ToolCallBlockProps) {
 
       {hasExpandableContent && (
         <CollapsibleContent>
-          <pre className="mx-2 mb-1.5 font-mono text-[11px] text-muted-foreground bg-muted/50 rounded-md p-2.5 overflow-x-auto whitespace-pre-wrap break-all max-h-[240px] overflow-y-auto leading-relaxed">
-            {outputStr}
-          </pre>
+          {imageDataUrl ? (
+            <div className="mx-2 mb-1.5">
+              <img
+                src={imageDataUrl}
+                alt="Fetched image"
+                className="rounded-md max-w-full max-h-[240px] object-contain"
+              />
+            </div>
+          ) : (
+            <pre className="mx-2 mb-1.5 font-mono text-[11px] text-muted-foreground bg-muted/50 rounded-md p-2.5 overflow-x-auto whitespace-pre-wrap break-all max-h-[240px] overflow-y-auto leading-relaxed">
+              {outputStr}
+            </pre>
+          )}
         </CollapsibleContent>
       )}
     </Collapsible>

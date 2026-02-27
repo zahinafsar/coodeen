@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback, type KeyboardEvent, type FormEvent } from "react";
-import { Send, Square, X, Folder, Cpu } from "lucide-react";
+import { useState, useRef, useCallback, type KeyboardEvent, type FormEvent, type ClipboardEvent, type ChangeEvent } from "react";
+import { Send, Square, X, Folder, Cpu, ImagePlus } from "lucide-react";
 import { useElementSelection } from "../../contexts/ElementSelectionContext";
 import type { ConnectedModelsItem } from "../../lib/api";
 import type { Mode } from "../../lib/types";
@@ -15,6 +15,28 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+
+/** Match any http(s) URL in text */
+const URL_RE = /https?:\/\/\S+/gi;
+
+/** Try to fetch a URL as an image and return a base64 data URL, or null on failure */
+async function fetchImageAsDataUrl(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.startsWith("image/")) return null;
+    const blob = await res.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
 
 export interface ModelSelection {
   providerId: string;
@@ -51,6 +73,7 @@ export function PromptInput({
   onModeChange,
 }: PromptInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [folderPickerOpen, setFolderPickerOpen] = useState(false);
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const {
@@ -58,15 +81,22 @@ export function PromptInput({
     removeSelection,
     clearSelections,
     screenshots,
+    addScreenshot,
     removeScreenshot,
     clearScreenshots,
   } = useElementSelection();
 
   const handleSubmit = useCallback(
-    (e?: FormEvent) => {
+    async (e?: FormEvent) => {
       e?.preventDefault();
       const value = textareaRef.current?.value.trim();
       if (!value || disabled) return;
+
+      // Clear input immediately so it feels responsive
+      if (textareaRef.current) {
+        textareaRef.current.value = "";
+        textareaRef.current.style.height = "auto";
+      }
 
       let finalPrompt = value;
       if (selections.length > 0) {
@@ -77,18 +107,32 @@ export function PromptInput({
         clearSelections();
       }
 
-      const screenshotUrls =
-        screenshots.length > 0
-          ? screenshots.map((s) => s.dataUrl)
-          : undefined;
+      // Collect images from screenshots (pasted / file-picked)
+      const allImages = screenshots.map((s) => s.dataUrl);
 
-      onSubmit(finalPrompt, screenshotUrls);
-      clearScreenshots();
-
-      if (textareaRef.current) {
-        textareaRef.current.value = "";
-        textareaRef.current.style.height = "auto";
+      // Find URLs in prompt text, try to fetch each as an image
+      const urlMatches = value.match(URL_RE);
+      if (urlMatches) {
+        const unique = [...new Set(urlMatches)];
+        const results = await Promise.all(unique.map(fetchImageAsDataUrl));
+        const fetchedUrls: string[] = [];
+        for (let i = 0; i < unique.length; i++) {
+          if (results[i] != null) {
+            allImages.push(results[i] as string);
+            fetchedUrls.push(unique[i]);
+          }
+        }
+        // Strip successfully fetched image URLs from the prompt text
+        if (fetchedUrls.length > 0) {
+          for (const url of fetchedUrls) {
+            finalPrompt = finalPrompt.replaceAll(url, "");
+          }
+          finalPrompt = finalPrompt.replace(/\s{2,}/g, " ").trim();
+        }
       }
+
+      onSubmit(finalPrompt, allImages.length > 0 ? allImages : undefined);
+      clearScreenshots();
     },
     [onSubmit, disabled, selections, clearSelections, screenshots, clearScreenshots],
   );
@@ -109,6 +153,50 @@ export function PromptInput({
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
   }, []);
+
+  // Paste image from clipboard
+  const handlePaste = useCallback(
+    (e: ClipboardEvent<HTMLTextAreaElement>) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (!file) continue;
+          const reader = new FileReader();
+          reader.onload = () => {
+            if (typeof reader.result === "string") {
+              addScreenshot(reader.result);
+            }
+          };
+          reader.readAsDataURL(file);
+        }
+      }
+    },
+    [addScreenshot],
+  );
+
+  // Select image from file system
+  const handleFileSelect = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (!files) return;
+      for (const file of files) {
+        if (!file.type.startsWith("image/")) continue;
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === "string") {
+            addScreenshot(reader.result);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+      // Reset so the same file can be selected again
+      e.target.value = "";
+    },
+    [addScreenshot],
+  );
 
   const isLanding = variant === "landing";
   const hasModels = connectedModels.length > 0;
@@ -175,7 +263,25 @@ export function PromptInput({
         </div>
       )}
 
-      <div className="flex items-end gap-2">
+      <div className="flex items-center gap-2">
+        {/* File picker button */}
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className="p-1.5 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0"
+          title="Upload image"
+        >
+          <ImagePlus className="h-4 w-4" />
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={handleFileSelect}
+        />
+
         <Textarea
           ref={textareaRef}
           className={cn(
@@ -187,6 +293,7 @@ export function PromptInput({
           disabled={disabled}
           onKeyDown={handleKeyDown}
           onInput={handleInput}
+          onPaste={handlePaste}
         />
         {streaming ? (
           <Button

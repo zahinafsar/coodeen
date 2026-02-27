@@ -33,7 +33,7 @@ providers.get("/models/:providerName", async (c) => {
     const supported = [...Object.keys(config.providers), config.free.provider].join(", ");
     return c.json({ error: `Unknown provider: ${name}. Supported: ${supported}` }, 404);
   }
-  return c.json({ provider: name, models: entry.models });
+  return c.json({ provider: name, models: entry.models.map((m) => m.id) });
 });
 
 // GET /api/providers/connected-models — all models grouped by connected provider
@@ -52,7 +52,7 @@ providers.get("/connected-models", async (c) => {
   for (const p of list) {
     const entry = config.providers[p.id];
     if (entry) {
-      result.push({ providerId: p.id, label: entry.label, models: entry.models });
+      result.push({ providerId: p.id, label: entry.label, models: entry.models.map((m) => m.id) });
     }
   }
 

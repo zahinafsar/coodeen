@@ -27,6 +27,7 @@ export interface ConnectedModelsItem {
 export interface FreeModel {
   id: string;
   name: string;
+  input: string[];
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -42,7 +43,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export interface ModelsConfig {
-  providers: Record<string, { label: string; models: string[] }>;
+  providers: Record<string, { label: string; models: { id: string; input: string[] }[] }>;
   free: {
     provider: string;
     label: string;
