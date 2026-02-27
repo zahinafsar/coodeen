@@ -12,6 +12,7 @@
     "openai": {
       "label": "OpenAI",
       "models": [
+        "gpt-5.3-codex",
         "gpt-4.1",
         "gpt-4.1-mini",
         "gpt-4.1-nano",
