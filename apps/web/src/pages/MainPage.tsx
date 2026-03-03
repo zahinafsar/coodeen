@@ -7,6 +7,7 @@ import {
 import { ChatPanel } from "../components/chat/ChatPanel";
 import { PreviewPanel } from "../components/preview/PreviewPanel";
 import { FileExplorerPanel } from "../components/files/FileExplorerPanel";
+import { GitManagerPanel } from "../components/git/GitManagerPanel";
 import { ElementSelectionProvider } from "../contexts/ElementSelectionContext";
 import { api } from "../lib/api";
 import { cn } from "@/lib/utils";
@@ -14,7 +15,7 @@ import type { FileReference } from "../lib/types";
 
 const DEFAULT_PREVIEW_URL = "http://localhost:3000";
 
-type RightTab = "preview" | "files";
+type RightTab = "preview" | "files" | "git";
 
 export function MainPage() {
   const [previewUrl, setPreviewUrl] = useState(DEFAULT_PREVIEW_URL);
@@ -108,6 +109,18 @@ export function MainPage() {
               >
                 Files
               </button>
+              <button
+                type="button"
+                onClick={() => setRightTab("git")}
+                className={cn(
+                  "px-4 py-2 text-sm font-medium transition-colors border-b-2",
+                  rightTab === "git"
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Git
+              </button>
             </div>
             {/* Tab content */}
             <div className="flex-1 min-h-0">
@@ -116,11 +129,13 @@ export function MainPage() {
                   url={previewUrl}
                   onUrlChange={handlePreviewUrlChange}
                 />
-              ) : (
+              ) : rightTab === "files" ? (
                 <FileExplorerPanel
                   projectDir={projectDir}
                   onFileReference={handleFileReference}
                 />
+              ) : (
+                <GitManagerPanel projectDir={projectDir} />
               )}
             </div>
           </div>

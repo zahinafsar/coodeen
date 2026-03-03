@@ -304,4 +304,76 @@ export const api = {
       method: "DELETE",
       body: JSON.stringify({ name }),
     }),
+
+  // ── Git ────────────────────────────────────────────
+
+  /** Get git status for a directory. */
+  getGitStatus: (dir: string) =>
+    request<{
+      isGitRepo: boolean;
+      branch?: string;
+      changes?: Array<{ status: string; file: string }>;
+      ahead?: number;
+      behind?: number;
+      isMerging?: boolean;
+      directory?: string;
+      error?: string;
+    }>(`/api/git/status?dir=${encodeURIComponent(dir)}`),
+
+  /** List all branches. */
+  getGitBranches: (dir: string) =>
+    request<{
+      branches: Array<{
+        name: string;
+        isCurrent: boolean;
+        isRemote: boolean;
+        fullRef: string;
+      }>;
+      currentBranch: string;
+    }>(`/api/git/branches?dir=${encodeURIComponent(dir)}`),
+
+  /** Checkout a branch. */
+  gitCheckout: (dir: string, branch: string) =>
+    request<{ ok: boolean; branch: string }>("/api/git/checkout", {
+      method: "POST",
+      body: JSON.stringify({ dir, branch }),
+    }),
+
+  /** Create a new branch. */
+  gitCreateBranch: (dir: string, branch: string) =>
+    request<{ ok: boolean; branch: string }>("/api/git/create-branch", {
+      method: "POST",
+      body: JSON.stringify({ dir, branch }),
+    }),
+
+  /** Delete a branch. */
+  gitDeleteBranch: (dir: string, branch: string, force: boolean = false) =>
+    request<{ ok: boolean; branch: string }>("/api/git/delete-branch", {
+      method: "POST",
+      body: JSON.stringify({ dir, branch, force }),
+    }),
+
+  /** Merge a branch. */
+  gitMerge: (dir: string, branch: string) =>
+    request<{
+      ok: boolean;
+      merged?: boolean;
+      hasConflicts?: boolean;
+      error?: string;
+    }>("/api/git/merge", {
+      method: "POST",
+      body: JSON.stringify({ dir, branch }),
+    }),
+
+  /** Get merge conflicts. */
+  getGitConflicts: (dir: string) =>
+    request<{
+      conflicts: Array<{ file: string; type: string }>;
+    }>(`/api/git/conflicts?dir=${encodeURIComponent(dir)}`),
+
+  /** Get git diff. */
+  getGitDiff: (dir: string, file?: string) =>
+    request<{ diff: string }>(
+      `/api/git/diff?dir=${encodeURIComponent(dir)}${file ? `&file=${encodeURIComponent(file)}` : ""}`
+    ),
 };
