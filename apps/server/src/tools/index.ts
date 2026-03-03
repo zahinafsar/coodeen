@@ -10,6 +10,7 @@ import { createImageFetchTool } from "./imagefetch.js";
 import { createPlanWriteTool, createPlanExitTool } from "./plan.js";
 import { createQuestionTool } from "./question.js";
 import { createSkillTool } from "./skill.js";
+import { createBashTool } from "./bash.js";
 
 /**
  * Create all tools scoped to a specific project directory.
@@ -26,6 +27,7 @@ export function createTools(
     read: createReadTool(projectDir),
     glob: createGlobTool(projectDir),
     grep: createGrepTool(projectDir),
+    bash: createBashTool(projectDir),
     webfetch: createWebFetchTool(),
     websearch: createWebSearchTool(),
     codesearch: createCodeSearchTool(),

@@ -139,7 +139,7 @@ export async function* runAgent({
       ? `\n\nYou have access to specialized skills. When a task matches one of these skills, use the \`skill\` tool to load its instructions:\n${skills.map((s) => `- **${s.name}**: ${s.description}`).join("\n")}`
       : "";
 
-    systemPrompt = `You are Coodeen, a coding assistant. You are running on the ${modelId} model. You have full filesystem access — you can read, write, and edit any file on the user's machine. The user's home directory is ${home}. The current project directory is ${projectDir}. Relative paths resolve against the project directory. Always use absolute paths when referencing files outside the project directory. You can search the web with the websearch tool for current information, and use codesearch for programming documentation, API references, and code examples.${planContext}${skillContext}`;
+    systemPrompt = `You are Coodeen, a coding assistant. You are running on the ${modelId} model. You have full filesystem access — you can read, write, and edit any file on the user's machine. You can also run shell commands using the bash tool. The user's home directory is ${home}. The current project directory is ${projectDir}. Relative paths resolve against the project directory. Always use absolute paths when referencing files outside the project directory. You can search the web with the websearch tool for current information, and use codesearch for programming documentation, API references, and code examples.${planContext}${skillContext}`;
   }
 
   // 4. Create tools scoped to the project directory (plan mode gets plan_write + plan_exit)
