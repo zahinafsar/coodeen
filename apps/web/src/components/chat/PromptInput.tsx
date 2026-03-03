@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, type KeyboardEvent, type FormEvent, type ClipboardEvent, type ChangeEvent, type DragEvent } from "react";
 import { Send, Square, X, Folder, Cpu, ImagePlus, FileCode } from "lucide-react";
 import { useElementSelection } from "../../contexts/ElementSelectionContext";
+import { useProject } from "../../contexts/ProjectContext";
 import type { ConnectedModelsItem } from "../../lib/api";
 import type { Mode, FileReference } from "../../lib/types";
 import { FolderPickerDialog } from "./FolderPickerDialog";
@@ -52,10 +53,6 @@ interface PromptInputProps {
   connectedModels?: ConnectedModelsItem[];
   selectedModel?: ModelSelection | null;
   onModelChange?: (selection: ModelSelection) => void;
-  projectDir?: string;
-  onProjectDirChange?: (dir: string) => void;
-  mode?: Mode;
-  onModeChange?: (mode: Mode) => void;
   fileReferences?: FileReference[];
   onAddFileReference?: (ref: FileReference) => void;
   onRemoveFileReference?: (index: number) => void;
@@ -71,10 +68,6 @@ export function PromptInput({
   connectedModels = [],
   selectedModel,
   onModelChange,
-  projectDir = "",
-  onProjectDirChange,
-  mode = "agent",
-  onModeChange,
   fileReferences = [],
   onAddFileReference,
   onRemoveFileReference,
@@ -85,6 +78,7 @@ export function PromptInput({
   const [folderPickerOpen, setFolderPickerOpen] = useState(false);
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const { aiMode, setAiMode, projectDir, setProjectDir } = useProject();
   const {
     selections,
     removeSelection,
@@ -414,14 +408,14 @@ export function PromptInput({
               type="button"
               className="flex items-center gap-1.5 h-7 px-2 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-md border border-border hover:bg-accent"
             >
-              {mode === "agent" ? "Agent" : "Plan"}
+              {aiMode === "agent" ? "Agent" : "Plan"}
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
-            <DropdownMenuItem onClick={() => onModeChange?.("agent")}>
+            <DropdownMenuItem onClick={() => setAiMode("agent")}>
               Agent
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onModeChange?.("plan")}>
+            <DropdownMenuItem onClick={() => setAiMode("plan")}>
               Plan
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -459,7 +453,7 @@ export function PromptInput({
       <FolderPickerDialog
         open={folderPickerOpen}
         onOpenChange={setFolderPickerOpen}
-        onSelect={(path) => onProjectDirChange?.(path)}
+        onSelect={(path) => setProjectDir(path)}
         initialPath={projectDir || undefined}
       />
     </form>

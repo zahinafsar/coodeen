@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import type { ChatMessage, Message, Session, ToolCall, Mode, QuestionInfo, FileReference } from "../../lib/types";
 import { api } from "../../lib/api";
 import type { ConnectedModelsItem } from "../../lib/api";
+import { useProject } from "../../contexts/ProjectContext";
 import { MessageList } from "./MessageList";
 import { PromptInput, type ModelSelection } from "./PromptInput";
 import { SessionDrawer } from "./SessionDrawer";
@@ -31,8 +32,6 @@ function dbMsgToChatMsg(m: Message): ChatMessage {
 interface ChatPanelProps {
   previewUrl: string;
   onPreviewUrlChange: (url: string) => void;
-  projectDir: string;
-  onProjectDirChange: (dir: string) => void;
   fileReferences?: FileReference[];
   onAddFileReference?: (ref: FileReference) => void;
   onRemoveFileReference?: (index: number) => void;
@@ -42,8 +41,6 @@ interface ChatPanelProps {
 export function ChatPanel({
   previewUrl,
   onPreviewUrlChange,
-  projectDir,
-  onProjectDirChange,
   fileReferences = [],
   onAddFileReference,
   onRemoveFileReference,
@@ -51,6 +48,7 @@ export function ChatPanel({
 }: ChatPanelProps) {
   const { sessionId: urlSessionId } = useParams<{ sessionId?: string }>();
   const navigate = useNavigate();
+  const { aiMode, setAiMode, projectDir, setProjectDir } = useProject();
 
   const [sessionId, setSessionId] = useState<string | null>(urlSessionId ?? null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -61,9 +59,6 @@ export function ChatPanel({
   // Model selection state
   const [connectedModels, setConnectedModels] = useState<ConnectedModelsItem[]>([]);
   const [selectedModel, setSelectedModel] = useState<ModelSelection | null>(null);
-
-  // Mode state
-  const [mode, setMode] = useState<Mode>("agent");
 
   // Pending question state (for plan mode question tool)
   const [pendingQuestion, setPendingQuestion] = useState<{
@@ -112,7 +107,7 @@ export function ChatPanel({
           setSelectedModel({ providerId: session.providerId, modelId: session.modelId });
         }
         if (session.projectDir) {
-          onProjectDirChange(session.projectDir);
+          setProjectDir(session.projectDir);
         }
         if (session.previewUrl) {
           onPreviewUrlChange(session.previewUrl);
@@ -124,7 +119,7 @@ export function ChatPanel({
         navigate("/", { replace: true });
       }
     })();
-  }, [urlSessionId, navigate, onPreviewUrlChange, onProjectDirChange]);
+  }, [urlSessionId, navigate, onPreviewUrlChange]);
 
   const loadSession = useCallback(
     async (session: Session) => {
@@ -136,7 +131,7 @@ export function ChatPanel({
         setSelectedModel({ providerId: session.providerId, modelId: session.modelId });
       }
       if (session.projectDir) {
-        onProjectDirChange(session.projectDir);
+        setProjectDir(session.projectDir);
       }
       if (session.previewUrl) {
         onPreviewUrlChange(session.previewUrl);
@@ -149,7 +144,7 @@ export function ChatPanel({
         toast.error(err instanceof Error ? err.message : "Failed to load messages");
       }
     },
-    [navigate, onPreviewUrlChange, onProjectDirChange],
+    [navigate, onPreviewUrlChange],
   );
 
   const createSession = useCallback(async () => {
@@ -189,17 +184,6 @@ export function ChatPanel({
     [sessionId],
   );
 
-  // Persist projectDir to session
-  const handleProjectDirChange = useCallback(
-    (dir: string) => {
-      onProjectDirChange(dir);
-      if (sessionId) {
-        api.updateSession(sessionId, { projectDir: dir }).catch(() => {});
-      }
-    },
-    [sessionId, onProjectDirChange],
-  );
-
   // Persist previewUrl to session when it changes
   const prevPreviewUrl = useRef(previewUrl);
   useEffect(() => {
@@ -210,6 +194,17 @@ export function ChatPanel({
       }
     }
   }, [previewUrl, sessionId]);
+
+  // Persist projectDir to session when it changes
+  const prevProjectDir = useRef(projectDir);
+  useEffect(() => {
+    if (projectDir !== prevProjectDir.current) {
+      prevProjectDir.current = projectDir;
+      if (sessionId) {
+        api.updateSession(sessionId, { projectDir }).catch(() => {});
+      }
+    }
+  }, [projectDir, sessionId]);
 
   const sendMessage = useCallback(
     async (prompt: string, screenshots?: string[]) => {
@@ -261,7 +256,7 @@ export function ChatPanel({
           selectedModel.modelId,
           projectDir || undefined,
           screenshots,
-          mode,
+          aiMode,
         );
         abortRef.current = stream.abort;
 
@@ -312,7 +307,7 @@ export function ChatPanel({
               break;
             case "mode_switch":
               // Auto-switch mode and flag for auto-execution after stream ends
-              setMode(event.mode as Mode);
+              setAiMode(event.mode as Mode);
               pendingModeSwitch = true;
               break;
             case "done":
@@ -433,7 +428,7 @@ export function ChatPanel({
         }
       }
     },
-    [sessionId, selectedModel, projectDir, previewUrl, mode],
+    [sessionId, selectedModel, projectDir, previewUrl, aiMode],
   );
 
   const isEmpty = messages.length === 0;
@@ -485,10 +480,6 @@ export function ChatPanel({
               connectedModels={connectedModels}
               selectedModel={selectedModel}
               onModelChange={handleModelChange}
-              projectDir={projectDir}
-              onProjectDirChange={handleProjectDirChange}
-              mode={mode}
-              onModeChange={setMode}
               fileReferences={fileReferences}
               onAddFileReference={onAddFileReference}
               onRemoveFileReference={onRemoveFileReference}
@@ -506,10 +497,6 @@ export function ChatPanel({
               connectedModels={connectedModels}
               selectedModel={selectedModel}
               onModelChange={handleModelChange}
-              projectDir={projectDir}
-              onProjectDirChange={handleProjectDirChange}
-              mode={mode}
-              onModeChange={setMode}
               fileReferences={fileReferences}
               onAddFileReference={onAddFileReference}
               onRemoveFileReference={onRemoveFileReference}

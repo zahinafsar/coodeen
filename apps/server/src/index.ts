@@ -27,6 +27,7 @@ import { configRoutes } from "./routes/config.js";
 import { fs } from "./routes/fs.js";
 import { skills as skillsRoute } from "./routes/skills.js";
 import { git } from "./routes/git.js";
+import { actions } from "./routes/actions.js";
 import { proxy } from "./routes/proxy.js";
 
 const app = new Hono();
@@ -73,6 +74,9 @@ app.route("/api/skills", skillsRoute);
 
 // Git management
 app.route("/api/git", git);
+
+// Actions
+app.route("/api/actions", actions);
 
 // Editor (built dist)
 app.route("/", proxy);

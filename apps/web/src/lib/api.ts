@@ -376,4 +376,24 @@ export const api = {
     request<{ diff: string }>(
       `/api/git/diff?dir=${encodeURIComponent(dir)}${file ? `&file=${encodeURIComponent(file)}` : ""}`
     ),
+
+  // ── Actions ────────────────────────────────────────
+
+  /** Get custom actions from coodeen.json. */
+  getActions: (dir: string) =>
+    request<{
+      ok: boolean;
+      actions: Array<{ label: string; script: string }>;
+      name?: string;
+    }>(`/api/actions/config?dir=${encodeURIComponent(dir)}`),
+
+  /** Run a custom action script. */
+  runAction: (dir: string, script: string) =>
+    request<{ ok: boolean; output?: string; error?: string }>(
+      "/api/actions/run",
+      {
+        method: "POST",
+        body: JSON.stringify({ dir, script }),
+      }
+    ),
 };

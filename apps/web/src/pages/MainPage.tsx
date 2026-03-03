@@ -9,6 +9,7 @@ import { PreviewPanel } from "../components/preview/PreviewPanel";
 import { FileExplorerPanel } from "../components/files/FileExplorerPanel";
 import { GitManagerPanel } from "../components/git/GitManagerPanel";
 import { ElementSelectionProvider } from "../contexts/ElementSelectionContext";
+import { useProject } from "../contexts/ProjectContext";
 import { api } from "../lib/api";
 import { cn } from "@/lib/utils";
 import type { FileReference } from "../lib/types";
@@ -18,17 +19,13 @@ const DEFAULT_PREVIEW_URL = "http://localhost:3000";
 type RightTab = "preview" | "files" | "git";
 
 export function MainPage() {
+  const { projectDir, setProjectDir } = useProject();
   const [previewUrl, setPreviewUrl] = useState(DEFAULT_PREVIEW_URL);
-  const [projectDir, setProjectDir] = useState("");
   const [rightTab, setRightTab] = useState<RightTab>("preview");
   const [fileReferences, setFileReferences] = useState<FileReference[]>([]);
 
   const handlePreviewUrlChange = useCallback((url: string) => {
     setPreviewUrl(url);
-  }, []);
-
-  const handleProjectDirChange = useCallback((dir: string) => {
-    setProjectDir(dir);
   }, []);
 
   const handleFileReference = useCallback((ref: FileReference) => {
@@ -65,6 +62,7 @@ export function MainPage() {
       .catch(() => {});
   }, []);
 
+
   return (
     <ElementSelectionProvider>
       <ResizablePanelGroup orientation="horizontal" className="h-full">
@@ -72,8 +70,6 @@ export function MainPage() {
           <ChatPanel
             previewUrl={previewUrl}
             onPreviewUrlChange={handlePreviewUrlChange}
-            projectDir={projectDir}
-            onProjectDirChange={handleProjectDirChange}
             fileReferences={fileReferences}
             onAddFileReference={handleFileReference}
             onRemoveFileReference={handleRemoveFileReference}
