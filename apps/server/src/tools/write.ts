@@ -13,11 +13,16 @@ export const createWriteTool = (projectDir: string) =>
       content: z.string().describe("The full content to write to the file"),
     }),
     execute: async ({ file_path, content }) => {
-      const resolved = resolve(projectDir, file_path);
+      try {
+        const resolved = resolve(projectDir, file_path);
 
-      await mkdir(dirname(resolved), { recursive: true });
-      await writeFile(resolved, content, "utf-8");
+        await mkdir(dirname(resolved), { recursive: true });
+        await writeFile(resolved, content, "utf-8");
 
-      return `Wrote ${content.split("\n").length} lines to ${file_path}`;
+        return `Wrote ${content.split("\n").length} lines to ${file_path}`;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return `[Error writing file: ${message}]`;
+      }
     },
   });

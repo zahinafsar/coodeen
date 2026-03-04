@@ -16,6 +16,15 @@ function nextId() {
   return `local-${++_msgId}-${Date.now()}`;
 }
 
+function generateSessionTitle(text: string): string {
+  const trimmed = text.trim().replace(/\s+/g, " ");
+  const MAX_TITLE = 60;
+  if (trimmed.length <= MAX_TITLE) {
+    return trimmed;
+  }
+  return trimmed.substring(0, MAX_TITLE).replace(/\s+$/, "") + "...";
+}
+
 function dbMsgToChatMsg(m: Message): ChatMessage {
   let images: string[] | undefined;
   if (m.images) {
@@ -214,6 +223,7 @@ export function ChatPanel({
       }
 
       let sid = sessionId;
+      const isFirstMessage = !sid;
       if (!sid) {
         try {
           const session = await api.createSession({
@@ -335,6 +345,12 @@ export function ChatPanel({
       } finally {
         setStreaming(false);
         abortRef.current = null;
+
+        // Auto-update session title from first message
+        if (isFirstMessage && sid) {
+          const title = generateSessionTitle(prompt);
+          api.updateSession(sid, { title }).catch(() => {});
+        }
       }
 
       // After plan_exit, auto-send a follow-up in agent mode to execute the plan

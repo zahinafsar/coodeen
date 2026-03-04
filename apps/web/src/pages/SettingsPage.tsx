@@ -53,7 +53,10 @@ export function SettingsPage() {
   }, [refresh]);
 
   const providerEntries = config
-    ? Object.entries(config.providers).map(([id, p]) => ({ value: id, label: p.label }))
+    ? Object.entries(config.providers).map(([id, p]) => ({
+        value: id,
+        label: p.label,
+      }))
     : [];
 
   const connectedIds = new Set(providers.map((p) => p.id));
@@ -66,9 +69,7 @@ export function SettingsPage() {
       await refresh();
       toast.success(`${getLabel(providerId, config)} disconnected.`);
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to disconnect.",
-      );
+      toast.error(err instanceof Error ? err.message : "Failed to disconnect.");
     }
   }
 
@@ -89,16 +90,16 @@ export function SettingsPage() {
     <div className="h-full flex flex-col md:flex-row overflow-hidden">
       {/* ── Sidebar (md+) ── */}
       <nav className="hidden md:flex w-[320px] shrink-0 border-r flex-col p-4 gap-1 overflow-y-auto">
-        <div className="flex items-center gap-2 mb-4">
-          <button
-            type="button"
-            onClick={() => navigate("/")}
-            className="p-1 -ml-1 rounded hover:bg-accent transition-colors"
-          >
+        <button
+          type="button"
+          onClick={() => navigate("/")}
+          className="py-2 rounded opacity-50 hover:opacity-100 mb-2 cursor-pointer"
+        >
+          <div className="flex items-center gap-2">
             <ArrowLeft className="h-4 w-4" />
-          </button>
-          <h1 className="text-lg font-semibold text-foreground">Settings</h1>
-        </div>
+            <p className="text-md font-semibold text-foreground">Settings</p>
+          </div>
+        </button>
         {NAV_ITEMS.map((item) => (
           <button
             key={item.key}
@@ -107,7 +108,7 @@ export function SettingsPage() {
               "flex items-center gap-2 text-sm text-left px-3 py-2 rounded-md transition-colors",
               section === item.key
                 ? "bg-accent text-accent-foreground font-medium"
-                : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
             )}
           >
             <item.icon className="h-3.5 w-3.5" />
@@ -138,7 +139,7 @@ export function SettingsPage() {
                 "flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md transition-colors",
                 section === item.key
                   ? "bg-accent text-accent-foreground font-medium"
-                  : "text-muted-foreground hover:bg-accent/50"
+                  : "text-muted-foreground hover:bg-accent/50",
               )}
             >
               <item.icon className="h-3 w-3" />
@@ -151,7 +152,6 @@ export function SettingsPage() {
       {/* ── Content ── */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-[600px] mx-auto px-6 md:px-8 pt-6 md:pt-8 pb-12">
-
           {/* Providers section */}
           {section === "providers" && (
             <div className="flex flex-col gap-8">

@@ -25,65 +25,72 @@ export const createBashTool = (projectDir: string) =>
         .string()
         .describe("Clear, concise description of what this command does (5-10 words). Examples: 'Install dependencies', 'Check git status', 'Run tests'"),
     }),
-    execute: async ({ command, workdir, timeout, description }) => {
+    execute: async ({ command, workdir, timeout }) => {
       const cwd = workdir ? resolve(projectDir, workdir) : projectDir;
       const timeoutMs = timeout ?? DEFAULT_TIMEOUT;
 
-      return new Promise<string>((resolve, reject) => {
-        let output = "";
-        let timedOut = false;
+      try {
+        return await new Promise<string>((resolve) => {
+          let output = "";
+          let timedOut = false;
 
-        // Spawn the process
-        const proc = spawn(command, {
-          shell: true,
-          cwd,
-          stdio: ["ignore", "pipe", "pipe"],
-        });
+          // Spawn the process
+          const proc = spawn(command, {
+            shell: true,
+            cwd,
+            stdio: ["ignore", "pipe", "pipe"],
+            env: { ...process.env },
+          });
 
-        // Collect stdout and stderr
-        const handleData = (chunk: Buffer) => {
-          const text = chunk.toString();
-          output += text;
+          // Collect stdout and stderr
+          const handleData = (chunk: Buffer) => {
+            const text = chunk.toString();
+            output += text;
 
-          // Truncate if output gets too large
-          if (output.length > MAX_OUTPUT_BYTES) {
-            output = output.substring(0, MAX_OUTPUT_BYTES) + "\n\n[Output truncated — exceeded 100 KB limit]";
-            proc.kill();
-          }
-        };
+            // Truncate if output gets too large
+            if (output.length > MAX_OUTPUT_BYTES) {
+              output = output.substring(0, MAX_OUTPUT_BYTES) + "\n\n[Output truncated — exceeded 100 KB limit]";
+              proc.kill();
+            }
+          };
 
-        proc.stdout?.on("data", handleData);
-        proc.stderr?.on("data", handleData);
+          proc.stdout?.on("data", handleData);
+          proc.stderr?.on("data", handleData);
 
-        // Set timeout
-        let timeoutHandle: NodeJS.Timeout | null = null;
-        if (timeoutMs > 0) {
-          timeoutHandle = setTimeout(() => {
-            timedOut = true;
-            proc.kill("SIGTERM");
-          }, timeoutMs);
-        }
-
-        // Handle process exit
-        proc.once("exit", (code) => {
-          if (timeoutHandle) clearTimeout(timeoutHandle);
-
-          if (timedOut) {
-            output += `\n\n[Command timed out after ${timeoutMs} ms]`;
+          // Set timeout
+          let timeoutHandle: NodeJS.Timeout | null = null;
+          if (timeoutMs > 0) {
+            timeoutHandle = setTimeout(() => {
+              timedOut = true;
+              proc.kill("SIGTERM");
+            }, timeoutMs);
           }
 
-          if (code !== 0 && code !== null) {
-            output += `\n\n[Exit code: ${code}]`;
-          }
+          // Handle process exit
+          proc.once("exit", (code) => {
+            if (timeoutHandle) clearTimeout(timeoutHandle);
 
-          resolve(output.trim() || "[No output]");
-        });
+            if (timedOut) {
+              output += `\n\n[Command timed out after ${timeoutMs} ms]`;
+            }
 
-        // Handle process error
-        proc.once("error", (error) => {
-          if (timeoutHandle) clearTimeout(timeoutHandle);
-          reject(new Error(`Command failed: ${error.message}`));
+            if (code !== 0 && code !== null) {
+              output += `\n\n[Exit code: ${code}]`;
+            }
+
+            resolve(output.trim() || "[No output]");
+          });
+
+          // Handle process error
+          proc.once("error", (error) => {
+            if (timeoutHandle) clearTimeout(timeoutHandle);
+            output += `\n\n[Process error: ${error.message}]`;
+            resolve(output.trim() || "[No output]");
+          });
         });
-      });
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        return `[Error executing command: ${errorMsg}]`;
+      }
     },
   });

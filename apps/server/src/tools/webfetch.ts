@@ -106,44 +106,51 @@ export const createWebFetchTool = () =>
       const timer = setTimeout(() => controller.abort(), ms);
 
       try {
-        const res = await fetch(url, {
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-            Accept:
-              "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.9",
-          },
-          signal: controller.signal,
-          redirect: "follow",
-        });
-        clearTimeout(timer);
+        try {
+          const res = await fetch(url, {
+            headers: {
+              "User-Agent":
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+              Accept:
+                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+              "Accept-Language": "en-US,en;q=0.9",
+            },
+            signal: controller.signal,
+            redirect: "follow",
+          });
+          clearTimeout(timer);
 
-        if (!res.ok) {
-          throw new Error(`Request failed with status ${res.status}`);
+          if (!res.ok) {
+            return `[Error: Request failed with status ${res.status}]`;
+          }
+
+          const contentLength = res.headers.get("content-length");
+          if (contentLength && parseInt(contentLength) > MAX_RESPONSE_SIZE) {
+            return `[Error: Response too large (exceeds 5MB limit)]`;
+          }
+
+          const html = await res.text();
+
+          if (html.length > MAX_RESPONSE_SIZE) {
+            return `[Error: Response too large (exceeds 5MB limit)]`;
+          }
+
+          const content =
+            format === "text" ? htmlToText(html) : htmlToMarkdown(html);
+
+          return `Content from ${url}:\n\n${content}`;
+        } catch (error) {
+          clearTimeout(timer);
+          if (error instanceof Error && error.name === "AbortError") {
+            return `[Error: Fetch timed out after ${ms / 1000}s]`;
+          }
+          const message = error instanceof Error ? error.message : String(error);
+          return `[Error fetching URL: ${message}]`;
         }
-
-        const contentLength = res.headers.get("content-length");
-        if (contentLength && parseInt(contentLength) > MAX_RESPONSE_SIZE) {
-          throw new Error("Response too large (exceeds 5MB limit)");
-        }
-
-        const html = await res.text();
-
-        if (html.length > MAX_RESPONSE_SIZE) {
-          throw new Error("Response too large (exceeds 5MB limit)");
-        }
-
-        const content =
-          format === "text" ? htmlToText(html) : htmlToMarkdown(html);
-
-        return `Content from ${url}:\n\n${content}`;
       } catch (error) {
         clearTimeout(timer);
-        if (error instanceof Error && error.name === "AbortError") {
-          throw new Error(`Fetch timed out after ${ms / 1000}s`);
-        }
-        throw error;
+        const message = error instanceof Error ? error.message : String(error);
+        return `[Error: ${message}]`;
       }
     },
   });

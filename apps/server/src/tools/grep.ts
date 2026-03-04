@@ -24,85 +24,90 @@ export const createGrepTool = (projectDir: string) =>
         .describe("File or directory to search in (default: entire project)"),
     }),
     execute: async ({ pattern, path }) => {
-      const absProjectDir = resolve(projectDir);
-      const searchRoot = path ? resolve(absProjectDir, path) : absProjectDir;
-
-      let regex: RegExp;
       try {
-        regex = new RegExp(pattern);
-      } catch {
-        throw new Error(`Invalid regex pattern: ${pattern}`);
-      }
+        const absProjectDir = resolve(projectDir);
+        const searchRoot = path ? resolve(absProjectDir, path) : absProjectDir;
 
-      let isFile = false;
-      try {
-        const s = await fsStat(searchRoot);
-        isFile = s.isFile();
-      } catch {
-        // Path doesn't exist — treat as directory and let glob handle it
-      }
-
-      let files: string[];
-
-      if (isFile) {
-        files = [searchRoot];
-      } else {
-        files = await fg("**/*", {
-          cwd: searchRoot,
-          dot: false,
-          onlyFiles: true,
-          ignore: [
-            "**/node_modules/**",
-            "**/.git/**",
-            "**/dist/**",
-            "**/build/**",
-            "**/*.png",
-            "**/*.jpg",
-            "**/*.gif",
-            "**/*.ico",
-            "**/*.woff",
-            "**/*.woff2",
-            "**/*.ttf",
-            "**/*.eot",
-            "**/*.mp4",
-            "**/*.webm",
-            "**/*.zip",
-            "**/*.tar",
-            "**/*.gz",
-          ],
-        });
-        files = files.map((f) => resolve(searchRoot, f));
-      }
-
-      const matches: GrepMatch[] = [];
-      const MAX_MATCHES = 100;
-
-      for (const filePath of files) {
-        if (matches.length >= MAX_MATCHES) break;
+        let regex: RegExp;
         try {
-          const content = await readFile(filePath, "utf-8");
-          const lines = content.split("\n");
-          for (let i = 0; i < lines.length; i++) {
-            if (regex.test(lines[i])) {
-              matches.push({
-                file: relative(absProjectDir, filePath),
-                line: i + 1,
-                content: lines[i].trim(),
-              });
-              if (matches.length >= MAX_MATCHES) break;
-            }
-          }
+          regex = new RegExp(pattern);
         } catch {
-          // Skip binary/unreadable files
+          return `[Error: Invalid regex pattern: ${pattern}]`;
         }
-      }
 
-      if (matches.length === 0) {
-        return "No matches found.";
-      }
+        let isFile = false;
+        try {
+          const s = await fsStat(searchRoot);
+          isFile = s.isFile();
+        } catch {
+          // Path doesn't exist — treat as directory and let glob handle it
+        }
 
-      return matches
-        .map((m) => `${m.file}:${m.line}: ${m.content}`)
-        .join("\n");
+        let files: string[];
+
+        if (isFile) {
+          files = [searchRoot];
+        } else {
+          files = await fg("**/*", {
+            cwd: searchRoot,
+            dot: false,
+            onlyFiles: true,
+            ignore: [
+              "**/node_modules/**",
+              "**/.git/**",
+              "**/dist/**",
+              "**/build/**",
+              "**/*.png",
+              "**/*.jpg",
+              "**/*.gif",
+              "**/*.ico",
+              "**/*.woff",
+              "**/*.woff2",
+              "**/*.ttf",
+              "**/*.eot",
+              "**/*.mp4",
+              "**/*.webm",
+              "**/*.zip",
+              "**/*.tar",
+              "**/*.gz",
+            ],
+          });
+          files = files.map((f) => resolve(searchRoot, f));
+        }
+
+        const matches: GrepMatch[] = [];
+        const MAX_MATCHES = 100;
+
+        for (const filePath of files) {
+          if (matches.length >= MAX_MATCHES) break;
+          try {
+            const content = await readFile(filePath, "utf-8");
+            const lines = content.split("\n");
+            for (let i = 0; i < lines.length; i++) {
+              if (regex.test(lines[i])) {
+                matches.push({
+                  file: relative(absProjectDir, filePath),
+                  line: i + 1,
+                  content: lines[i].trim(),
+                });
+                if (matches.length >= MAX_MATCHES) break;
+              }
+            }
+          } catch {
+            // Skip binary/unreadable files
+          }
+        }
+
+        if (matches.length === 0) {
+          return "No matches found.";
+        }
+
+        return matches
+          .map((m) => `${m.file}:${m.line}: ${m.content}`)
+          .join("\n");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return `[Error searching files: ${message}]`;
+      }
     },
   });

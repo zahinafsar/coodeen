@@ -36,25 +36,23 @@ export const createImageFetchTool = (supportsVision: boolean) =>
         clearTimeout(timer);
 
         if (!res.ok) {
-          throw new Error(`Request failed with status ${res.status}`);
+          return { error: `Request failed with status ${res.status}` };
         }
 
         const contentType = res.headers.get("content-type") || "";
         if (!contentType.startsWith("image/")) {
-          throw new Error(
-            `URL did not return an image (content-type: ${contentType})`
-          );
+          return { error: `URL did not return an image (content-type: ${contentType})` };
         }
 
         const contentLength = res.headers.get("content-length");
         if (contentLength && parseInt(contentLength) > MAX_IMAGE_SIZE) {
-          throw new Error("Image too large (exceeds 20MB limit)");
+          return { error: "Image too large (exceeds 20MB limit)" };
         }
 
         const buffer = await res.arrayBuffer();
 
         if (buffer.byteLength > MAX_IMAGE_SIZE) {
-          throw new Error("Image too large (exceeds 20MB limit)");
+          return { error: "Image too large (exceeds 20MB limit)" };
         }
 
         const base64 = Buffer.from(buffer).toString("base64");
@@ -64,13 +62,22 @@ export const createImageFetchTool = (supportsVision: boolean) =>
         return { base64, mime, url, sizeKB };
       } catch (error) {
         clearTimeout(timer);
+        const message = error instanceof Error ? error.message : String(error);
         if (error instanceof Error && error.name === "AbortError") {
-          throw new Error(`Image fetch timed out after ${DEFAULT_TIMEOUT / 1000}s`);
+          return { error: `Image fetch timed out after ${DEFAULT_TIMEOUT / 1000}s` };
         }
-        throw error;
+        return { error: message };
       }
     },
     toModelOutput({ output }) {
+      // Handle errors
+      if ("error" in output) {
+        return {
+          type: "text" as const,
+          value: `[Error fetching image: ${output.error}]`,
+        };
+      }
+
       // Vision models: send as file-data content part
       if (supportsVision) {
         return {

@@ -12,19 +12,24 @@ export const createGlobTool = (projectDir: string) =>
       pattern: z.string().describe('Glob pattern to match files (e.g. "**/*.ts", "src/**/*.tsx")'),
     }),
     execute: async ({ pattern }) => {
-      const absProjectDir = resolve(projectDir);
+      try {
+        const absProjectDir = resolve(projectDir);
 
-      const matches = await fg(pattern, {
-        cwd: absProjectDir,
-        dot: false,
-        onlyFiles: true,
-        ignore: ["**/node_modules/**", "**/.git/**", "**/dist/**", "**/build/**"],
-      });
+        const matches = await fg(pattern, {
+          cwd: absProjectDir,
+          dot: false,
+          onlyFiles: true,
+          ignore: ["**/node_modules/**", "**/.git/**", "**/dist/**", "**/build/**"],
+        });
 
-      const relativePaths = matches.map((m) => relative(absProjectDir, resolve(absProjectDir, m)));
+        const relativePaths = matches.map((m) => relative(absProjectDir, resolve(absProjectDir, m)));
 
-      return relativePaths.length > 0
-        ? relativePaths.sort().join("\n")
-        : "No files matched the pattern.";
+        return relativePaths.length > 0
+          ? relativePaths.sort().join("\n")
+          : "No files matched the pattern.";
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return `[Error globbing pattern: ${message}]`;
+      }
     },
   });

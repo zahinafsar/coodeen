@@ -26,6 +26,7 @@ sessions.post("/", async (c) => {
 sessions.patch("/:id", async (c) => {
   const id = c.req.param("id");
   const body = await c.req.json<{
+    title?: string;
     providerId?: string;
     modelId?: string;
     projectDir?: string;

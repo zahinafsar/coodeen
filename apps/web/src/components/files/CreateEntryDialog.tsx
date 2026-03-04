@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +30,11 @@ export function CreateEntryDialog({
   const [name, setName] = useState("");
   const [type, setType] = useState<"file" | "dir">(defaultType);
   const [creating, setCreating] = useState(false);
+
+  useEffect(() => {
+    setType(defaultType);
+    setName("");
+  }, [open, defaultType]);
 
   const handleCreate = useCallback(async () => {
     const trimmed = name.trim();
@@ -67,22 +72,6 @@ export function CreateEntryDialog({
           <DialogTitle>Create {type === "dir" ? "Folder" : "File"}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-3">
-          <div className="flex gap-2">
-            <Button
-              variant={type === "file" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setType("file")}
-            >
-              File
-            </Button>
-            <Button
-              variant={type === "dir" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setType("dir")}
-            >
-              Folder
-            </Button>
-          </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="entry-name">Name</Label>
             <Input

@@ -43,7 +43,7 @@ export const createWebSearchTool = () =>
 
         if (!res.ok) {
           const errorText = await res.text();
-          throw new Error(`Search error (${res.status}): ${errorText}`);
+          return `[Error: Search error (${res.status}): ${errorText}]`;
         }
 
         const text = await res.text();
@@ -59,10 +59,11 @@ export const createWebSearchTool = () =>
         return "No search results found. Please try a different query.";
       } catch (error) {
         clearTimeout(timeout);
+        const message = error instanceof Error ? error.message : String(error);
         if (error instanceof Error && error.name === "AbortError") {
-          throw new Error("Web search request timed out");
+          return `[Error: Web search request timed out]`;
         }
-        throw error;
+        return `[Error: ${message}]`;
       }
     },
   });

@@ -87,9 +87,7 @@ export const createCodeSearchTool = () =>
 
         if (!response.ok) {
           const errorText = await response.text();
-          throw new Error(
-            `Code search error (${response.status}): ${errorText}`
-          );
+          return `[Error: Code search error (${response.status}): ${errorText}]`;
         }
 
         const responseText = await response.text();
@@ -113,11 +111,12 @@ export const createCodeSearchTool = () =>
       } catch (error) {
         clearTimeout(timeout);
 
+        const message = error instanceof Error ? error.message : String(error);
         if (error instanceof Error && error.name === "AbortError") {
-          throw new Error("Code search request timed out");
+          return `[Error: Code search request timed out]`;
         }
 
-        throw error;
+        return `[Error: ${message}]`;
       }
     },
   });

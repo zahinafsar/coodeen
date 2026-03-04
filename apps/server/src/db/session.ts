@@ -17,7 +17,7 @@ export const session = {
 
   update: (
     id: string,
-    data: { providerId?: string; modelId?: string; projectDir?: string; previewUrl?: string },
+    data: { title?: string; providerId?: string; modelId?: string; projectDir?: string; previewUrl?: string },
   ) => prisma.session.update({ where: { id }, data }),
 
   delete: (id: string) =>

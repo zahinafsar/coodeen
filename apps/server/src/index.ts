@@ -1,5 +1,6 @@
 // Polyfill TextDecoderStream for older runtimes
 if (typeof globalThis.TextDecoderStream === "undefined") {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (globalThis as any).TextDecoderStream = class TextDecoderStream extends TransformStream<Uint8Array, string> {
     constructor(encoding = "utf-8", options?: TextDecoderOptions) {
       const decoder = new TextDecoder(encoding, options);

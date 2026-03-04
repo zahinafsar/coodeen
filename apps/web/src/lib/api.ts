@@ -174,10 +174,10 @@ export const api = {
       }),
     }),
 
-  /** Update session settings (model, projectDir, previewUrl). */
+  /** Update session settings (title, model, projectDir, previewUrl). */
   updateSession: (
     id: string,
-    data: { providerId?: string; modelId?: string; projectDir?: string; previewUrl?: string },
+    data: { title?: string; providerId?: string; modelId?: string; projectDir?: string; previewUrl?: string },
   ) =>
     request<Session>(`/api/sessions/${encodeURIComponent(id)}`, {
       method: "PATCH",

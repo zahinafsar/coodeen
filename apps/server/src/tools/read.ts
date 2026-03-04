@@ -20,16 +20,21 @@ export const createReadTool = (projectDir: string) =>
         .describe("Maximum number of lines to return (default: all)"),
     }),
     execute: async ({ file_path, offset, limit }) => {
-      const resolved = resolve(projectDir, file_path);
+      try {
+        const resolved = resolve(projectDir, file_path);
 
-      const raw = await readFile(resolved, "utf-8");
-      let lines = raw.split("\n");
+        const raw = await readFile(resolved, "utf-8");
+        let lines = raw.split("\n");
 
-      const start = (offset ?? 1) - 1;
-      if (start > 0) lines = lines.slice(start);
-      if (limit !== undefined) lines = lines.slice(0, limit);
+        const start = (offset ?? 1) - 1;
+        if (start > 0) lines = lines.slice(start);
+        if (limit !== undefined) lines = lines.slice(0, limit);
 
-      const numbered = lines.map((line, i) => `${start + i + 1}\t${line}`).join("\n");
-      return numbered;
+        const numbered = lines.map((line, i) => `${start + i + 1}\t${line}`).join("\n");
+        return numbered;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return `[Error reading file: ${message}]`;
+      }
     },
   });

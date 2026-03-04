@@ -27,7 +27,7 @@ export const proxy = new Hono();
 proxy.get("/editor", (c) => c.redirect("/editor/"));
 
 proxy.get("/editor/", (c) => {
-  if (!editorHtml) return c.text("Editor not built. Run: cd apps/web && bun run build", 404);
+  if (!editorHtml) return c.text("Editor not built. Run: cd apps/web && npm run build", 404);
   return c.html(editorHtml);
 });
 
@@ -43,6 +43,6 @@ proxy.use(
 // SPA fallback — serve index.html for any unmatched /editor/* routes
 // (e.g. /editor/session/abc123)
 proxy.get("/editor/*", (c) => {
-  if (!editorHtml) return c.text("Editor not built. Run: cd apps/web && bun run build", 404);
+  if (!editorHtml) return c.text("Editor not built. Run: cd apps/web && npm run build", 404);
   return c.html(editorHtml);
 });

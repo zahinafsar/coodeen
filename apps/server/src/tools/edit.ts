@@ -15,27 +15,28 @@ export const createEditTool = (projectDir: string) =>
       new_string: z.string().describe("The replacement text"),
     }),
     execute: async ({ file_path, old_string, new_string }) => {
-      const resolved = resolve(projectDir, file_path);
+      try {
+        const resolved = resolve(projectDir, file_path);
 
-      const content = await readFile(resolved, "utf-8");
+        const content = await readFile(resolved, "utf-8");
 
-      const occurrences = content.split(old_string).length - 1;
+        const occurrences = content.split(old_string).length - 1;
 
-      if (occurrences === 0) {
-        throw new Error(
-          `old_string not found in ${file_path}. Make sure it matches the file content exactly, including whitespace and indentation.`,
-        );
+        if (occurrences === 0) {
+          return `[Error: old_string not found in ${file_path}. Make sure it matches the file content exactly, including whitespace and indentation.]`;
+        }
+
+        if (occurrences > 1) {
+          return `[Error: old_string found ${occurrences} times in ${file_path}. It must be unique. Provide more surrounding context to make it unique.]`;
+        }
+
+        const updated = content.replace(old_string, new_string);
+        await writeFile(resolved, updated, "utf-8");
+
+        return `Edited ${file_path}: replaced 1 occurrence`;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return `[Error editing file: ${message}]`;
       }
-
-      if (occurrences > 1) {
-        throw new Error(
-          `old_string found ${occurrences} times in ${file_path}. It must be unique. Provide more surrounding context to make it unique.`,
-        );
-      }
-
-      const updated = content.replace(old_string, new_string);
-      await writeFile(resolved, updated, "utf-8");
-
-      return `Edited ${file_path}: replaced 1 occurrence`;
     },
   });

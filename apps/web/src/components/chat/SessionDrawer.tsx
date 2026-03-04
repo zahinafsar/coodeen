@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Pencil } from "lucide-react";
 import type { Session } from "../../lib/types";
 import { api } from "../../lib/api";
 import { useDrawer } from "../../contexts/DrawerContext";
@@ -30,6 +30,8 @@ export function SessionDrawer({
 }: SessionDrawerProps) {
   const { open, close } = useDrawer();
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
 
   const fetchSessions = useCallback(async () => {
     try {
@@ -43,6 +45,7 @@ export function SessionDrawer({
   const handleDelete = useCallback(
     async (e: React.MouseEvent, sessionId: string) => {
       e.stopPropagation();
+      if (!window.confirm("Delete this session?")) return;
       try {
         await api.deleteSession(sessionId);
         setSessions((prev) => prev.filter((s) => s.id !== sessionId));
@@ -77,6 +80,39 @@ export function SessionDrawer({
     close();
   }, [onNewSession, close]);
 
+  const handleStartEdit = useCallback(
+    (e: React.MouseEvent, sessionId: string, currentTitle: string) => {
+      e.stopPropagation();
+      setEditingId(sessionId);
+      setEditingTitle(currentTitle);
+    },
+    [],
+  );
+
+  const handleSaveTitle = useCallback(
+    async (sessionId: string) => {
+      const trimmed = editingTitle.trim();
+      if (trimmed && trimmed !== sessions.find((s) => s.id === sessionId)?.title) {
+        try {
+          await api.updateSession(sessionId, { title: trimmed });
+          setSessions((prev) =>
+            prev.map((s) => (s.id === sessionId ? { ...s, title: trimmed } : s)),
+          );
+        } catch {
+          // silent
+        }
+      }
+      setEditingId(null);
+      setEditingTitle("");
+    },
+    [editingTitle, sessions],
+  );
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingId(null);
+    setEditingTitle("");
+  }, []);
+
   return (
     <Sheet open={open} onOpenChange={(v) => !v && close()}>
       <SheetContent side="left" showCloseButton={false} className="w-80 p-0 flex flex-col">
@@ -109,12 +145,39 @@ export function SessionDrawer({
                         : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                     )}
                   >
+                    {editingId === s.id ? (
+                      <input
+                        autoFocus
+                        type="text"
+                        value={editingTitle}
+                        onChange={(e) => setEditingTitle(e.target.value)}
+                        onBlur={() => handleSaveTitle(s.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            handleSaveTitle(s.id);
+                          } else if (e.key === "Escape") {
+                            handleCancelEdit();
+                          }
+                        }}
+                        className="flex-1 px-3 py-2 text-sm bg-background border border-input rounded min-w-0"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      <button
+                        className="flex-1 text-left px-3 py-2.5 text-sm truncate min-w-0"
+                        onClick={() => handleSelect(s)}
+                        type="button"
+                      >
+                        {s.title}
+                      </button>
+                    )}
                     <button
-                      className="flex-1 text-left px-3 py-2.5 text-sm truncate min-w-0"
-                      onClick={() => handleSelect(s)}
+                      className="shrink-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                      onClick={(e) => handleStartEdit(e, s.id, s.title)}
                       type="button"
+                      aria-label="Edit session title"
                     >
-                      {s.title}
+                      <Pencil className="h-3.5 w-3.5" />
                     </button>
                     <button
                       className="shrink-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
