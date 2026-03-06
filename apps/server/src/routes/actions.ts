@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { execSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 
 const actions = new Hono();
@@ -81,30 +81,17 @@ actions.post("/run", async (c) => {
     return c.json({ error: "script is required" }, 400);
   }
 
-  try {
-    const env = loadEnvFile(dir);
-    const output = execSync(script, {
-      cwd: dir,
-      env: env,
-      stdio: "pipe",
-      encoding: "utf-8",
-      timeout: 60000,
-    });
+  const env = loadEnvFile(dir);
+  const child = spawn(script, {
+    cwd: dir,
+    env: env,
+    shell: true,
+    detached: true,
+    stdio: "ignore",
+  });
+  child.unref();
 
-    return c.json({
-      ok: true,
-      output: output.trim(),
-    });
-  } catch (error) {
-    const err = error as Error;
-    return c.json(
-      {
-        ok: false,
-        error: err.message,
-      },
-      400
-    );
-  }
+  return c.json({ ok: true, pid: child.pid });
 });
 
 export { actions };
