@@ -1,6 +1,6 @@
 {
   "name": "coodeen",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "AI coding assistant with live preview",
   "type": "module",
   "bin": {

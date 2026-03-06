@@ -41,9 +41,6 @@ That's it. Your browser opens to the editor automatically.
 cd ~/my-app
 npx coodeen
 
-# Custom port
-npx coodeen --port 4000
-
 # Show help
 npx coodeen --help
 ```
@@ -54,7 +51,6 @@ npx coodeen --help
 npm install -g coodeen
 
 coodeen
-coodeen --port 8080
 ```
 
 ### Example workflow
@@ -66,7 +62,7 @@ cd ~/my-app
 # 2. Start coodeen
 npx coodeen
 
-# 3. Browser opens to http://localhost:3001/editor/
+# 3. Browser opens to http://localhost:3099/editor/
 # 4. Add your API key in Settings (gear icon)
 # 5. Point the preview panel to your dev server (e.g. http://localhost:3000)
 # 6. Start chatting — ask the AI to build features, fix bugs, or explain code
@@ -98,7 +94,7 @@ Then configure at least one AI provider through the settings panel:
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  Coodeen (http://localhost:3001/editor/)         │
+│  Coodeen (http://localhost:3099/editor/)         │
 ├────────────────────┬────────────────────────────┤
 │                    │                            │
 │   Chat Panel       │   Preview Panel            │
@@ -152,7 +148,7 @@ bun install
 bun run dev
 
 # Run individually
-bun run dev:server    # API on :3001
+bun run dev:server    # API on :3099
 bun run dev:web       # Vite on :5173
 
 # Type check
@@ -180,12 +176,6 @@ All data is stored locally:
 No data is sent anywhere except to the AI provider you configure.
 
 ## Troubleshooting
-
-**Port already in use**
-
-```bash
-npx coodeen --port 4000
-```
 
 **Database issues**
 

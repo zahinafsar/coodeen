@@ -86,7 +86,7 @@ app.route("/", proxy);
 export { app };
 
 // Bun dev server — default export used by `bun run src/index.ts`
-const port = Number(process.env.PORT) || 3001;
+const port = Number(process.env.PORT) || 3099;
 export default {
   port,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

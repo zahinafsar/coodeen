@@ -12,17 +12,13 @@ const dim = (s: string) => `\x1b[2m${s}\x1b[0m`;
 const cyan = (s: string) => `\x1b[36m${s}\x1b[0m`;
 const green = (s: string) => `\x1b[32m${s}\x1b[0m`;
 const yellow = (s: string) => `\x1b[33m${s}\x1b[0m`;
-const magenta = (s: string) => `\x1b[35m${s}\x1b[0m`;
+
 
 // ── 1. Parse args ──────────────────────────────────────────────
 const args = process.argv.slice(2);
-let port = 3001;
+const port = 3099;
 
 for (let i = 0; i < args.length; i++) {
-  if (args[i] === "--port" && args[i + 1]) {
-    port = Number(args[i + 1]);
-    i++;
-  }
   if (args[i] === "--help" || args[i] === "-h") {
     console.log(`
   ${bold("coodeen")} ${dim("— AI coding assistant with live preview")}
@@ -31,7 +27,6 @@ for (let i = 0; i < args.length; i++) {
     ${cyan("npx coodeen")} ${dim("[options]")}
 
   ${yellow("Options:")}
-    ${green("--port")} <number>   Server port ${dim("(default: 3001)")}
     ${green("--help")}, ${green("-h")}        Show this help
 `);
     process.exit(0);
@@ -96,7 +91,6 @@ serve(
 
   ${dim("➜")}  ${bold("Local:")}    ${cyan(url)}
   ${dim("➜")}  ${bold("Project:")}  ${yellow(cwd)}
-  ${dim("➜")}  ${bold("Port:")}     ${magenta(String(info.port))}
 
   ${dim("Press Ctrl+C to stop")}
 `);
