@@ -2,6 +2,7 @@ import { tool } from "ai";
 import { z } from "zod/v4";
 import { spawn } from "node:child_process";
 import { resolve } from "node:path";
+import { truncateOutput } from "./truncation.js";
 
 const DEFAULT_TIMEOUT = 2 * 60 * 1000; // 2 minutes
 const MAX_OUTPUT_BYTES = 100 * 1024; // 100 KB
@@ -9,21 +10,27 @@ const MAX_OUTPUT_BYTES = 100 * 1024; // 100 KB
 export const createBashTool = (projectDir: string) =>
   tool({
     description:
-      "Execute shell commands in the project directory. Use this to run terminal commands, build tools, tests, git commands, etc. " +
-      "Returns command output (stdout + stderr). Commands timeout after 2 minutes by default.",
+      "Executes a given bash command with optional timeout. " +
+      "IMPORTANT: This tool is for terminal operations like git, npm, docker, etc. " +
+      "DO NOT use it for file operations (reading, writing, editing, searching, finding files) — use the specialized tools instead. " +
+      "Use the workdir parameter to run in a different directory. AVOID using 'cd <directory> && <command>' patterns. " +
+      "Avoid using bash with find, grep, cat, head, tail, sed, awk, or echo — use the dedicated tools instead: " +
+      "glob (not find), grep tool (not grep/rg), read (not cat/head/tail), edit (not sed/awk), write (not echo). " +
+      "When issuing multiple independent commands, make multiple bash tool calls in parallel. " +
+      "If commands depend on each other, chain them with && in a single call.",
     inputSchema: z.object({
-      command: z.string().describe("The shell command to execute (e.g., 'npm install', 'git status', 'ls -la')"),
+      command: z.string().describe("The shell command to execute"),
       workdir: z
         .string()
         .optional()
-        .describe("Working directory to run the command in. Defaults to the project directory."),
+        .describe("Working directory. Defaults to the project directory."),
       timeout: z
         .number()
         .optional()
-        .describe("Timeout in milliseconds. Defaults to 120000 (2 minutes). Set to 0 for no timeout."),
+        .describe("Timeout in milliseconds (default: 120000). Set to 0 for no timeout."),
       description: z
         .string()
-        .describe("Clear, concise description of what this command does (5-10 words). Examples: 'Install dependencies', 'Check git status', 'Run tests'"),
+        .describe("Clear, concise description of what this command does (5-10 words)"),
     }),
     execute: async ({ command, workdir, timeout }) => {
       const cwd = workdir ? resolve(projectDir, workdir) : projectDir;
@@ -34,7 +41,6 @@ export const createBashTool = (projectDir: string) =>
           let output = "";
           let timedOut = false;
 
-          // Spawn the process
           const proc = spawn(command, {
             shell: true,
             cwd,
@@ -42,12 +48,10 @@ export const createBashTool = (projectDir: string) =>
             env: { ...process.env },
           });
 
-          // Collect stdout and stderr
           const handleData = (chunk: Buffer) => {
             const text = chunk.toString();
             output += text;
 
-            // Truncate if output gets too large
             if (output.length > MAX_OUTPUT_BYTES) {
               output = output.substring(0, MAX_OUTPUT_BYTES) + "\n\n[Output truncated — exceeded 100 KB limit]";
               proc.kill();
@@ -57,7 +61,6 @@ export const createBashTool = (projectDir: string) =>
           proc.stdout?.on("data", handleData);
           proc.stderr?.on("data", handleData);
 
-          // Set timeout
           let timeoutHandle: NodeJS.Timeout | null = null;
           if (timeoutMs > 0) {
             timeoutHandle = setTimeout(() => {
@@ -66,7 +69,6 @@ export const createBashTool = (projectDir: string) =>
             }, timeoutMs);
           }
 
-          // Handle process exit
           proc.once("exit", (code) => {
             if (timeoutHandle) clearTimeout(timeoutHandle);
 
@@ -78,14 +80,13 @@ export const createBashTool = (projectDir: string) =>
               output += `\n\n[Exit code: ${code}]`;
             }
 
-            resolve(output.trim() || "[No output]");
+            resolve(truncateOutput(output.trim() || "[No output]"));
           });
 
-          // Handle process error
           proc.once("error", (error) => {
             if (timeoutHandle) clearTimeout(timeoutHandle);
             output += `\n\n[Process error: ${error.message}]`;
-            resolve(output.trim() || "[No output]");
+            resolve(truncateOutput(output.trim() || "[No output]"));
           });
         });
       } catch (error) {

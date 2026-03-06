@@ -40,7 +40,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
               <ToolCallBlock key={`${tc.name}-${i}`} toolCall={tc} />
             ))}
             {message.content && (
-              <div className="prose prose-invert prose-sm max-w-none prose-pre:bg-black/40 prose-pre:border prose-pre:border-border prose-pre:rounded-md prose-code:bg-black/30 prose-code:rounded prose-code:px-1.5 prose-code:py-0.5 prose-code:text-xs prose-code:before:content-none prose-code:after:content-none prose-a:text-blue-400">
+              <div className="prose prose-invert prose-sm max-w-full prose-pre:bg-black/40 prose-pre:border prose-pre:border-border prose-pre:rounded-md prose-pre:overflow-x-auto prose-code:bg-black/30 prose-code:rounded prose-code:px-1.5 prose-code:py-0.5 prose-code:text-xs prose-code:before:content-none prose-code:after:content-none prose-code:break-words prose-a:text-blue-400 prose-a:break-words overflow-hidden">
                 <ReactMarkdown
                   rehypePlugins={[rehypeHighlight]}
                   remarkPlugins={[remarkGfm]}

@@ -215,9 +215,12 @@ export function PromptInput({
     [addScreenshot],
   );
 
-  // Drag-drop file from tree
+  // Drag-drop: images from anywhere + files from tree
   const handleDragOver = useCallback((e: DragEvent) => {
-    if (e.dataTransfer.types.includes("application/x-file-path")) {
+    if (
+      e.dataTransfer.types.includes("application/x-file-path") ||
+      e.dataTransfer.types.includes("Files")
+    ) {
       e.preventDefault();
       e.dataTransfer.dropEffect = "copy";
       setDragOver(true);
@@ -232,6 +235,24 @@ export function PromptInput({
     (e: DragEvent) => {
       e.preventDefault();
       setDragOver(false);
+
+      // Handle native file drops (images from Finder/Explorer/desktop/any folder)
+      if (e.dataTransfer.files.length > 0) {
+        for (const file of e.dataTransfer.files) {
+          if (file.type.startsWith("image/")) {
+            const reader = new FileReader();
+            reader.onload = () => {
+              if (typeof reader.result === "string") {
+                addScreenshot(reader.result);
+              }
+            };
+            reader.readAsDataURL(file);
+          }
+        }
+        return;
+      }
+
+      // Handle internal file tree drops
       const droppedPath = e.dataTransfer.getData("application/x-file-path");
       if (droppedPath && onAddFileReference) {
         onAddFileReference({
@@ -242,7 +263,7 @@ export function PromptInput({
         });
       }
     },
-    [onAddFileReference],
+    [onAddFileReference, addScreenshot],
   );
 
   const isLanding = variant === "landing";
@@ -251,15 +272,19 @@ export function PromptInput({
   return (
     <form
       className={cn(
-        "flex flex-col gap-2 shrink-0",
+        "relative flex flex-col gap-2 shrink-0",
         isLanding ? "w-full" : "p-3 border-t bg-card",
-        dragOver && "ring-2 ring-primary/50 ring-inset rounded-md",
       )}
       onSubmit={handleSubmit}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      {dragOver && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center rounded-md border-2 border-dashed border-primary bg-white/60 dark:bg-black/60">
+          <span className="text-sm font-medium text-muted-foreground">Drop images here</span>
+        </div>
+      )}
       {/* File reference badges */}
       {fileReferences.length > 0 && (
         <div className="flex flex-wrap gap-1.5">

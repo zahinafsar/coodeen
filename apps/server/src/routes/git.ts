@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { execSync } from "node:child_process";
+import { execSync, spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 
 const git = new Hono();
@@ -55,23 +55,55 @@ git.get("/status", async (c) => {
 
   try {
     const branch = runGitCommand("git rev-parse --abbrev-ref HEAD", resolvedDir);
-    const status = runGitCommand("git status --porcelain", resolvedDir);
-    const ahead = runGitCommand(
-      "git rev-list --count @{u}..HEAD",
-      resolvedDir
-    );
-    const behind = runGitCommand(
-      "git rev-list --count HEAD..@{u}",
-      resolvedDir
-    );
+    // Don't use runGitCommand here — its trim() strips leading spaces
+    // which are significant in porcelain format (position 0 = index status)
+    let status = "";
+    try {
+      status = execSync("git status --porcelain", {
+        cwd: resolvedDir,
+        stdio: "pipe",
+        encoding: "utf-8",
+      }).trimEnd();
+    } catch {}
+    // Try upstream-based count first, fall back to origin/<branch> if no upstream set
+    let ahead = "0";
+    let behind = "0";
+    try {
+      ahead = execSync("git rev-list --count @{u}..HEAD", {
+        cwd: resolvedDir, stdio: "pipe", encoding: "utf-8",
+      }).trim();
+    } catch {
+      try {
+        ahead = execSync(`git rev-list --count origin/${branch}..HEAD`, {
+          cwd: resolvedDir, stdio: "pipe", encoding: "utf-8",
+        }).trim();
+      } catch {}
+    }
+    try {
+      behind = execSync("git rev-list --count HEAD..@{u}", {
+        cwd: resolvedDir, stdio: "pipe", encoding: "utf-8",
+      }).trim();
+    } catch {
+      try {
+        behind = execSync(`git rev-list --count HEAD..origin/${branch}`, {
+          cwd: resolvedDir, stdio: "pipe", encoding: "utf-8",
+        }).trim();
+      } catch {}
+    }
 
     const changes = status
       .split("\n")
       .filter((line) => line.trim())
       .map((line) => {
-        const status = line.substring(0, 2);
+        const indexStatus = line[0];
+        const workTreeStatus = line[1];
         const file = line.substring(3);
-        return { status: status.trim(), file };
+        return {
+          file,
+          index: indexStatus === " " ? "" : indexStatus,
+          workTree: workTreeStatus === " " ? "" : workTreeStatus,
+          status: line.substring(0, 2).trim(),
+        };
       });
 
     const merging = runGitCommand("git status --short", resolvedDir).includes(
@@ -302,6 +334,158 @@ git.get("/diff", async (c) => {
   } catch (error) {
     const err = error as Error;
     return c.json({ error: err.message }, 500);
+  }
+});
+
+/** POST /api/git/stage — Stage files */
+git.post("/stage", async (c) => {
+  const body = await c.req.json<{ dir?: string; files: string[] }>();
+  const dir = resolve(body.dir || process.cwd());
+
+  if (!isGitRepo(dir)) {
+    return c.json({ error: "Not a git repository" }, 400);
+  }
+
+  try {
+    const fileArgs = body.files.map((f) => `"${f}"`).join(" ");
+    runGitCommand(`git add -- ${fileArgs}`, dir, { throwOnError: true });
+    return c.json({ ok: true });
+  } catch (error) {
+    const err = error as Error;
+    return c.json({ error: err.message }, 400);
+  }
+});
+
+/** POST /api/git/unstage — Unstage files */
+git.post("/unstage", async (c) => {
+  const body = await c.req.json<{ dir?: string; files: string[] }>();
+  const dir = resolve(body.dir || process.cwd());
+
+  if (!isGitRepo(dir)) {
+    return c.json({ error: "Not a git repository" }, 400);
+  }
+
+  try {
+    const fileArgs = body.files.map((f) => `"${f}"`).join(" ");
+    runGitCommand(`git reset HEAD -- ${fileArgs}`, dir, { throwOnError: true });
+    return c.json({ ok: true });
+  } catch (error) {
+    const err = error as Error;
+    return c.json({ error: err.message }, 400);
+  }
+});
+
+/** POST /api/git/commit — Commit staged changes */
+git.post("/commit", async (c) => {
+  const body = await c.req.json<{ dir?: string; message: string }>();
+  const dir = resolve(body.dir || process.cwd());
+
+  if (!body.message?.trim()) {
+    return c.json({ error: "message is required" }, 400);
+  }
+
+  if (!isGitRepo(dir)) {
+    return c.json({ error: "Not a git repository" }, 400);
+  }
+
+  try {
+    // Use spawnSync with stdin to safely pass commit message (handles special chars)
+    const result = spawnSync("git", ["commit", "-F", "-"], {
+      cwd: dir,
+      input: body.message.trim(),
+      stdio: ["pipe", "pipe", "pipe"],
+      encoding: "utf-8",
+    });
+    if (result.status !== 0) {
+      throw new Error(result.stderr || result.stdout || "Commit failed");
+    }
+    return c.json({ ok: true });
+  } catch (error) {
+    const err = error as Error;
+    return c.json({ error: err.message }, 400);
+  }
+});
+
+/** POST /api/git/push — Push to remote */
+git.post("/push", async (c) => {
+  const body = await c.req.json<{ dir?: string }>();
+  const dir = resolve(body.dir || process.cwd());
+
+  if (!isGitRepo(dir)) {
+    return c.json({ error: "Not a git repository" }, 400);
+  }
+
+  try {
+    runGitCommand("git push", dir, { throwOnError: true });
+    return c.json({ ok: true });
+  } catch {
+    // Fallback: set upstream if no tracking branch
+    try {
+      runGitCommand("git push -u origin HEAD", dir, { throwOnError: true });
+      return c.json({ ok: true });
+    } catch (error) {
+      const err = error as Error;
+      return c.json({ error: err.message }, 400);
+    }
+  }
+});
+
+/** POST /api/git/pull — Pull from remote */
+git.post("/pull", async (c) => {
+  const body = await c.req.json<{ dir?: string }>();
+  const dir = resolve(body.dir || process.cwd());
+
+  if (!isGitRepo(dir)) {
+    return c.json({ error: "Not a git repository" }, 400);
+  }
+
+  try {
+    runGitCommand("git pull", dir, { throwOnError: true });
+    return c.json({ ok: true });
+  } catch (error) {
+    const err = error as Error;
+    return c.json({ error: err.message }, 400);
+  }
+});
+
+/** POST /api/git/discard — Discard unstaged changes (revert files) */
+git.post("/discard", async (c) => {
+  const body = await c.req.json<{ dir?: string; files: string[] }>();
+  const dir = resolve(body.dir || process.cwd());
+
+  if (!isGitRepo(dir)) {
+    return c.json({ error: "Not a git repository" }, 400);
+  }
+
+  try {
+    // Separate untracked files from tracked files
+    const statusRaw = execSync("git status --porcelain", {
+      cwd: dir, stdio: "pipe", encoding: "utf-8",
+    }).trimEnd();
+
+    const untrackedFiles = new Set(
+      statusRaw.split("\n").filter((l) => l.startsWith("??")).map((l) => l.substring(3))
+    );
+
+    const trackedFiles = body.files.filter((f) => !untrackedFiles.has(f));
+    const newFiles = body.files.filter((f) => untrackedFiles.has(f));
+
+    // Restore tracked files
+    if (trackedFiles.length > 0) {
+      const args = trackedFiles.map((f) => `"${f}"`).join(" ");
+      runGitCommand(`git checkout -- ${args}`, dir, { throwOnError: true });
+    }
+    // Remove untracked files
+    if (newFiles.length > 0) {
+      for (const f of newFiles) {
+        execSync(`rm -f "${f}"`, { cwd: dir, stdio: "pipe" });
+      }
+    }
+
+    return c.json({ ok: true });
+  } catch (error) {
+    const err = error as Error;
+    return c.json({ error: err.message }, 400);
   }
 });
 

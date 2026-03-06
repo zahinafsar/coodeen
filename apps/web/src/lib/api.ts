@@ -312,7 +312,7 @@ export const api = {
     request<{
       isGitRepo: boolean;
       branch?: string;
-      changes?: Array<{ status: string; file: string }>;
+      changes?: Array<{ status: string; file: string; index: string; workTree: string }>;
       ahead?: number;
       behind?: number;
       isMerging?: boolean;
@@ -376,6 +376,48 @@ export const api = {
     request<{ diff: string }>(
       `/api/git/diff?dir=${encodeURIComponent(dir)}${file ? `&file=${encodeURIComponent(file)}` : ""}`
     ),
+
+  /** Stage files. */
+  gitStage: (dir: string, files: string[]) =>
+    request<{ ok: boolean }>("/api/git/stage", {
+      method: "POST",
+      body: JSON.stringify({ dir, files }),
+    }),
+
+  /** Unstage files. */
+  gitUnstage: (dir: string, files: string[]) =>
+    request<{ ok: boolean }>("/api/git/unstage", {
+      method: "POST",
+      body: JSON.stringify({ dir, files }),
+    }),
+
+  /** Commit staged changes. */
+  gitCommit: (dir: string, message: string) =>
+    request<{ ok: boolean }>("/api/git/commit", {
+      method: "POST",
+      body: JSON.stringify({ dir, message }),
+    }),
+
+  /** Push to remote. */
+  gitPush: (dir: string) =>
+    request<{ ok: boolean }>("/api/git/push", {
+      method: "POST",
+      body: JSON.stringify({ dir }),
+    }),
+
+  /** Pull from remote. */
+  gitPull: (dir: string) =>
+    request<{ ok: boolean }>("/api/git/pull", {
+      method: "POST",
+      body: JSON.stringify({ dir }),
+    }),
+
+  /** Discard unstaged changes (revert files). */
+  gitDiscard: (dir: string, files: string[]) =>
+    request<{ ok: boolean }>("/api/git/discard", {
+      method: "POST",
+      body: JSON.stringify({ dir, files }),
+    }),
 
   // ── Actions ────────────────────────────────────────
 

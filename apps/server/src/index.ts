@@ -89,5 +89,9 @@ export { app };
 const port = Number(process.env.PORT) || 3001;
 export default {
   port,
-  fetch: app.fetch,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  fetch(req: Request, server: any) {
+    server.timeout(req, 0);
+    return app.fetch(req);
+  }
 };
