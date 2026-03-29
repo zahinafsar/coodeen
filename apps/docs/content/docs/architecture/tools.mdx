@@ -1,0 +1,56 @@
+---
+title: AI Tools
+description: The tools available to Coodeen's AI agent for code interaction.
+---
+
+## Overview
+
+Coodeen's AI agent has access to a set of tools that let it interact with your codebase. These tools are invoked automatically during conversations when the AI needs to read, write, or search your code.
+
+## File Operations
+
+| Tool        | Description                                      |
+| ----------- | ------------------------------------------------ |
+| `read`      | Read file contents                               |
+| `write`     | Create or overwrite a file                       |
+| `edit`      | Make targeted edits to a file                    |
+| `multiedit` | Apply multiple edits to one or more files        |
+| `glob`      | Find files matching a pattern                    |
+| `ls`        | List directory contents                          |
+
+## Search
+
+| Tool         | Description                                     |
+| ------------ | ----------------------------------------------- |
+| `grep`       | Search file contents with regex                 |
+| `codesearch` | Semantic code search                            |
+| `websearch`  | Search the web for information                  |
+| `webfetch`   | Fetch and read a web page                       |
+| `imagefetch` | Fetch an image from a URL                       |
+
+## Shell
+
+| Tool   | Description                                          |
+| ------ | ---------------------------------------------------- |
+| `bash` | Execute shell commands in the project directory      |
+
+## Planning
+
+| Tool         | Description                                      |
+| ------------ | ------------------------------------------------ |
+| `plan_write` | Write a plan or task list                        |
+| `plan_exit`  | Exit plan mode                                   |
+| `todo_write` | Create or update a todo list                     |
+| `todo_read`  | Read the current todo list                       |
+| `question`   | Ask the user a question (plan mode)              |
+
+## Other
+
+| Tool         | Description                                      |
+| ------------ | ------------------------------------------------ |
+| `skill`      | Run a registered skill                           |
+| `image_save` | Save an image to disk                            |
+
+## Tool Behavior
+
+Tools execute in the context of the current project directory. The AI decides which tools to use based on your request. Tool calls and their results are displayed inline in the chat panel, so you can see exactly what the AI is doing.

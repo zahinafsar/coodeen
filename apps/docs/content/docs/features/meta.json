@@ -1,0 +1,4 @@
+{
+  "title": "Features",
+  "pages": ["chat", "preview", "file-explorer", "terminal", "git", "screenshots"]
+}

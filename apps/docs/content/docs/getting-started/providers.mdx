@@ -1,0 +1,40 @@
+---
+title: AI Providers
+description: Set up OpenAI, Anthropic, Google, or free models in Coodeen.
+---
+
+## Supported Providers
+
+Coodeen uses the [Vercel AI SDK](https://sdk.vercel.ai/) to support multiple AI providers through a unified interface.
+
+### OpenAI
+
+1. Get an API key from [platform.openai.com](https://platform.openai.com/api-keys)
+2. Open Settings in Coodeen
+3. Select **OpenAI** and paste your key
+
+**Available models**: GPT-4o, GPT-4.1, GPT-4.1-mini, GPT-4.1-nano
+
+### Anthropic
+
+1. Get an API key from [console.anthropic.com](https://console.anthropic.com/)
+2. Open Settings in Coodeen
+3. Select **Anthropic** and paste your key
+
+**Available models**: Claude Sonnet 4, Claude Opus 4
+
+### Google
+
+1. Get an API key from [aistudio.google.com](https://aistudio.google.com/apikey)
+2. Open Settings in Coodeen
+3. Select **Google** and paste your key
+
+**Available models**: Gemini 2.5 Pro, Gemini 2.5 Flash
+
+### Free Models
+
+Coodeen also includes free model options that don't require an API key. These are community-provided and may have rate limits or reduced capabilities.
+
+## API Key Storage
+
+API keys are stored locally in the SQLite database at `~/.coodeen/data.db`. They are never transmitted anywhere except directly to the provider's API endpoint during chat requests.

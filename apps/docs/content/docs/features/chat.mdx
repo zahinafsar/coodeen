@@ -1,0 +1,39 @@
+---
+title: Chat Panel
+description: Interact with AI models to write, edit, and debug your code.
+---
+
+## Overview
+
+The chat panel is the primary interface for interacting with the AI. It occupies the left side of the split-pane layout and supports full conversational coding with streaming responses.
+
+## Capabilities
+
+### Streaming Responses
+
+Messages stream in real-time using Server-Sent Events (SSE). You can see the AI's response as it's being generated, including tool calls and their results.
+
+### Tool Call Visualization
+
+When the AI uses tools (reading files, writing code, running commands), each tool call is displayed inline with expandable details showing inputs and outputs.
+
+### File References
+
+You can attach file references to your messages to give the AI context about specific files. Click the file reference button in the prompt input to browse and select files from your project.
+
+### Image Inputs
+
+For vision-capable models, you can attach screenshots captured from the preview panel. This lets the AI see exactly what you're looking at and make precise visual fixes.
+
+### Model Selection
+
+Switch between configured models using the dropdown at the bottom of the chat panel. The available models depend on which providers you've configured.
+
+## Sessions
+
+Coodeen supports multiple chat sessions:
+
+- **Create** new sessions for different tasks or projects
+- **Switch** between sessions using the session drawer
+- **Resume** previous conversations with full history
+- Each session remembers its model, project directory, and preview URL

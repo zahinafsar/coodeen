@@ -1,0 +1,46 @@
+---
+title: Live Preview
+description: See your running application side-by-side with the AI chat.
+---
+
+## Overview
+
+The preview panel shows your running application in an iframe on the right side of the editor. Point it at any URL — typically your local dev server — and see changes in real-time as the AI edits your code.
+
+## Features
+
+### Configurable URL
+
+Enter any URL in the address bar at the top of the preview panel. Common setups:
+
+- `http://localhost:3000` — Next.js, Create React App
+- `http://localhost:5173` — Vite
+- `http://localhost:8080` — Vue CLI, Go servers
+
+### Viewport Modes
+
+Switch between responsive viewport sizes:
+
+- **Responsive** — Fills the available panel width
+- **Mobile** — Phone-width viewport
+- **Tablet** — Tablet-width viewport
+- **Desktop** — Fixed desktop width
+
+### Zoom Controls
+
+Adjust the preview zoom level or use **scale-to-fit** to automatically fit the content within the panel dimensions.
+
+### Reload
+
+Click the refresh button to reload the iframe. Useful after the AI makes changes that require a full page reload.
+
+## Screenshot Capture
+
+Capture any part of the preview to send as context to the AI:
+
+1. Click the **screenshot** button in the preview toolbar
+2. An overlay appears — click and drag to select an area
+3. The captured screenshot is attached to your next message
+4. The AI can see exactly what you're looking at and respond with visual awareness
+
+This is particularly powerful for UI bugs — show the AI what's wrong and it can fix the layout, styling, or component issues directly.

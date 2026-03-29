@@ -21,10 +21,14 @@ export default defineConfig({
     ".prisma",
     "prisma",
     "fsevents",
+    "bun-pty",
+    "bun:ffi",
+    "@lydell/node-pty",
+    "ws",
   ],
   // Bundle all non-external packages
   noExternal: [
-    /^(?!@prisma|\.prisma|prisma|fsevents).*/,
+    /^(?!@prisma|\.prisma|prisma|fsevents|bun-pty|bun:ffi|@lydell\/node-pty|ws).*/,
   ],
   shims: false, // We provide our own require shim via banner
 });

@@ -1,0 +1,48 @@
+---
+title: Architecture Overview
+description: How Coodeen is structured — monorepo layout, backend, frontend, and CLI.
+---
+
+## Monorepo Structure
+
+```
+coodeen/
+├── apps/
+│   ├── server/          # Hono API server (Bun + Node.js)
+│   │   ├── src/
+│   │   │   ├── agent/   # AI chat agent (Vercel AI SDK)
+│   │   │   ├── routes/  # API routes
+│   │   │   ├── tools/   # Code tools (read, write, edit, grep, glob)
+│   │   │   └── db/      # Prisma ORM (SQLite)
+│   │   └── prisma/      # Database schema
+│   └── web/             # React frontend (Vite + Tailwind)
+│       └── src/
+│           ├── components/
+│           │   ├── chat/      # Chat panel
+│           │   ├── preview/   # Preview iframe
+│           │   ├── files/     # File explorer
+│           │   ├── terminal/  # Terminal emulator
+│           │   └── git/       # Git integration
+│           └── lib/           # API client, types
+└── packages/
+    └── cli/             # npm CLI package (npx coodeen)
+```
+
+## How It Fits Together
+
+1. **CLI** (`packages/cli`) — Entry point. Initializes the database, starts the server, opens the browser.
+2. **Server** (`apps/server`) — Hono API. Handles chat streaming, file operations, sessions, and provider management.
+3. **Web** (`apps/web`) — React SPA. The editor UI that communicates with the server via REST and SSE.
+
+The web frontend is built and bundled into the server's static directory for distribution. When you run `npx coodeen`, the CLI starts the server which serves both the API and the pre-built frontend.
+
+## Technology Stack
+
+| Layer    | Technology                                          |
+| -------- | --------------------------------------------------- |
+| CLI      | Node.js, tsup                                       |
+| Server   | Hono, Prisma (SQLite), Vercel AI SDK, Zod           |
+| Frontend | React 19, Vite, Tailwind CSS, Radix UI, xterm.js    |
+| AI       | OpenAI, Anthropic, Google via Vercel AI SDK          |
+| Database | SQLite via Prisma ORM                                |
+| Terminal | bun-pty / node-pty, WebSocket                        |

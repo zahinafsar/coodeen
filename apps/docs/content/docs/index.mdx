@@ -1,0 +1,55 @@
+---
+title: Introduction
+description: Coodeen is an AI coding assistant with a split-pane editor — chat on the left, live preview on the right.
+---
+
+## What is Coodeen?
+
+Coodeen is an open-source AI coding assistant that runs entirely on your machine. It provides a split-pane editor interface with an AI chat panel on the left and a live preview of your running application on the right.
+
+```bash
+npx coodeen
+```
+
+That's it. Your browser opens to the editor automatically.
+
+## Key Features
+
+- **Multi-model chat** — Talk to OpenAI, Anthropic, or Google models about your code
+- **Live preview** — See your running app side-by-side with the conversation
+- **Screenshot capture** — Select any area of the preview and send it to the AI
+- **Session management** — Switch between projects and pick up where you left off
+- **Auto project detection** — Automatically uses the directory you run the command from
+- **Fully local** — Your API keys, conversations, and data never leave your machine
+
+## How It Works
+
+```
+┌─────────────────────────────────────────────────┐
+│  Coodeen (http://localhost:3099/editor/)         │
+├────────────────────┬────────────────────────────┤
+│                    │                            │
+│   Chat Panel       │   Preview Panel            │
+│                    │                            │
+│   > Fix the nav    │   ┌──────────────────┐     │
+│                    │   │  Your running app │     │
+│   AI: I'll update  │   │    (any URL)      │     │
+│   the header...    │   │                  │     │
+│                    │   └──────────────────┘     │
+│   [Screenshot]     │                            │
+│                    │                            │
+├────────────────────┴────────────────────────────┤
+│  Model: gpt-4o  │  Project: ~/my-app            │
+└─────────────────────────────────────────────────┘
+```
+
+Coodeen runs a local Hono server with a React frontend. The AI agent has full access to your filesystem — it can read, write, edit, search, and run commands in your project directory.
+
+## Next Steps
+
+<Cards>
+  <Card title="Quick Start" href="/docs/getting-started/quick-start" />
+  <Card title="Configuration" href="/docs/getting-started/configuration" />
+  <Card title="Features" href="/docs/features/chat" />
+  <Card title="Architecture" href="/docs/architecture/overview" />
+</Cards>

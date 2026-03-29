@@ -1,6 +1,6 @@
 {
   "name": "coodeen",
-  "version": "0.3.2",
+  "version": "0.4.3",
   "description": "AI coding assistant with live preview",
   "type": "module",
   "bin": {
@@ -24,9 +24,10 @@
     "url": "https://github.com/zahinafsar/coodeen/issues"
   },
   "dependencies": {
-    "@hono/node-server": "^1.13.0",
+    "@lydell/node-pty": "^1.1.0",
     "@prisma/client": "~6.19.0",
-    "prisma": "~6.19.0"
+    "prisma": "~6.19.0",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "tsup": "^8.0.0",

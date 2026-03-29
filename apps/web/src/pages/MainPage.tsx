@@ -8,6 +8,7 @@ import { ChatPanel } from "../components/chat/ChatPanel";
 import { PreviewPanel } from "../components/preview/PreviewPanel";
 import { FileExplorerPanel } from "../components/files/FileExplorerPanel";
 import { GitManagerPanel } from "../components/git/GitManagerPanel";
+import { TerminalPanel } from "../components/terminal/TerminalPanel";
 import { ElementSelectionProvider } from "../contexts/ElementSelectionContext";
 import { useProject } from "../contexts/ProjectContext";
 import { api } from "../lib/api";
@@ -23,6 +24,7 @@ export function MainPage() {
   const [previewUrl, setPreviewUrl] = useState(DEFAULT_PREVIEW_URL);
   const [rightTab, setRightTab] = useState<RightTab>("preview");
   const [fileReferences, setFileReferences] = useState<FileReference[]>([]);
+  const [terminalOpen, setTerminalOpen] = useState(false);
 
   const handlePreviewUrlChange = useCallback((url: string) => {
     setPreviewUrl(url);
@@ -66,76 +68,94 @@ export function MainPage() {
   return (
     <ElementSelectionProvider>
       <ResizablePanelGroup orientation="horizontal" className="h-full">
-        <ResizablePanel defaultSize={50} minSize={25}>
-          <ChatPanel
-            previewUrl={previewUrl}
-            onPreviewUrlChange={handlePreviewUrlChange}
-            fileReferences={fileReferences}
-            onAddFileReference={handleFileReference}
-            onRemoveFileReference={handleRemoveFileReference}
-            onClearFileReferences={handleClearFileReferences}
-          />
-        </ResizablePanel>
-        <ResizableHandle withHandle />
-        <ResizablePanel defaultSize={50} minSize={15}>
-          <div className="flex flex-col h-full overflow-hidden">
-            {/* Tab bar */}
-            <div className="flex border-b bg-card shrink-0">
-              <button
-                type="button"
-                onClick={() => setRightTab("preview")}
-                className={cn(
-                  "px-4 py-2 text-sm font-medium transition-colors border-b-2",
-                  rightTab === "preview"
-                    ? "border-primary text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground",
-                )}
-              >
-                Preview
-              </button>
-              <button
-                type="button"
-                onClick={() => setRightTab("files")}
-                className={cn(
-                  "px-4 py-2 text-sm font-medium transition-colors border-b-2",
-                  rightTab === "files"
-                    ? "border-primary text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground",
-                )}
-              >
-                Files
-              </button>
-              <button
-                type="button"
-                onClick={() => setRightTab("git")}
-                className={cn(
-                  "px-4 py-2 text-sm font-medium transition-colors border-b-2",
-                  rightTab === "git"
-                    ? "border-primary text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground",
-                )}
-              >
-                Git
-              </button>
-            </div>
-            {/* Tab content */}
-            <div className="flex-1 min-h-0">
-              {rightTab === "preview" ? (
-                <PreviewPanel
-                  url={previewUrl}
-                  onUrlChange={handlePreviewUrlChange}
-                />
-              ) : rightTab === "files" ? (
-                <FileExplorerPanel
-                  projectDir={projectDir}
-                  onFileReference={handleFileReference}
-                />
-              ) : (
-                <GitManagerPanel projectDir={projectDir} />
-              )}
-            </div>
-          </div>
-        </ResizablePanel>
+            <ResizablePanel defaultSize={50} minSize={25}>
+              <ChatPanel
+                previewUrl={previewUrl}
+                onPreviewUrlChange={handlePreviewUrlChange}
+                fileReferences={fileReferences}
+                onAddFileReference={handleFileReference}
+                onRemoveFileReference={handleRemoveFileReference}
+                onClearFileReferences={handleClearFileReferences}
+              />
+            </ResizablePanel>
+            <ResizableHandle withHandle />
+            <ResizablePanel defaultSize={50} minSize={15}>
+              <div className="flex flex-col h-full overflow-hidden">
+                {/* Tab bar */}
+                <div className="flex items-center border-b bg-card shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setRightTab("preview")}
+                    className={cn(
+                      "px-4 py-2 text-sm font-medium transition-colors border-b-2",
+                      rightTab === "preview"
+                        ? "border-primary text-foreground"
+                        : "border-transparent text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    Preview
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRightTab("files")}
+                    className={cn(
+                      "px-4 py-2 text-sm font-medium transition-colors border-b-2",
+                      rightTab === "files"
+                        ? "border-primary text-foreground"
+                        : "border-transparent text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    Files
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRightTab("git")}
+                    className={cn(
+                      "px-4 py-2 text-sm font-medium transition-colors border-b-2",
+                      rightTab === "git"
+                        ? "border-primary text-foreground"
+                        : "border-transparent text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    Git
+                  </button>
+                </div>
+                {/* Tab content + terminal drawer */}
+                <div className="flex-1 min-h-0">
+                  <ResizablePanelGroup orientation="vertical" className="h-full">
+                    <ResizablePanel defaultSize={terminalOpen ? 60 : 100} minSize={20}>
+                      {rightTab === "preview" ? (
+                        <PreviewPanel
+                          url={previewUrl}
+                          onUrlChange={handlePreviewUrlChange}
+                          terminalOpen={terminalOpen}
+                          onToggleTerminal={() => setTerminalOpen((v) => !v)}
+                        />
+                      ) : rightTab === "files" ? (
+                        <FileExplorerPanel
+                          projectDir={projectDir}
+                          onFileReference={handleFileReference}
+                        />
+                      ) : (
+                        <GitManagerPanel projectDir={projectDir} />
+                      )}
+                    </ResizablePanel>
+                    {terminalOpen && (
+                      <>
+                        <ResizableHandle withHandle />
+                        <ResizablePanel defaultSize={40} minSize={10}>
+                          <div className="flex flex-col h-full bg-[#0a0a0a]">
+                            <div className="flex-1 min-h-0">
+                              <TerminalPanel projectDir={projectDir} />
+                            </div>
+                          </div>
+                        </ResizablePanel>
+                      </>
+                    )}
+                  </ResizablePanelGroup>
+                </div>
+              </div>
+            </ResizablePanel>
       </ResizablePanelGroup>
     </ElementSelectionProvider>
   );

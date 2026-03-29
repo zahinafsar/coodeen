@@ -6,6 +6,7 @@ import {
   Tablet,
   Smartphone,
   RotateCcw,
+  TerminalSquare,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -31,9 +32,11 @@ const DEFAULTS: Record<Exclude<ViewportMode, "responsive">, { w: number; h: numb
 interface PreviewPanelProps {
   url: string;
   onUrlChange: (url: string) => void;
+  terminalOpen?: boolean;
+  onToggleTerminal?: () => void;
 }
 
-export function PreviewPanel({ url, onUrlChange }: PreviewPanelProps) {
+export function PreviewPanel({ url, onUrlChange, terminalOpen, onToggleTerminal }: PreviewPanelProps) {
   const [inputValue, setInputValue] = useState(url);
   const [error, setError] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -297,6 +300,17 @@ export function PreviewPanel({ url, onUrlChange }: PreviewPanelProps) {
         >
           <RefreshCw className="h-3.5 w-3.5" />
         </Button>
+        {onToggleTerminal && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn("h-7 w-7 shrink-0", terminalOpen && "bg-muted")}
+            onClick={onToggleTerminal}
+            aria-label="Toggle terminal"
+          >
+            <TerminalSquare className="h-3.5 w-3.5" />
+          </Button>
+        )}
       </div>
 
       {/* Content area */}

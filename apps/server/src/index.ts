@@ -30,6 +30,7 @@ import { skills as skillsRoute } from "./routes/skills.js";
 import { git } from "./routes/git.js";
 import { actions } from "./routes/actions.js";
 import { proxy } from "./routes/proxy.js";
+import { terminal, handlePtyWebSocket, ptyWebSocketHandlers } from "./routes/terminal.js";
 
 const app = new Hono();
 
@@ -79,11 +80,16 @@ app.route("/api/git", git);
 // Actions
 app.route("/api/actions", actions);
 
+// Terminal (PTY)
+app.route("/api/terminal", terminal);
+
 // Editor (built dist)
 app.route("/", proxy);
 
 // Named export for CLI / Node.js usage
 export { app };
+export { Pty } from "./pty/index.js";
+export type { PtySocket } from "./pty/index.js";
 
 // Bun dev server — default export used by `bun run src/index.ts`
 const port = Number(process.env.PORT) || 3099;
@@ -92,6 +98,14 @@ export default {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   fetch(req: Request, server: any) {
     server.timeout(req, 0);
+    // Handle WebSocket upgrade for PTY connections
+    const wsResponse = handlePtyWebSocket(req, server);
+    if (wsResponse === undefined && new URL(req.url).pathname.match(/^\/api\/terminal\/[^/]+\/ws$/)) {
+      // Upgrade succeeded, Bun handles the rest
+      return;
+    }
+    if (wsResponse) return wsResponse;
     return app.fetch(req);
-  }
+  },
+  websocket: ptyWebSocketHandlers,
 };

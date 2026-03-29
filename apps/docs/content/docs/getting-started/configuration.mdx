@@ -1,0 +1,45 @@
+---
+title: Configuration
+description: Configure Coodeen's AI providers, models, and project settings.
+---
+
+## Data Storage
+
+All data is stored locally in your home directory:
+
+```
+~/.coodeen/
+└── data.db          # SQLite database
+                     #   - sessions & messages
+                     #   - provider API keys
+                     #   - app configuration
+```
+
+No data is sent anywhere except to the AI provider you configure.
+
+## Project Directory
+
+Coodeen automatically detects the directory you run it from. The AI agent operates within this directory — reading, writing, and editing files relative to it.
+
+You can also change the project directory from the UI using the folder picker in the top bar.
+
+## Model Selection
+
+Once a provider is configured, you can select which model to use from the dropdown in the chat panel. Available models depend on your configured provider:
+
+- **OpenAI**: GPT-4o, GPT-4.1, GPT-4.1-mini
+- **Anthropic**: Claude Sonnet 4, Claude Opus 4
+- **Google**: Gemini 2.5 Pro, Gemini 2.5 Flash
+
+### Vision Support
+
+Some models support image inputs (screenshots from the preview panel). Vision-capable models include GPT-4o, GPT-4.1, Claude Sonnet 4, and Gemini 2.5 Pro.
+
+## Agent Modes
+
+Coodeen supports two agent modes:
+
+- **Agent mode** — Full access to all tools: read, write, edit, bash, search, etc.
+- **Plan mode** — Read-only access. The AI can read your code and propose changes, but cannot modify files directly.
+
+Switch between modes from the chat panel controls.

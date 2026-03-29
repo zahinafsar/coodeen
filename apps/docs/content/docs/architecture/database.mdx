@@ -1,0 +1,75 @@
+---
+title: Database
+description: SQLite database schema and data storage in Coodeen.
+---
+
+## Overview
+
+Coodeen uses SQLite via [Prisma ORM](https://www.prisma.io/) for all persistent data storage. The database file lives at `~/.coodeen/data.db` and is created automatically on first run.
+
+## Schema
+
+### Session
+
+Stores chat sessions with their configuration.
+
+| Field       | Type     | Description                          |
+| ----------- | -------- | ------------------------------------ |
+| id          | String   | Unique identifier                    |
+| title       | String   | Session title                        |
+| providerId  | String?  | Active AI provider                   |
+| modelId     | String?  | Active model                         |
+| projectDir  | String?  | Project directory path               |
+| previewUrl  | String?  | Preview panel URL                    |
+| createdAt   | DateTime | Creation timestamp                   |
+| updatedAt   | DateTime | Last update timestamp                |
+
+### Message
+
+Stores individual chat messages within sessions.
+
+| Field     | Type     | Description                            |
+| --------- | -------- | -------------------------------------- |
+| id        | String   | Unique identifier                      |
+| sessionId | String   | Parent session ID                      |
+| role      | String   | `user`, `assistant`, or `system`       |
+| content   | String   | Message content                        |
+| images    | String?  | Attached image data                    |
+| createdAt | DateTime | Creation timestamp                     |
+
+### Provider
+
+Stores AI provider configurations and API keys.
+
+| Field     | Type     | Description                            |
+| --------- | -------- | -------------------------------------- |
+| id        | String   | Provider slug (e.g. `openai`)          |
+| apiKey    | String   | Encrypted API key                      |
+| modelId   | String?  | Default model for this provider        |
+| createdAt | DateTime | Creation timestamp                     |
+| updatedAt | DateTime | Last update timestamp                  |
+
+### Config
+
+Key-value store for application settings.
+
+| Field     | Type     | Description                            |
+| --------- | -------- | -------------------------------------- |
+| key       | String   | Setting key                            |
+| value     | String   | Setting value                          |
+| updatedAt | DateTime | Last update timestamp                  |
+
+## Migrations
+
+Prisma migrations run automatically when Coodeen starts. The CLI handles database initialization and schema updates transparently.
+
+## Reset
+
+To reset all data, delete the database file:
+
+```bash
+rm ~/.coodeen/data.db
+npx coodeen
+```
+
+A fresh database will be created on the next launch.

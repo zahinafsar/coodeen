@@ -419,6 +419,40 @@ export const api = {
       body: JSON.stringify({ dir, files }),
     }),
 
+  // ── Terminal ────────────────────────────────────────
+
+  /** Create a new terminal PTY session. */
+  createTerminal: (opts?: { cwd?: string; command?: string; title?: string }) =>
+    request<{ id: string; title: string; command: string; cwd: string; status: string; pid: number }>(
+      "/api/terminal",
+      {
+        method: "POST",
+        body: JSON.stringify(opts ?? {}),
+      },
+    ),
+
+  /** List active terminal sessions. */
+  listTerminals: () =>
+    request<Array<{ id: string; title: string; status: string }>>(
+      "/api/terminal",
+    ),
+
+  /** Delete a terminal session. */
+  deleteTerminal: (id: string) =>
+    request<{ ok: boolean }>(`/api/terminal/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    }),
+
+  /** Resize a terminal session. */
+  resizeTerminal: (id: string, cols: number, rows: number) =>
+    request<{ ok: boolean }>(
+      `/api/terminal/${encodeURIComponent(id)}/resize`,
+      {
+        method: "POST",
+        body: JSON.stringify({ cols, rows }),
+      },
+    ),
+
   // ── Actions ────────────────────────────────────────
 
   /** Get custom actions from coodeen.json. */

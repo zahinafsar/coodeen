@@ -74,10 +74,11 @@ try {
 
 // ── 4. Start the server ────────────────────────────────────────
 // Dynamic import so DATABASE_URL is set before Prisma client loads
-const { app } = await import("@coodeen/server");
+const { app, Pty } = await import("@coodeen/server");
 const { serve } = await import("@hono/node-server");
+const { WebSocketServer } = await import("ws");
 
-serve(
+const server = serve(
   {
     fetch: app.fetch,
     port,
@@ -99,6 +100,43 @@ serve(
     openBrowser(url);
   }
 );
+
+// ── 5. WebSocket support for PTY terminal ──────────────────────
+const wss = new WebSocketServer({ noServer: true });
+
+server.on("upgrade", (req: import("node:http").IncomingMessage, socket: import("node:net").Socket, head: Buffer) => {
+  const url = new URL(req.url || "", `http://localhost:${port}`);
+  const match = url.pathname.match(/^\/api\/terminal\/([^/]+)\/ws$/);
+  if (!match) {
+    socket.destroy();
+    return;
+  }
+
+  const ptyId = match[1];
+  if (!Pty.get(ptyId)) {
+    socket.destroy();
+    return;
+  }
+
+  const cursorParam = url.searchParams.get("cursor");
+  const cursor = cursorParam != null ? Number(cursorParam) : undefined;
+
+  wss.handleUpgrade(req, socket, head, (ws) => {
+    const ptySocket = {
+      get readyState() { return ws.readyState; },
+      send: (data: string | Uint8Array | ArrayBuffer) => {
+        if (ws.readyState === 1) ws.send(data);
+      },
+      close: (code?: number, reason?: string) => ws.close(code, reason),
+    };
+
+    const handler = Pty.connect(ptyId, ptySocket, cursor);
+    if (handler) {
+      ws.on("message", (data) => handler.onMessage(String(data)));
+      ws.on("close", () => handler.onClose());
+    }
+  });
+});
 
 function openBrowser(url: string) {
   const { platform } = process;
