@@ -4,32 +4,20 @@
       "label": "Anthropic",
       "models": [
         { "id": "claude-sonnet-4-20250514", "input": ["text", "image"] },
-        { "id": "claude-opus-4-20250514", "input": ["text", "image"] },
-        { "id": "claude-haiku-4-20250414", "input": ["text", "image"] },
-        { "id": "claude-3.5-sonnet-20241022", "input": ["text", "image"] }
+        { "id": "claude-opus-4-20250514", "input": ["text", "image"] }
       ]
     },
     "openai": {
       "label": "OpenAI",
       "models": [
         { "id": "gpt-5.3-codex", "input": ["text", "image"] },
-        { "id": "gpt-4.1", "input": ["text", "image"] },
-        { "id": "gpt-4.1-mini", "input": ["text", "image"] },
-        { "id": "gpt-4.1-nano", "input": ["text"] },
-        { "id": "gpt-4o", "input": ["text", "image"] },
-        { "id": "gpt-4o-mini", "input": ["text", "image"] },
-        { "id": "o3", "input": ["text", "image"] },
-        { "id": "o3-mini", "input": ["text"] },
-        { "id": "o4-mini", "input": ["text", "image"] }
+        { "id": "gpt-4.1", "input": ["text", "image"] }
       ]
     },
     "google": {
       "label": "Google",
       "models": [
-        { "id": "gemini-2.5-pro", "input": ["text", "image"] },
-        { "id": "gemini-2.5-flash", "input": ["text", "image"] },
-        { "id": "gemini-2.0-flash", "input": ["text", "image"] },
-        { "id": "gemini-2.0-flash-lite", "input": ["text", "image"] }
+        { "id": "gemini-3-flash-preview", "input": ["text", "image"] }
       ]
     }
   },
