@@ -1,0 +1,18 @@
+appId: com.coodeen.desktop
+productName: Coodeen
+directories:
+  buildResources: build
+  output: release
+files:
+  - out/**/*
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - dmg
+    - zip
+win:
+  target:
+    - nsis
+linux:
+  target:
+    - AppImage
