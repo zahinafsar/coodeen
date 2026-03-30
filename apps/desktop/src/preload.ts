@@ -178,6 +178,26 @@ const electronAPI = {
   captureArea: (x: number, y: number, width: number, height: number) =>
     ipcRenderer.invoke("capture:area", x, y, width, height),
 
+  // ── Preview (browser tool) ───────────────────────────
+  preview: {
+    onAction: (
+      callback: (data: {
+        requestId: string;
+        action: string;
+        [key: string]: unknown;
+      }) => void,
+    ) => {
+      const handler = (_e: Electron.IpcRendererEvent, data: unknown) =>
+        callback(data as Parameters<typeof callback>[0]);
+      ipcRenderer.on("preview:action", handler);
+      return () => {
+        ipcRenderer.removeListener("preview:action", handler);
+      };
+    },
+    sendResult: (requestId: string, result: unknown) =>
+      ipcRenderer.send(`preview:action-result:${requestId}`, result),
+  },
+
   // ── Skills ────────────────────────────────────────────
   skills: {
     list: () => ipcRenderer.invoke("skills:list"),

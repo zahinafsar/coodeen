@@ -15,6 +15,8 @@ import { createSkillTool } from "../tools/skill.js";
 import { createBashTool } from "../tools/bash.js";
 import { createTodoWriteTool, createTodoReadTool } from "../tools/todo.js";
 import { createImageSaveTool } from "../tools/imagesave.js";
+import { createBrowserTool } from "../tools/browser.js";
+import type { BrowserWindow } from "electron";
 
 export function createTools(
   projectDir: string,
@@ -22,6 +24,7 @@ export function createTools(
   planPath?: string,
   supportsVision = true,
   sessionId = "default",
+  getWindow?: () => BrowserWindow | null,
 ) {
   const base = {
     read: createReadTool(projectDir),
@@ -34,6 +37,7 @@ export function createTools(
     codesearch: createCodeSearchTool(),
     imagefetch: createImageFetchTool(supportsVision),
     skill: createSkillTool(),
+    browser: createBrowserTool(getWindow ?? (() => null), supportsVision),
   };
 
   if (mode === "plan" && planPath) {

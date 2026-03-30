@@ -161,6 +161,16 @@ interface ElectronAPI {
     width: number,
     height: number,
   ) => Promise<string | null>;
+  preview: {
+    onAction: (
+      callback: (data: {
+        requestId: string;
+        action: string;
+        [key: string]: unknown;
+      }) => void,
+    ) => () => void;
+    sendResult: (requestId: string, result: unknown) => void;
+  };
   skills: {
     list: () => Promise<import("./lib/types").SkillInfo[]>;
     create: (

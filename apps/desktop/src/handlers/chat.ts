@@ -123,7 +123,7 @@ export function registerChatHandlers(getWindow: () => BrowserWindow | null) {
 
         // Create tools
         const supportsVision = await modelSupportsImage(providerId, modelId);
-        const tools = createTools(projectDir, mode, planPath, supportsVision, sessionId);
+        const tools = createTools(projectDir, mode, planPath, supportsVision, sessionId, getWindow);
 
         // Stream
         const result = streamText({

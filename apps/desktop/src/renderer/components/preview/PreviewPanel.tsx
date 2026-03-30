@@ -127,6 +127,84 @@ export function PreviewPanel({ url, onUrlChange, terminalOpen, onToggleTerminal,
     return clearLoadTimeout;
   }, [startLoadTimeout, clearLoadTimeout]);
 
+  // ── Browser tool action handler ──────────────────────
+  useEffect(() => {
+    const unsub = window.electronAPI.preview.onAction(async (data) => {
+      const { requestId, action, ...params } = data;
+      const send = (result: unknown) =>
+        window.electronAPI.preview.sendResult(requestId, result);
+
+      try {
+        const iframe = iframeRef.current;
+        if (!iframe) {
+          send({ success: false, error: "No iframe available — is the preview panel open?" });
+          return;
+        }
+
+        switch (action) {
+          case "screenshot": {
+            const rect = iframe.getBoundingClientRect();
+            send({
+              success: true,
+              data: {
+                x: Math.round(rect.x),
+                y: Math.round(rect.y),
+                width: Math.round(rect.width),
+                height: Math.round(rect.height),
+              },
+            });
+            break;
+          }
+          case "scroll": {
+            const doc = iframe.contentDocument;
+            if (!doc) {
+              send({ success: false, error: "Cannot access iframe content (cross-origin?)" });
+              break;
+            }
+            const { direction, amount } = params as {
+              direction: "up" | "down";
+              amount: number | "top" | "bottom";
+            };
+            if (amount === "top") {
+              doc.documentElement.scrollTop = 0;
+            } else if (amount === "bottom") {
+              doc.documentElement.scrollTop = doc.documentElement.scrollHeight;
+            } else {
+              const px = typeof amount === "number" ? amount : 500;
+              doc.documentElement.scrollBy(0, direction === "down" ? px : -px);
+            }
+            send({ success: true });
+            break;
+          }
+          case "click": {
+            const doc = iframe.contentDocument;
+            if (!doc) {
+              send({ success: false, error: "Cannot access iframe content (cross-origin?)" });
+              break;
+            }
+            const selector = (params as { selector: string }).selector;
+            const el = doc.querySelector(selector) as HTMLElement | null;
+            if (!el) {
+              send({ success: false, error: `No element matching selector '${selector}' found` });
+              break;
+            }
+            el.click();
+            send({ success: true });
+            break;
+          }
+          default:
+            send({ success: false, error: `Unknown action: ${action}` });
+        }
+      } catch (err) {
+        send({
+          success: false,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    });
+    return unsub;
+  }, []);
+
   // --- Viewport helpers ---
 
   const isResponsive = mode === "responsive";
