@@ -8,9 +8,7 @@
   ],
   "scripts": {
     "dev": "cd apps/desktop && npm run dev",
-    "dev:desktop": "cd apps/desktop && npm run dev",
     "build": "cd apps/desktop && npm run build",
-    "build:desktop": "cd apps/desktop && npm run build",
     "dev:docs": "bun run --cwd apps/docs dev",
     "lint": "eslint ."
   },
@@ -26,7 +24,6 @@
     "vite": "^6.1.0"
   },
   "dependencies": {
-    "concurrently": "^9.2.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tsx": "^4.21.0"
