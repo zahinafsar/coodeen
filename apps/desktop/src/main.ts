@@ -9,6 +9,7 @@ import { registerPtyHandlers } from "./handlers/pty.js";
 import { registerProviderHandlers } from "./handlers/providers.js";
 import { registerConfigHandlers } from "./handlers/config.js";
 import { registerActionHandlers } from "./handlers/actions.js";
+import { ipcMain } from "electron";
 import { registerSkillHandlers } from "./handlers/skills.js";
 
 let mainWindow: BrowserWindow | null = null;
@@ -31,6 +32,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
+      webSecurity: false,
     },
   });
 
@@ -58,6 +60,20 @@ app.whenReady().then(() => {
   registerConfigHandlers();
   registerActionHandlers();
   registerSkillHandlers();
+
+  ipcMain.handle(
+    "capture:area",
+    async (_e, x: number, y: number, width: number, height: number) => {
+      if (!mainWindow) return null;
+      const image = await mainWindow.webContents.capturePage({
+        x: Math.round(x),
+        y: Math.round(y),
+        width: Math.round(width),
+        height: Math.round(height),
+      });
+      return image.toDataURL();
+    },
+  );
 
   createWindow();
 

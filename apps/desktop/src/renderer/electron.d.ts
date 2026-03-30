@@ -155,6 +155,12 @@ interface ElectronAPI {
       error?: string;
     }>;
   };
+  captureArea: (
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ) => Promise<string | null>;
   skills: {
     list: () => Promise<import("./lib/types").SkillInfo[]>;
     create: (

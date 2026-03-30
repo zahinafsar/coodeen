@@ -174,6 +174,10 @@ const electronAPI = {
       ipcRenderer.invoke("actions:run", dir, script),
   },
 
+  // ── Capture ────────────────────────────────────────────
+  captureArea: (x: number, y: number, width: number, height: number) =>
+    ipcRenderer.invoke("capture:area", x, y, width, height),
+
   // ── Skills ────────────────────────────────────────────
   skills: {
     list: () => ipcRenderer.invoke("skills:list"),

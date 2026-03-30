@@ -15,8 +15,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { SelectionOverlay } from "./SelectionOverlay";
-import { useElementSelection } from "../../contexts/ElementSelectionContext";
+import { SelectionOverlay, type ElementInfo } from "./SelectionOverlay";
 import { cn } from "@/lib/utils";
 
 const LOAD_TIMEOUT_MS = 10_000;
@@ -34,9 +33,10 @@ interface PreviewPanelProps {
   onUrlChange: (url: string) => void;
   terminalOpen?: boolean;
   onToggleTerminal?: () => void;
+  onElementSelected?: (info: ElementInfo) => void;
 }
 
-export function PreviewPanel({ url, onUrlChange, terminalOpen, onToggleTerminal }: PreviewPanelProps) {
+export function PreviewPanel({ url, onUrlChange, terminalOpen, onToggleTerminal, onElementSelected }: PreviewPanelProps) {
   const [inputValue, setInputValue] = useState(url);
   const [error, setError] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -51,8 +51,6 @@ export function PreviewPanel({ url, onUrlChange, terminalOpen, onToggleTerminal 
 
   // Container size for scale-to-fit
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
-
-  const { addScreenshot } = useElementSelection();
 
   useEffect(() => {
     setInputValue(url);
@@ -289,7 +287,7 @@ export function PreviewPanel({ url, onUrlChange, terminalOpen, onToggleTerminal 
         <SelectionOverlay
           iframeRef={iframeRef}
           previewContainerRef={contentRef}
-          onScreenshotCaptured={addScreenshot}
+          onElementSelected={onElementSelected ?? (() => {})}
         />
         <Button
           variant="ghost"
