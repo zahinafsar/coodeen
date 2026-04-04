@@ -382,8 +382,6 @@ const DOWNLOAD_BASE = `${REPO_BASE}/releases/latest/download`;
 
 const DOWNLOADS = [
   { key: 'mac', label: 'macOS', file: 'Coodeen-mac-arm64.dmg', icon: 'apple' },
-  { key: 'windows', label: 'Windows', file: 'Coodeen-Setup.exe', icon: 'windows' },
-  { key: 'linux', label: 'Linux', file: 'Coodeen-linux.AppImage', icon: 'linux' },
 ] as const;
 
 function detectPlatform(): string {

@@ -20,14 +20,6 @@ mac:
   target:
     - dmg
     - zip
-win:
-  artifactName: "Coodeen-Setup.${ext}"
-  target:
-    - nsis
-linux:
-  artifactName: "Coodeen-linux.${ext}"
-  target:
-    - AppImage
 publish:
   provider: github
   owner: zahinafsar

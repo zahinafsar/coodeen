@@ -72,10 +72,6 @@ jobs:
         include:
           - os: macos-latest
             arch: arm64
-          - os: windows-latest
-            arch: x64
-          - os: ubuntu-latest
-            arch: x64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -112,8 +108,6 @@ jobs:
           path: |
             apps/desktop/release/*.dmg
             apps/desktop/release/*.zip
-            apps/desktop/release/*.exe
-            apps/desktop/release/*.AppImage
           if-no-files-found: error
 
   release:
@@ -145,7 +139,5 @@ jobs:
           files: |
             artifacts/*.dmg
             artifacts/*.zip
-            artifacts/*.exe
-            artifacts/*.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
