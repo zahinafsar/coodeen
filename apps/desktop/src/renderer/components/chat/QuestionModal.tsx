@@ -17,9 +17,10 @@ interface QuestionModalProps {
   open: boolean;
   questions: QuestionInfo[];
   onSubmit: (answers: Array<{ question: string; answer: string | string[] }>) => void;
+  onClose: () => void;
 }
 
-export function QuestionModal({ open, questions, onSubmit }: QuestionModalProps) {
+export function QuestionModal({ open, questions, onSubmit, onClose }: QuestionModalProps) {
   const [answers, setAnswers] = useState<Record<number, string | string[]>>({});
 
   const updateAnswer = (index: number, value: string | string[]) => {
@@ -53,12 +54,9 @@ export function QuestionModal({ open, questions, onSubmit }: QuestionModalProps)
   });
 
   return (
-    <Dialog open={open}>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
       <DialogContent
-        showCloseButton={false}
         className="sm:max-w-lg max-h-[80vh] flex flex-col"
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <DialogHeader>
           <DialogTitle>A few questions before we plan</DialogTitle>

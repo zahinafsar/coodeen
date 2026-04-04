@@ -7,8 +7,9 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "cd apps/desktop && npm run dev",
-    "build": "cd apps/desktop && npm run build",
+    "setup": "bun install && node scripts/rebuild-native.js",
+    "dev": "cd apps/desktop && bun run dev",
+    "build": "cd apps/desktop && bun run build",
     "dev:docs": "bun run --cwd apps/docs dev",
     "lint": "eslint ."
   },

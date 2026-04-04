@@ -1,20 +1,30 @@
-import { tool, zodSchema } from "ai";
+import { tool } from "ai";
 import { z } from "zod/v4";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { writeFile, mkdir } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 
 const MAX_IMAGE_SIZE = 20 * 1024 * 1024; // 20MB
-const DEFAULT_TIMEOUT = 30_000; // 30s
+const DEFAULT_TIMEOUT = 30_000;
+
+const MIME_TO_EXT: Record<string, string> = {
+  "image/png": ".png",
+  "image/jpeg": ".jpg",
+  "image/gif": ".gif",
+  "image/webp": ".webp",
+  "image/svg+xml": ".svg",
+};
 
 export const createImageFetchTool = (supportsVision: boolean) =>
   tool({
     description:
-      "Fetch an image from a URL and return it for visual inspection. " +
-      "Use this when you need to view or analyze an image from a URL. " +
-      "Supports common image formats (PNG, JPEG, GIF, WebP, SVG).",
-    inputSchema: zodSchema(
-      z.object({
-        url: z.string().describe("The image URL to fetch"),
-      })
-    ),
+      "Fetch an image from a URL, save it to a temp file, and return the file path. " +
+      "Use this when you need to download or inspect an image from a URL. " +
+      "Supports PNG, JPEG, GIF, WebP, SVG (max 20MB).",
+    inputSchema: z.object({
+      url: z.string().describe("The image URL to fetch"),
+    }),
     execute: async ({ url }) => {
       if (!url.startsWith("http://") && !url.startsWith("https://")) {
         url = "https://" + url;
@@ -36,70 +46,39 @@ export const createImageFetchTool = (supportsVision: boolean) =>
         clearTimeout(timer);
 
         if (!res.ok) {
-          return { error: `Request failed with status ${res.status}` };
+          return `[Error: Request failed with status ${res.status}]`;
         }
 
         const contentType = res.headers.get("content-type") || "";
-        if (!contentType.startsWith("image/")) {
-          return { error: `URL did not return an image (content-type: ${contentType})` };
+        const mime = contentType.split(";")[0].trim();
+        if (!mime.startsWith("image/")) {
+          return `[Error: URL did not return an image (content-type: ${contentType})]`;
         }
 
         const contentLength = res.headers.get("content-length");
         if (contentLength && parseInt(contentLength) > MAX_IMAGE_SIZE) {
-          return { error: "Image too large (exceeds 20MB limit)" };
+          return `[Error: Image too large (exceeds 20MB)]`;
         }
 
-        const buffer = await res.arrayBuffer();
-
+        const buffer = Buffer.from(await res.arrayBuffer());
         if (buffer.byteLength > MAX_IMAGE_SIZE) {
-          return { error: "Image too large (exceeds 20MB limit)" };
+          return `[Error: Image too large (exceeds 20MB)]`;
         }
 
-        const base64 = Buffer.from(buffer).toString("base64");
-        const mime = contentType.split(";")[0];
-        const sizeKB = Math.round(buffer.byteLength / 1024);
+        const ext = MIME_TO_EXT[mime] || ".bin";
+        const dir = join(tmpdir(), "coodeen-images");
+        await mkdir(dir, { recursive: true });
+        const filePath = join(dir, `${randomUUID()}${ext}`);
+        await writeFile(filePath, buffer);
 
-        return { base64, mime, url, sizeKB };
+        const sizeKB = Math.round(buffer.byteLength / 1024);
+        return `Image saved to ${filePath} (${mime}, ${sizeKB}KB)`;
       } catch (error) {
         clearTimeout(timer);
-        const message = error instanceof Error ? error.message : String(error);
         if (error instanceof Error && error.name === "AbortError") {
-          return { error: `Image fetch timed out after ${DEFAULT_TIMEOUT / 1000}s` };
+          return `[Error: Image fetch timed out after ${DEFAULT_TIMEOUT / 1000}s]`;
         }
-        return { error: message };
+        return `[Error: ${error instanceof Error ? error.message : error}]`;
       }
-    },
-    toModelOutput({ output }) {
-      // Handle errors
-      if ("error" in output) {
-        return {
-          type: "text" as const,
-          value: `[Error fetching image: ${output.error}]`,
-        };
-      }
-
-      // Vision models: send as file-data content part
-      if (supportsVision) {
-        return {
-          type: "content" as const,
-          value: [
-            {
-              type: "image-data" as const,
-              data: output.base64,
-              mediaType: output.mime,
-            },
-            {
-              type: "text" as const,
-              text: `Image fetched from ${output.url}`,
-            },
-          ],
-        };
-      }
-
-      // Non-vision models: text-only summary
-      return {
-        type: "text" as const,
-        value: `Image fetched from ${output.url} (${output.mime}, ${output.sizeKB}KB). This model does not support vision — the image is available in the chat UI for the user to view.`,
-      };
     },
   });

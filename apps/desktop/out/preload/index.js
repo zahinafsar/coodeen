@@ -92,6 +92,19 @@ const electronAPI = {
     getConfig: (dir) => electron.ipcRenderer.invoke("actions:getConfig", dir),
     run: (dir, script) => electron.ipcRenderer.invoke("actions:run", dir, script)
   },
+  // ── Capture ────────────────────────────────────────────
+  captureArea: (x, y, width, height) => electron.ipcRenderer.invoke("capture:area", x, y, width, height),
+  // ── Preview (browser tool) ───────────────────────────
+  preview: {
+    onAction: (callback) => {
+      const handler = (_e, data) => callback(data);
+      electron.ipcRenderer.on("preview:action", handler);
+      return () => {
+        electron.ipcRenderer.removeListener("preview:action", handler);
+      };
+    },
+    sendResult: (requestId, result) => electron.ipcRenderer.send(`preview:action-result:${requestId}`, result)
+  },
   // ── Skills ────────────────────────────────────────────
   skills: {
     list: () => electron.ipcRenderer.invoke("skills:list"),

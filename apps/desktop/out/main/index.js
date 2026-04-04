@@ -40,9 +40,10 @@ const node_path = require("node:path");
 const promises$1 = require("node:fs/promises");
 const fg = require("fast-glob");
 const node_os = require("node:os");
+const node_crypto = require("node:crypto");
 const node_child_process = require("node:child_process");
-const os = require("os");
 const node_fs = require("node:fs");
+const os = require("os");
 function cuid() {
   const ts = Date.now().toString(36);
   const rand = Math.random().toString(36).slice(2, 10);
@@ -773,139 +774,20 @@ ${content}`;
     }
   }
 });
-const createWebSearchTool = () => ai.tool({
-  description: `Search the web for information using Exa AI. Returns content from the most relevant websites. Use for current events, recent data, or anything beyond your knowledge cutoff. To read a specific URL, use the webfetch tool instead. The current year is ${(/* @__PURE__ */ new Date()).getFullYear()}.`,
-  inputSchema: v4.z.object({
-    query: v4.z.string().describe("Web search query")
-  }),
-  execute: async ({ query }) => {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 25e3);
-    try {
-      const res = await fetch("https://mcp.exa.ai/mcp", {
-        method: "POST",
-        headers: {
-          accept: "application/json, text/event-stream",
-          "content-type": "application/json"
-        },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          id: 1,
-          method: "tools/call",
-          params: {
-            name: "web_search_exa",
-            arguments: {
-              query,
-              type: "auto",
-              numResults: 8,
-              livecrawl: "fallback"
-            }
-          }
-        }),
-        signal: controller.signal
-      });
-      clearTimeout(timeout);
-      if (!res.ok) {
-        const errorText = await res.text();
-        return `[Error: Search error (${res.status}): ${errorText}]`;
-      }
-      const text = await res.text();
-      for (const line of text.split("\n")) {
-        if (line.startsWith("data: ")) {
-          const data = JSON.parse(line.substring(6));
-          if (data.result?.content?.[0]?.text) {
-            return data.result.content[0].text;
-          }
-        }
-      }
-      return "No search results found. Please try a different query.";
-    } catch (error) {
-      clearTimeout(timeout);
-      const message = error instanceof Error ? error.message : String(error);
-      if (error instanceof Error && error.name === "AbortError") {
-        return `[Error: Web search request timed out]`;
-      }
-      return `[Error: ${message}]`;
-    }
-  }
-});
-const API_CONFIG = {
-  BASE_URL: "https://mcp.exa.ai",
-  ENDPOINT: "/mcp"
-};
-const createCodeSearchTool = () => ai.tool({
-  description: "Search and get relevant context for any programming task using Exa Code API. Provides the highest quality and freshest context for libraries, SDKs, and APIs. Use this tool for ANY question or task related to programming. Returns comprehensive code examples, documentation, and API references. Examples: 'React useState hook examples', 'Python pandas dataframe filtering', 'Express.js middleware', 'Next.js partial prerendering configuration'.",
-  inputSchema: v4.z.object({
-    query: v4.z.string().describe(
-      "Search query to find relevant context for APIs, libraries, and SDKs"
-    ),
-    tokensNum: v4.z.number().min(1e3).max(5e4).optional().describe(
-      "Number of tokens to return (1000-50000). Default is 5000 tokens. Use lower values for focused queries and higher values for comprehensive documentation."
-    )
-  }),
-  execute: async ({ query, tokensNum }) => {
-    const codeRequest = {
-      jsonrpc: "2.0",
-      id: 1,
-      method: "tools/call",
-      params: {
-        name: "get_code_context_exa",
-        arguments: {
-          query,
-          tokensNum: tokensNum || 5e3
-        }
-      }
-    };
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3e4);
-    try {
-      const response = await fetch(
-        `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINT}`,
-        {
-          method: "POST",
-          headers: {
-            accept: "application/json, text/event-stream",
-            "content-type": "application/json"
-          },
-          body: JSON.stringify(codeRequest),
-          signal: controller.signal
-        }
-      );
-      clearTimeout(timeout);
-      if (!response.ok) {
-        const errorText = await response.text();
-        return `[Error: Code search error (${response.status}): ${errorText}]`;
-      }
-      const responseText = await response.text();
-      const lines = responseText.split("\n");
-      for (const line of lines) {
-        if (line.startsWith("data: ")) {
-          const data = JSON.parse(line.substring(6));
-          if (data.result && data.result.content && data.result.content.length > 0) {
-            return data.result.content[0].text;
-          }
-        }
-      }
-      return "No code snippets or documentation found. Please try a different query, be more specific about the library or programming concept, or check the spelling of framework names.";
-    } catch (error) {
-      clearTimeout(timeout);
-      const message = error instanceof Error ? error.message : String(error);
-      if (error instanceof Error && error.name === "AbortError") {
-        return `[Error: Code search request timed out]`;
-      }
-      return `[Error: ${message}]`;
-    }
-  }
-});
 const MAX_IMAGE_SIZE = 20 * 1024 * 1024;
 const DEFAULT_TIMEOUT$1 = 3e4;
+const MIME_TO_EXT = {
+  "image/png": ".png",
+  "image/jpeg": ".jpg",
+  "image/gif": ".gif",
+  "image/webp": ".webp",
+  "image/svg+xml": ".svg"
+};
 const createImageFetchTool = (supportsVision) => ai.tool({
-  description: "Fetch an image from a URL and return it for visual inspection. Use this when you need to view or analyze an image from a URL. Supports common image formats (PNG, JPEG, GIF, WebP, SVG).",
-  inputSchema: ai.zodSchema(
-    v4.z.object({
-      url: v4.z.string().describe("The image URL to fetch")
-    })
-  ),
+  description: "Fetch an image from a URL, save it to a temp file, and return the file path. Use this when you need to download or inspect an image from a URL. Supports PNG, JPEG, GIF, WebP, SVG (max 20MB).",
+  inputSchema: v4.z.object({
+    url: v4.z.string().describe("The image URL to fetch")
+  }),
   execute: async ({ url: url2 }) => {
     if (!url2.startsWith("http://") && !url2.startsWith("https://")) {
       url2 = "https://" + url2;
@@ -923,60 +805,35 @@ const createImageFetchTool = (supportsVision) => ai.tool({
       });
       clearTimeout(timer);
       if (!res.ok) {
-        return { error: `Request failed with status ${res.status}` };
+        return `[Error: Request failed with status ${res.status}]`;
       }
       const contentType = res.headers.get("content-type") || "";
-      if (!contentType.startsWith("image/")) {
-        return { error: `URL did not return an image (content-type: ${contentType})` };
+      const mime = contentType.split(";")[0].trim();
+      if (!mime.startsWith("image/")) {
+        return `[Error: URL did not return an image (content-type: ${contentType})]`;
       }
       const contentLength = res.headers.get("content-length");
       if (contentLength && parseInt(contentLength) > MAX_IMAGE_SIZE) {
-        return { error: "Image too large (exceeds 20MB limit)" };
+        return `[Error: Image too large (exceeds 20MB)]`;
       }
-      const buffer = await res.arrayBuffer();
+      const buffer = Buffer.from(await res.arrayBuffer());
       if (buffer.byteLength > MAX_IMAGE_SIZE) {
-        return { error: "Image too large (exceeds 20MB limit)" };
+        return `[Error: Image too large (exceeds 20MB)]`;
       }
-      const base64 = Buffer.from(buffer).toString("base64");
-      const mime = contentType.split(";")[0];
+      const ext = MIME_TO_EXT[mime] || ".bin";
+      const dir = node_path.join(node_os.tmpdir(), "coodeen-images");
+      await promises$1.mkdir(dir, { recursive: true });
+      const filePath = node_path.join(dir, `${node_crypto.randomUUID()}${ext}`);
+      await promises$1.writeFile(filePath, buffer);
       const sizeKB = Math.round(buffer.byteLength / 1024);
-      return { base64, mime, url: url2, sizeKB };
+      return `Image saved to ${filePath} (${mime}, ${sizeKB}KB)`;
     } catch (error) {
       clearTimeout(timer);
-      const message = error instanceof Error ? error.message : String(error);
       if (error instanceof Error && error.name === "AbortError") {
-        return { error: `Image fetch timed out after ${DEFAULT_TIMEOUT$1 / 1e3}s` };
+        return `[Error: Image fetch timed out after ${DEFAULT_TIMEOUT$1 / 1e3}s]`;
       }
-      return { error: message };
+      return `[Error: ${error instanceof Error ? error.message : error}]`;
     }
-  },
-  toModelOutput({ output }) {
-    if ("error" in output) {
-      return {
-        type: "text",
-        value: `[Error fetching image: ${output.error}]`
-      };
-    }
-    if (supportsVision) {
-      return {
-        type: "content",
-        value: [
-          {
-            type: "image-data",
-            data: output.base64,
-            mediaType: output.mime
-          },
-          {
-            type: "text",
-            text: `Image fetched from ${output.url}`
-          }
-        ]
-      };
-    }
-    return {
-      type: "text",
-      value: `Image fetched from ${output.url} (${output.mime}, ${output.sizeKB}KB). This model does not support vision — the image is available in the chat UI for the user to view.`
-    };
   }
 });
 const createPlanWriteTool = (planPath) => ai.tool({
@@ -1269,7 +1126,362 @@ const createImageSaveTool = (projectDir, sessionId) => ai.tool({
     }
   }
 });
-function createTools(projectDir, mode = "agent", planPath, supportsVision = true, sessionId = "default") {
+const SCREENSHOT_DIR = node_path.join(node_os.tmpdir(), "coodeen-screenshots");
+const ACTION_TIMEOUT = 1e4;
+function sendPreviewAction(getWindow2, payload) {
+  return new Promise((resolve) => {
+    const win = getWindow2();
+    if (!win) {
+      resolve({ success: false, error: "No window available" });
+      return;
+    }
+    const requestId = node_crypto.randomUUID();
+    const channel = `preview:action-result:${requestId}`;
+    const timeout = setTimeout(() => {
+      electron.ipcMain.removeAllListeners(channel);
+      resolve({ success: false, error: "Preview action timed out — is the preview panel open?" });
+    }, ACTION_TIMEOUT);
+    electron.ipcMain.once(channel, (_e, result) => {
+      clearTimeout(timeout);
+      resolve(result);
+    });
+    win.webContents.send("preview:action", { requestId, ...payload });
+  });
+}
+const createBrowserTool = (getWindow2, supportsVision) => ai.tool({
+  description: "Interact with the preview iframe. Use 'screenshot' to capture the current state of the preview panel. Use 'scroll' to scroll the page up/down by pixels or to top/bottom. Use 'click' to click an element by CSS selector.",
+  inputSchema: ai.zodSchema(
+    v4.z.object({
+      action: v4.z.enum(["screenshot", "scroll", "click"]).describe(
+        "Action to perform: 'screenshot' captures the preview, 'scroll' scrolls the page, 'click' clicks an element"
+      ),
+      direction: v4.z.enum(["up", "down"]).optional().describe(
+        "Scroll direction (required for scroll action)"
+      ),
+      amount: v4.z.union([
+        v4.z.number().describe("Pixels to scroll"),
+        v4.z.enum(["top", "bottom"]).describe("Scroll to absolute position")
+      ]).optional().describe(
+        "Scroll amount — pixels or 'top'/'bottom' (defaults to 500 for scroll action)"
+      ),
+      selector: v4.z.string().optional().describe(
+        "CSS selector of the element to click (required for click action)"
+      )
+    })
+  ),
+  execute: async (rawInput) => {
+    const input = {
+      ...rawInput,
+      amount: rawInput.amount ?? (rawInput.action === "scroll" ? 500 : void 0),
+      direction: rawInput.direction ?? (rawInput.action === "scroll" ? "down" : void 0)
+    };
+    if (input.action === "screenshot") {
+      const boundsResult = await sendPreviewAction(getWindow2, { action: "screenshot" });
+      if (!boundsResult.success) {
+        return { error: boundsResult.error ?? "Failed to get iframe bounds" };
+      }
+      const win = getWindow2();
+      if (!win) return { error: "No window available" };
+      const { x, y, width, height } = boundsResult.data;
+      const image = await win.webContents.capturePage({
+        x: Math.round(x),
+        y: Math.round(y),
+        width: Math.round(width),
+        height: Math.round(height)
+      });
+      const pngBuffer = image.toPNG();
+      await promises$1.mkdir(SCREENSHOT_DIR, { recursive: true });
+      const fileName = `preview-${Date.now()}.png`;
+      const filePath = node_path.join(SCREENSHOT_DIR, fileName);
+      await promises$1.writeFile(filePath, pngBuffer);
+      return { action: "screenshot", filePath };
+    }
+    const result = await sendPreviewAction(getWindow2, input);
+    if (!result.success) {
+      return { error: result.error ?? `${input.action} failed` };
+    }
+    return { action: input.action, success: true };
+  },
+  toModelOutput({ output }) {
+    if ("error" in output) {
+      return {
+        type: "text",
+        value: `[Browser tool error: ${output.error}]`
+      };
+    }
+    if (output.action === "screenshot" && "filePath" in output) {
+      const filePath = output.filePath;
+      if (supportsVision) {
+        try {
+          const data = node_fs.readFileSync(filePath);
+          const base64 = Buffer.from(data).toString("base64");
+          return {
+            type: "content",
+            value: [
+              {
+                type: "image-data",
+                data: base64,
+                mediaType: "image/png"
+              },
+              {
+                type: "text",
+                text: `[File: ${filePath}]`
+              }
+            ]
+          };
+        } catch {
+          return {
+            type: "text",
+            value: `Screenshot saved to ${filePath} but could not read it back.`
+          };
+        }
+      }
+      return {
+        type: "text",
+        value: `Screenshot saved to ${filePath}. This model does not support vision.`
+      };
+    }
+    return {
+      type: "text",
+      value: `${output.action} completed successfully.`
+    };
+  }
+});
+function stripHeredoc(input) {
+  const m = input.match(/^(?:cat\s+)?<<['"]?(\w+)['"]?\s*\n([\s\S]*?)\n\1\s*$/);
+  return m ? m[2] : input;
+}
+function parsePatch(patchText) {
+  const lines = stripHeredoc(patchText.trim()).split("\n");
+  const beginIdx = lines.findIndex((l) => l.trim() === "*** Begin Patch");
+  const endIdx = lines.findIndex((l) => l.trim() === "*** End Patch");
+  if (beginIdx === -1 || endIdx === -1 || beginIdx >= endIdx) {
+    throw new Error("Invalid patch format: missing Begin/End markers");
+  }
+  const hunks = [];
+  let i = beginIdx + 1;
+  while (i < endIdx) {
+    const line = lines[i];
+    if (line.startsWith("*** Add File:")) {
+      const filePath = line.slice("*** Add File:".length).trim();
+      i++;
+      let content = "";
+      while (i < endIdx && !lines[i].startsWith("***")) {
+        if (lines[i].startsWith("+")) content += lines[i].substring(1) + "\n";
+        i++;
+      }
+      if (content.endsWith("\n")) content = content.slice(0, -1);
+      hunks.push({ type: "add", path: filePath, contents: content });
+    } else if (line.startsWith("*** Delete File:")) {
+      hunks.push({ type: "delete", path: line.slice("*** Delete File:".length).trim() });
+      i++;
+    } else if (line.startsWith("*** Update File:")) {
+      const filePath = line.slice("*** Update File:".length).trim();
+      i++;
+      let movePath;
+      if (i < endIdx && lines[i].startsWith("*** Move to:")) {
+        movePath = lines[i].slice("*** Move to:".length).trim();
+        i++;
+      }
+      const chunks = [];
+      while (i < endIdx && !lines[i].startsWith("***")) {
+        if (lines[i].startsWith("@@")) {
+          const changeContext = lines[i].substring(2).trim() || void 0;
+          i++;
+          const oldLines = [];
+          const newLines = [];
+          let isEndOfFile = false;
+          while (i < endIdx && !lines[i].startsWith("@@") && !lines[i].startsWith("***")) {
+            if (lines[i] === "*** End of File") {
+              isEndOfFile = true;
+              i++;
+              break;
+            }
+            if (lines[i].startsWith(" ")) {
+              const c = lines[i].substring(1);
+              oldLines.push(c);
+              newLines.push(c);
+            } else if (lines[i].startsWith("-")) oldLines.push(lines[i].substring(1));
+            else if (lines[i].startsWith("+")) newLines.push(lines[i].substring(1));
+            i++;
+          }
+          chunks.push({ old_lines: oldLines, new_lines: newLines, change_context: changeContext, is_end_of_file: isEndOfFile || void 0 });
+        } else {
+          i++;
+        }
+      }
+      hunks.push({ type: "update", path: filePath, move_path: movePath, chunks });
+    } else {
+      i++;
+    }
+  }
+  return hunks;
+}
+function normalizeUnicode(s) {
+  return s.replace(/[\u2018\u2019\u201A\u201B]/g, "'").replace(/[\u201C\u201D\u201E\u201F]/g, '"').replace(/[\u2010-\u2015]/g, "-").replace(/\u2026/g, "...").replace(/\u00A0/g, " ");
+}
+function tryMatch(lines, pattern, start, cmp, eof) {
+  if (eof) {
+    const fromEnd = lines.length - pattern.length;
+    if (fromEnd >= start && pattern.every((p, j) => cmp(lines[fromEnd + j], p))) return fromEnd;
+  }
+  for (let i = start; i <= lines.length - pattern.length; i++) {
+    if (pattern.every((p, j) => cmp(lines[i + j], p))) return i;
+  }
+  return -1;
+}
+function seekSequence(lines, pattern, start, eof = false) {
+  if (!pattern.length) return -1;
+  let r = tryMatch(lines, pattern, start, (a, b) => a === b, eof);
+  if (r !== -1) return r;
+  r = tryMatch(lines, pattern, start, (a, b) => a.trimEnd() === b.trimEnd(), eof);
+  if (r !== -1) return r;
+  r = tryMatch(lines, pattern, start, (a, b) => a.trim() === b.trim(), eof);
+  if (r !== -1) return r;
+  return tryMatch(lines, pattern, start, (a, b) => normalizeUnicode(a.trim()) === normalizeUnicode(b.trim()), eof);
+}
+function deriveNewContents(filePath, chunks) {
+  let lines = node_fs.readFileSync(filePath, "utf-8").split("\n");
+  if (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
+  const replacements = [];
+  let idx = 0;
+  for (const chunk of chunks) {
+    if (chunk.change_context) {
+      const ci = seekSequence(lines, [chunk.change_context], idx);
+      if (ci === -1) throw new Error(`Context '${chunk.change_context}' not found in ${filePath}`);
+      idx = ci + 1;
+    }
+    if (chunk.old_lines.length === 0) {
+      const ins = lines.length > 0 && lines[lines.length - 1] === "" ? lines.length - 1 : lines.length;
+      replacements.push([ins, 0, chunk.new_lines]);
+      continue;
+    }
+    let pattern = chunk.old_lines;
+    let newSlice = chunk.new_lines;
+    let found = seekSequence(lines, pattern, idx, chunk.is_end_of_file);
+    if (found === -1 && pattern.length > 0 && pattern[pattern.length - 1] === "") {
+      pattern = pattern.slice(0, -1);
+      if (newSlice.length > 0 && newSlice[newSlice.length - 1] === "") newSlice = newSlice.slice(0, -1);
+      found = seekSequence(lines, pattern, idx, chunk.is_end_of_file);
+    }
+    if (found === -1) throw new Error(`Failed to find expected lines in ${filePath}:
+${chunk.old_lines.join("\n")}`);
+    replacements.push([found, pattern.length, newSlice]);
+    idx = found + pattern.length;
+  }
+  replacements.sort((a, b) => a[0] - b[0]);
+  const result = [...lines];
+  for (let i = replacements.length - 1; i >= 0; i--) {
+    const [start, len, seg] = replacements[i];
+    result.splice(start, len, ...seg);
+  }
+  if (result.length === 0 || result[result.length - 1] !== "") result.push("");
+  return result.join("\n");
+}
+const DESCRIPTION$1 = 'Apply a patch to create, update, delete, or move files. The patch format uses *** Begin Patch / *** End Patch markers with file sections:\n*** Add File: <path> — new file, every line prefixed with +\n*** Delete File: <path> — remove a file\n*** Update File: <path> — edit in place with @@ context and +/- lines\n*** Move to: <path> — rename (after Update File header)\n\nExample:\n*** Begin Patch\n*** Add File: hello.txt\n+Hello world\n*** Update File: src/app.py\n@@ def greet():\n-print("Hi")\n+print("Hello, world!")\n*** Delete File: obsolete.txt\n*** End Patch\n\nPrefer this over edit/multiedit for multi-file changes.';
+const createApplyPatchTool = (projectDir) => ai.tool({
+  description: DESCRIPTION$1,
+  inputSchema: v4.z.object({
+    patchText: v4.z.string().describe("The full patch text with Begin/End markers")
+  }),
+  execute: async ({ patchText }) => {
+    let hunks;
+    try {
+      hunks = parsePatch(patchText);
+    } catch (e) {
+      return `[Error parsing patch: ${e instanceof Error ? e.message : e}]`;
+    }
+    if (hunks.length === 0) return "[Error: patch contains no file operations]";
+    const summary = [];
+    for (const hunk of hunks) {
+      const filePath = node_path.resolve(projectDir, hunk.path);
+      try {
+        switch (hunk.type) {
+          case "add": {
+            await promises$1.mkdir(node_path.dirname(filePath), { recursive: true });
+            const content = hunk.contents.endsWith("\n") ? hunk.contents : hunk.contents + "\n";
+            await promises$1.writeFile(filePath, content, "utf-8");
+            summary.push(`A ${node_path.relative(projectDir, filePath)}`);
+            break;
+          }
+          case "delete": {
+            await promises$1.unlink(filePath);
+            summary.push(`D ${node_path.relative(projectDir, filePath)}`);
+            break;
+          }
+          case "update": {
+            const s = await promises$1.stat(filePath).catch(() => null);
+            if (!s || s.isDirectory()) return `[Error: cannot update ${hunk.path} — file not found]`;
+            const newContent = deriveNewContents(filePath, hunk.chunks);
+            const target = hunk.move_path ? node_path.resolve(projectDir, hunk.move_path) : filePath;
+            if (hunk.move_path) {
+              await promises$1.mkdir(node_path.dirname(target), { recursive: true });
+              await promises$1.writeFile(target, newContent, "utf-8");
+              await promises$1.unlink(filePath);
+              summary.push(`M ${node_path.relative(projectDir, target)} (moved from ${node_path.relative(projectDir, filePath)})`);
+            } else {
+              await promises$1.writeFile(filePath, newContent, "utf-8");
+              summary.push(`M ${node_path.relative(projectDir, filePath)}`);
+            }
+            break;
+          }
+        }
+      } catch (e) {
+        return `[Error applying hunk for ${hunk.path}: ${e instanceof Error ? e.message : e}]`;
+      }
+    }
+    return `Patch applied successfully:
+${summary.join("\n")}`;
+  }
+});
+const DESCRIPTION = "Execute multiple tool calls concurrently to reduce latency. Pass an array of {tool, parameters} objects (1–25). All run in parallel. Partial failures do not stop other calls. Cannot nest batch inside batch.\n\nGood for: reading many files, grep+glob+read combos, multiple bash commands, multi-file edits.\nBad for: operations that depend on prior output, ordered stateful mutations.";
+const createBatchTool = (getTools) => ai.tool({
+  description: DESCRIPTION,
+  inputSchema: v4.z.object({
+    tool_calls: v4.z.array(
+      v4.z.object({
+        tool: v4.z.string().describe("The name of the tool to execute"),
+        parameters: v4.z.record(v4.z.string(), v4.z.any()).describe("Parameters for the tool")
+      })
+    ).min(1).max(25).describe("Array of tool calls to execute in parallel")
+  }),
+  execute: async ({ tool_calls }) => {
+    const tools = getTools();
+    const results = await Promise.all(
+      tool_calls.map(async (call) => {
+        try {
+          if (call.tool === "batch") {
+            return { tool: call.tool, success: false, output: "Cannot nest batch inside batch" };
+          }
+          const t = tools[call.tool];
+          if (!t) {
+            return { tool: call.tool, success: false, output: `Unknown tool: ${call.tool}` };
+          }
+          if (!t.execute) {
+            return { tool: call.tool, success: false, output: `Tool ${call.tool} has no execute function` };
+          }
+          const output = await t.execute(call.parameters, { toolCallId: call.tool, messages: [], abortSignal: new AbortController().signal });
+          return { tool: call.tool, success: true, output };
+        } catch (e) {
+          return { tool: call.tool, success: false, output: e instanceof Error ? e.message : String(e) };
+        }
+      })
+    );
+    const ok = results.filter((r) => r.success).length;
+    const fail = results.length - ok;
+    const lines = results.map((r, i) => {
+      const status = r.success ? "ok" : "FAIL";
+      const out = typeof r.output === "string" ? r.output : JSON.stringify(r.output);
+      return `[${i + 1}] ${r.tool} (${status}):
+${out}`;
+    });
+    const header = fail > 0 ? `${ok}/${results.length} succeeded, ${fail} failed.` : `All ${ok} tools executed successfully.`;
+    return `${header}
+
+${lines.join("\n\n")}`;
+  }
+});
+function createTools(projectDir, mode = "agent", planPath, supportsVision = true, sessionId = "default", getWindow2) {
   const base = {
     read: createReadTool(projectDir),
     glob: createGlobTool(projectDir),
@@ -1277,10 +1489,9 @@ function createTools(projectDir, mode = "agent", planPath, supportsVision = true
     ls: createLsTool(projectDir),
     bash: createBashTool(projectDir),
     webfetch: createWebFetchTool(),
-    websearch: createWebSearchTool(),
-    codesearch: createCodeSearchTool(),
-    imagefetch: createImageFetchTool(supportsVision),
-    skill: createSkillTool()
+    imagefetch: createImageFetchTool(),
+    skill: createSkillTool(),
+    browser: createBrowserTool(getWindow2 ?? (() => null), supportsVision)
   };
   if (mode === "plan" && planPath) {
     return {
@@ -1290,15 +1501,18 @@ function createTools(projectDir, mode = "agent", planPath, supportsVision = true
       plan_exit: createPlanExitTool(planPath)
     };
   }
-  return {
+  const agentTools = {
     ...base,
     write: createWriteTool(projectDir),
     edit: createEditTool(projectDir),
     multiedit: createMultiEditTool(projectDir),
+    apply_patch: createApplyPatchTool(projectDir),
     todo_write: createTodoWriteTool(sessionId),
     todo_read: createTodoReadTool(sessionId),
-    image_save: createImageSaveTool(projectDir, sessionId)
+    imagesave: createImageSaveTool(projectDir, sessionId)
   };
+  agentTools.batch = createBatchTool(() => agentTools);
+  return agentTools;
 }
 function getPlanPath(projectDir, sessionId) {
   return path.join(os.homedir(), ".coodeen", "plans", `${sessionId}.md`);
@@ -1385,7 +1599,7 @@ function registerChatHandlers(getWindow2) {
           );
         }
         const supportsVision = await modelSupportsImage(providerId, modelId);
-        const tools = createTools(projectDir, mode, planPath, supportsVision, sessionId);
+        const tools = createTools(projectDir, mode, planPath, supportsVision, sessionId, getWindow2);
         const result = ai.streamText({
           model: resolved.model,
           system: systemPrompt,
@@ -1488,21 +1702,21 @@ function buildPlanSystemPrompt(modelId, home, projectDir) {
     `The user's home directory is ${home}. The current project directory is ${projectDir}.`,
     `Relative paths resolve against the project directory.`,
     ``,
-    `## FIRST response: call the question tool then STOP`,
+    `## FIRST response: research thoroughly, then plan`,
     `On the very first user message you MUST:`,
     `1. Read the user's request carefully.`,
-    `2. Call the \`question\` tool with 2-5 clarifying questions.`,
+    `2. Research the project extensively using read, glob, grep, ls, webfetch — understand the codebase, existing patterns, dependencies, and relevant files before making any plan.`,
+    `3. Based on your research, output the plan directly in chat as a concise bullet-point list.`,
+    `4. Also call plan_write with the same plan content. Do NOT skip plan_write.`,
+    `5. Only if something is genuinely unclear after your research, call the \`question\` tool with 1-3 focused questions. Do NOT ask questions you could have answered by reading the code.`,
     `   - "text" type for open-ended questions (textarea).`,
     `   - "single_select" with options for one-answer questions (radio buttons).`,
     `   - "multi_select" with options for multi-answer questions (checkboxes).`,
-    `3. After calling the question tool, STOP. Do NOT research or plan yet.`,
-    `   The user's answers will arrive as the next message.`,
     ``,
     `## When user answers arrive (follow-up message starting with "Answers:")`,
-    `1. Research using read, glob, grep, webfetch, websearch, codesearch as needed.`,
-    `2. Output the plan directly in chat as a concise bullet-point list.`,
-    `3. Also call plan_write with the same plan content. Do NOT skip plan_write.`,
-    `4. After the plan, ask: "Would you like to modify this plan or execute it?"`,
+    `1. Incorporate the answers into your plan.`,
+    `2. Output the revised plan and call plan_write with the updated content.`,
+    `3. Ask: "Would you like to modify this plan or execute it?"`,
     ``,
     `## On other follow-up messages`,
     `- If the user wants to modify: revise the plan, call plan_write with updated plan, ask again.`,
@@ -1512,7 +1726,7 @@ function buildPlanSystemPrompt(modelId, home, projectDir) {
     `- You CANNOT write or edit project files. Only the plan file is writable via plan_write.`,
     `- Do NOT generate README files or any other files. The plan lives in chat as bullet points.`,
     `- Do NOT call plan_exit. The user will switch modes manually.`,
-    `- ALWAYS call question tool first before planning. Never skip the clarification step.`
+    `- ALWAYS research first. Never ask questions that can be answered by reading the project.`
   ].join("\n");
 }
 function buildAgentSystemPrompt(modelId, home, projectDir, existingPlan, skills) {
@@ -2351,7 +2565,8 @@ function createWindow() {
       preload: path.join(__dirname, "../preload/index.js"),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: false,
+      webSecurity: false
     }
   });
   if (process.env.ELECTRON_RENDERER_URL) {
@@ -2374,6 +2589,19 @@ electron.app.whenReady().then(() => {
   registerConfigHandlers();
   registerActionHandlers();
   registerSkillHandlers();
+  electron.ipcMain.handle(
+    "capture:area",
+    async (_e, x, y, width, height) => {
+      if (!mainWindow) return null;
+      const image = await mainWindow.webContents.capturePage({
+        x: Math.round(x),
+        y: Math.round(y),
+        width: Math.round(width),
+        height: Math.round(height)
+      });
+      return image.toDataURL();
+    }
+  );
   createWindow();
   electron.app.on("activate", () => {
     if (electron.BrowserWindow.getAllWindows().length === 0) {

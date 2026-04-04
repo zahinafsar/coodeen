@@ -10,7 +10,7 @@ Coodeen uses the [Vercel AI SDK](https://sdk.vercel.ai/) to support multiple AI 
 ### OpenAI
 
 1. Get an API key from [platform.openai.com](https://platform.openai.com/api-keys)
-2. Open Settings in Coodeen
+2. Open Settings in Coodeen (gear icon in the top bar)
 3. Select **OpenAI** and paste your key
 
 **Available models**: GPT-4o, GPT-4.1, GPT-4.1-mini, GPT-4.1-nano
@@ -37,4 +37,10 @@ Coodeen also includes free model options that don't require an API key. These ar
 
 ## API Key Storage
 
-API keys are stored locally in the SQLite database at `~/.coodeen/data.db`. They are never transmitted anywhere except directly to the provider's API endpoint during chat requests.
+API keys are stored locally in the SQLite database in your app data directory. They are never transmitted anywhere except directly to the provider's API endpoint during chat requests.
+
+| Platform | Database Location |
+|----------|-------------------|
+| macOS | `~/Library/Application Support/coodeen/coodeen.db` |
+| Windows | `%APPDATA%/coodeen/coodeen.db` |
+| Linux | `~/.config/coodeen/coodeen.db` |

@@ -1,56 +1,44 @@
 ---
 title: AI Tools
-description: The tools available to Coodeen's AI agent for code interaction.
+description: What the AI can do in your project.
 ---
 
 ## Overview
 
-Coodeen's AI agent has access to a set of tools that let it interact with your codebase. These tools are invoked automatically during conversations when the AI needs to read, write, or search your code.
+When you chat with the AI, it can take actions on your codebase automatically. You'll see each action displayed inline in the conversation so you always know what's happening.
 
-## File Operations
+## What the AI Can Do
 
-| Tool        | Description                                      |
-| ----------- | ------------------------------------------------ |
-| `read`      | Read file contents                               |
-| `write`     | Create or overwrite a file                       |
-| `edit`      | Make targeted edits to a file                    |
-| `multiedit` | Apply multiple edits to one or more files        |
-| `glob`      | Find files matching a pattern                    |
-| `ls`        | List directory contents                          |
+### Read and Search
 
-## Search
+- Read files in your project
+- Search for files by name or pattern
+- Search inside files for specific text
+- List folder contents
+- Fetch content from URLs
 
-| Tool         | Description                                     |
-| ------------ | ----------------------------------------------- |
-| `grep`       | Search file contents with regex                 |
-| `codesearch` | Semantic code search                            |
-| `websearch`  | Search the web for information                  |
-| `webfetch`   | Fetch and read a web page                       |
-| `imagefetch` | Fetch an image from a URL                       |
+### Write and Edit
 
-## Shell
+- Create new files
+- Edit existing files
+- Apply changes across multiple files
+- Save images to disk
 
-| Tool   | Description                                          |
-| ------ | ---------------------------------------------------- |
-| `bash` | Execute shell commands in the project directory      |
+### Run Commands
 
-## Planning
+- Execute shell commands in your project directory (install packages, run tests, start servers, etc.)
 
-| Tool         | Description                                      |
-| ------------ | ------------------------------------------------ |
-| `plan_write` | Write a plan or task list                        |
-| `plan_exit`  | Exit plan mode                                   |
-| `todo_write` | Create or update a todo list                     |
-| `todo_read`  | Read the current todo list                       |
-| `question`   | Ask the user a question (plan mode)              |
+### Plan
 
-## Other
+- Write and manage plans before making changes
+- Create todo lists to track progress
+- Ask you questions to clarify requirements
 
-| Tool         | Description                                      |
-| ------------ | ------------------------------------------------ |
-| `skill`      | Run a registered skill                           |
-| `image_save` | Save an image to disk                            |
+### Other
 
-## Tool Behavior
+- Run registered skills
+- Fetch images from the web for reference
 
-Tools execute in the context of the current project directory. The AI decides which tools to use based on your request. Tool calls and their results are displayed inline in the chat panel, so you can see exactly what the AI is doing.
+## How It Works
+
+The AI decides which actions to take based on your request. Every action and its result is shown in the chat panel — you can expand each one to see the details. In **Plan mode**, the AI can only read your code and propose changes without modifying anything.

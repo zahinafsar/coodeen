@@ -6,8 +6,6 @@ import { createGlobTool } from "../tools/glob.js";
 import { createGrepTool } from "../tools/grep.js";
 import { createLsTool } from "../tools/ls.js";
 import { createWebFetchTool } from "../tools/webfetch.js";
-import { createWebSearchTool } from "../tools/websearch.js";
-import { createCodeSearchTool } from "../tools/codesearch.js";
 import { createImageFetchTool } from "../tools/imagefetch.js";
 import { createPlanWriteTool, createPlanExitTool } from "../tools/plan.js";
 import { createQuestionTool } from "../tools/question.js";
@@ -16,6 +14,8 @@ import { createBashTool } from "../tools/bash.js";
 import { createTodoWriteTool, createTodoReadTool } from "../tools/todo.js";
 import { createImageSaveTool } from "../tools/imagesave.js";
 import { createBrowserTool } from "../tools/browser.js";
+import { createApplyPatchTool } from "../tools/patch.js";
+import { createBatchTool } from "../tools/batch.js";
 import type { BrowserWindow } from "electron";
 
 export function createTools(
@@ -33,8 +33,6 @@ export function createTools(
     ls: createLsTool(projectDir),
     bash: createBashTool(projectDir),
     webfetch: createWebFetchTool(),
-    websearch: createWebSearchTool(),
-    codesearch: createCodeSearchTool(),
     imagefetch: createImageFetchTool(supportsVision),
     skill: createSkillTool(),
     browser: createBrowserTool(getWindow ?? (() => null), supportsVision),
@@ -49,13 +47,20 @@ export function createTools(
     };
   }
 
-  return {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const agentTools: Record<string, any> = {
     ...base,
     write: createWriteTool(projectDir),
     edit: createEditTool(projectDir),
     multiedit: createMultiEditTool(projectDir),
+    apply_patch: createApplyPatchTool(projectDir),
     todo_write: createTodoWriteTool(sessionId),
     todo_read: createTodoReadTool(sessionId),
-    image_save: createImageSaveTool(projectDir, sessionId),
+    imagesave: createImageSaveTool(projectDir, sessionId),
   };
+
+  // Batch gets a lazy reference so it can invoke sibling tools
+  agentTools.batch = createBatchTool(() => agentTools);
+
+  return agentTools;
 }

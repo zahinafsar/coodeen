@@ -3,56 +3,40 @@ title: Quick Start
 description: Get up and running with Coodeen in under a minute.
 ---
 
-## Requirements
+## Download
 
-- **Node.js 18+**
-- An API key from at least one supported AI provider
+Download the latest version for your platform:
 
-## Install and Run
+| Platform | Download |
+|----------|----------|
+| macOS (Apple Silicon) | [Coodeen-mac-arm64.dmg](https://github.com/zahinafsar/coodeen/releases/latest/download/Coodeen-mac-arm64.dmg) |
+| macOS (Intel) | [Coodeen-mac-x64.dmg](https://github.com/zahinafsar/coodeen/releases/latest/download/Coodeen-mac-x64.dmg) |
+| Windows | [Coodeen-Setup.exe](https://github.com/zahinafsar/coodeen/releases/latest/download/Coodeen-Setup.exe) |
+| Linux | [Coodeen-linux.AppImage](https://github.com/zahinafsar/coodeen/releases/latest/download/Coodeen-linux.AppImage) |
 
-### Using npx (recommended)
+Or browse [all releases](https://github.com/zahinafsar/coodeen/releases).
 
-```bash
-cd ~/my-project
-npx coodeen
-```
+## Install
 
-### Global install
-
-```bash
-npm install -g coodeen
-coodeen
-```
-
-On first run, Coodeen will:
-
-1. Create `~/.coodeen/` for your local database
-2. Initialize the SQLite database automatically
-3. Start the server on port 3099
-4. Open your browser to `http://localhost:3099/editor/`
+- **macOS** — Open the `.dmg` file and drag Coodeen to your Applications folder.
+- **Windows** — Run the `.exe` installer and follow the prompts.
+- **Linux** — Make the `.AppImage` executable (`chmod +x Coodeen-linux.AppImage`) and run it.
 
 ## Configure a Provider
 
-Click the **gear icon** in the top bar to open Settings. Add an API key for at least one provider:
+Launch Coodeen and click the **gear icon** in the top bar to open Settings. Add an API key for at least one provider:
 
 | Provider  | Get API Key                                                       | Models                                  |
 | --------- | ----------------------------------------------------------------- | --------------------------------------- |
 | OpenAI    | [platform.openai.com](https://platform.openai.com/api-keys)      | GPT-4o, GPT-4.1, GPT-4.1-mini          |
-| Anthropic | [console.anthropic.com](https://console.anthropic.com/)           | Claude Sonnet, Claude Haiku             |
+| Anthropic | [console.anthropic.com](https://console.anthropic.com/)           | Claude Sonnet 4, Claude Haiku           |
 | Google    | [aistudio.google.com](https://aistudio.google.com/apikey)        | Gemini 2.5 Pro, Gemini 2.5 Flash       |
 
 ## Example Workflow
 
-```bash
-# 1. Navigate to your project
-cd ~/my-app
-
-# 2. Start Coodeen
-npx coodeen
-
-# 3. Browser opens to http://localhost:3099/editor/
-# 4. Add your API key in Settings
-# 5. Point the preview panel to your dev server (e.g. http://localhost:3000)
-# 6. Start chatting — ask the AI to build features, fix bugs, or explain code
-# 7. Capture screenshots from the preview to give the AI visual context
-```
+1. Launch Coodeen
+2. Select your project directory using the folder picker in the top bar
+3. Add your API key in Settings
+4. Point the preview panel to your dev server (e.g. `http://localhost:3000`)
+5. Start chatting — ask the AI to build features, fix bugs, or explain code
+6. Capture screenshots from the preview to give the AI visual context

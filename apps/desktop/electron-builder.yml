@@ -7,12 +7,20 @@ files:
   - out/**/*
 mac:
   category: public.app-category.developer-tools
+  artifactName: "Coodeen-mac-${arch}.${ext}"
   target:
     - dmg
     - zip
 win:
+  artifactName: "Coodeen-Setup.${ext}"
   target:
     - nsis
 linux:
+  artifactName: "Coodeen-linux.${ext}"
   target:
     - AppImage
+publish:
+  provider: github
+  owner: zahinafsar
+  repo: coodeen
+  releaseType: release

@@ -471,6 +471,7 @@ export function ChatPanel({
         open={pendingQuestion !== null}
         questions={pendingQuestion?.questions ?? []}
         onSubmit={handleQuestionSubmit}
+        onClose={() => setPendingQuestion(null)}
       />
       <SessionDrawer
         currentSessionId={sessionId}

@@ -5,31 +5,29 @@ description: Coodeen is an AI coding assistant with a split-pane editor — chat
 
 ## What is Coodeen?
 
-Coodeen is an open-source AI coding assistant that runs entirely on your machine. It provides a split-pane editor interface with an AI chat panel on the left and a live preview of your running application on the right.
+Coodeen is an open-source AI coding assistant that runs as a native desktop application. It provides a split-pane editor interface with an AI chat panel on the left and a live preview of your running application on the right.
 
-```bash
-npx coodeen
-```
-
-That's it. Your browser opens to the editor automatically.
+Download the latest version from the [releases page](https://github.com/zahinafsar/coodeen/releases/latest) or from the homepage.
 
 ## Key Features
 
 - **Multi-model chat** — Talk to OpenAI, Anthropic, or Google models about your code
 - **Live preview** — See your running app side-by-side with the conversation
 - **Screenshot capture** — Select any area of the preview and send it to the AI
+- **Built-in terminal** — Full shell access via integrated terminal
+- **File explorer** — Browse and manage project files
+- **Git integration** — View branches, status, and commit history
 - **Session management** — Switch between projects and pick up where you left off
-- **Auto project detection** — Automatically uses the directory you run the command from
 - **Fully local** — Your API keys, conversations, and data never leave your machine
 
 ## How It Works
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  Coodeen (http://localhost:3099/editor/)         │
+│  Coodeen                                        │
 ├────────────────────┬────────────────────────────┤
 │                    │                            │
-│   Chat Panel       │   Preview Panel            │
+│   Chat Panel       │   Preview / Files / Git    │
 │                    │                            │
 │   > Fix the nav    │   ┌──────────────────┐     │
 │                    │   │  Your running app │     │
@@ -43,7 +41,7 @@ That's it. Your browser opens to the editor automatically.
 └─────────────────────────────────────────────────┘
 ```
 
-Coodeen runs a local Hono server with a React frontend. The AI agent has full access to your filesystem — it can read, write, edit, search, and run commands in your project directory.
+Coodeen is built with Electron and runs entirely on your machine. The AI agent has full access to your filesystem — it can read, write, edit, search, and run commands in your project directory.
 
 ## Next Steps
 

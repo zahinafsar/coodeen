@@ -5,12 +5,13 @@ description: Common issues and solutions when using Coodeen.
 
 ## Database Issues
 
-If the database becomes corrupted or you want a fresh start:
+If something seems off or you want a fresh start, delete the database file and relaunch Coodeen:
 
-```bash
-rm ~/.coodeen/data.db
-npx coodeen
-```
+| Platform | Delete this file |
+|----------|------------------|
+| macOS | `~/Library/Application Support/coodeen/coodeen.db` |
+| Windows | `%APPDATA%/coodeen/coodeen.db` |
+| Linux | `~/.config/coodeen/coodeen.db` |
 
 A new database will be created automatically on the next launch.
 
@@ -24,15 +25,6 @@ Make sure you're using a vision-capable model:
 
 Models like GPT-4.1-nano don't support image inputs.
 
-## Port Already in Use
-
-If port 3099 is already in use, Coodeen will fail to start. Kill the existing process:
-
-```bash
-lsof -ti:3099 | xargs kill
-npx coodeen
-```
-
 ## Preview Not Loading
 
 If the preview panel shows a blank page:
@@ -40,22 +32,18 @@ If the preview panel shows a blank page:
 1. Make sure your dev server is actually running on the URL you entered
 2. Check for CORS issues — some frameworks block iframe embedding
 3. Try reloading the preview with the refresh button
-4. Check the browser console for errors
 
 ## API Key Not Working
 
 1. Verify the key is correct in Settings
-2. Check that the key has the necessary permissions (some providers require specific access levels)
+2. Check that the key has the necessary permissions
 3. Ensure you have billing set up with the provider
 4. Try regenerating the key from the provider's dashboard
 
 ## Slow Responses
 
-Response speed depends on:
+Response speed depends on your chosen model and network connection. Smaller models (GPT-4.1-mini, Claude Haiku) are faster. Larger models (GPT-4.1, Claude Opus 4) are more capable but slower.
 
-- Your chosen AI provider and model
-- The complexity of the request
-- Network latency to the provider's API
-- The provider's current load
+## macOS Security Warning
 
-Smaller models (GPT-4.1-mini, Claude Haiku) are faster but less capable. Larger models (GPT-4.1, Claude Opus 4) are more capable but slower.
+Since the app is not yet code-signed, macOS may show a warning when you first open it. Right-click the app and select "Open" to bypass Gatekeeper, or go to System Settings > Privacy & Security and click "Open Anyway".
