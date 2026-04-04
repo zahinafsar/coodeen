@@ -1,0 +1,20 @@
+import { HashRouter, Routes, Route } from "react-router-dom";
+import { Layout } from "./components/Layout";
+import { MainPage } from "./pages/MainPage";
+import { SettingsPage } from "./pages/SettingsPage";
+import "./styles/globals.css";
+import "highlight.js/styles/github-dark.css";
+
+export function App() {
+  return (
+    <HashRouter>
+      <Routes>
+        <Route element={<Layout />}>
+          <Route path="/" element={<MainPage />} />
+          <Route path="/session/:sessionId" element={<MainPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+        </Route>
+      </Routes>
+    </HashRouter>
+  );
+}

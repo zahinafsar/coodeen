@@ -1,48 +1,31 @@
 ---
-title: Architecture Overview
-description: How Coodeen is structured — monorepo layout, backend, frontend, and CLI.
+title: How Coodeen Works
+description: A high-level overview of how Coodeen is built.
 ---
 
-## Monorepo Structure
+## Overview
 
-```
-coodeen/
-├── apps/
-│   ├── server/          # Hono API server (Bun + Node.js)
-│   │   ├── src/
-│   │   │   ├── agent/   # AI chat agent (Vercel AI SDK)
-│   │   │   ├── routes/  # API routes
-│   │   │   ├── tools/   # Code tools (read, write, edit, grep, glob)
-│   │   │   └── db/      # Prisma ORM (SQLite)
-│   │   └── prisma/      # Database schema
-│   └── web/             # React frontend (Vite + Tailwind)
-│       └── src/
-│           ├── components/
-│           │   ├── chat/      # Chat panel
-│           │   ├── preview/   # Preview iframe
-│           │   ├── files/     # File explorer
-│           │   ├── terminal/  # Terminal emulator
-│           │   └── git/       # Git integration
-│           └── lib/           # API client, types
-└── packages/
-    └── cli/             # npm CLI package (npx coodeen)
-```
+Coodeen is a native desktop app built with Electron. Everything runs locally on your machine — there's no server to set up or manage.
 
-## How It Fits Together
+## What's Inside
 
-1. **CLI** (`packages/cli`) — Entry point. Initializes the database, starts the server, opens the browser.
-2. **Server** (`apps/server`) — Hono API. Handles chat streaming, file operations, sessions, and provider management.
-3. **Web** (`apps/web`) — React SPA. The editor UI that communicates with the server via REST and SSE.
+- **AI chat** — Powered by the Vercel AI SDK, supporting OpenAI, Anthropic, and Google models
+- **File access** — The AI can read, write, and search files in your project
+- **Terminal** — Built-in shell powered by node-pty
+- **Git** — View branches, status, and commit history
+- **Database** — SQLite stores your sessions, messages, and settings locally
+- **Preview** — Embedded browser frame showing your running app
 
-The web frontend is built and bundled into the server's static directory for distribution. When you run `npx coodeen`, the CLI starts the server which serves both the API and the pre-built frontend.
+## Data Storage
 
-## Technology Stack
+All your data stays on your machine:
 
-| Layer    | Technology                                          |
-| -------- | --------------------------------------------------- |
-| CLI      | Node.js, tsup                                       |
-| Server   | Hono, Prisma (SQLite), Vercel AI SDK, Zod           |
-| Frontend | React 19, Vite, Tailwind CSS, Radix UI, xterm.js    |
-| AI       | OpenAI, Anthropic, Google via Vercel AI SDK          |
-| Database | SQLite via Prisma ORM                                |
-| Terminal | bun-pty / node-pty, WebSocket                        |
+| Platform | Location |
+|----------|----------|
+| macOS | `~/Library/Application Support/coodeen/` |
+| Windows | `%APPDATA%/coodeen/` |
+| Linux | `~/.config/coodeen/` |
+
+## Open Source
+
+Coodeen is fully open source. The code is on [GitHub](https://github.com/zahinafsar/coodeen) and contributions are welcome.

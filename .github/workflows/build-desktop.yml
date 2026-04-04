@@ -1,0 +1,153 @@
+name: Build Desktop App
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - "v*"
+    paths:
+      - "apps/desktop/**"
+      - "scripts/**"
+      - ".github/workflows/build-desktop.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # Read version from package.json and check if a tag already exists
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag_exists: ${{ steps.check.outputs.exists }}
+      is_tag_push: ${{ steps.detect.outputs.is_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect trigger type
+        id: detect
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "is_tag=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_tag=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Read version
+        id: version
+        run: |
+          VERSION=$(node -p "require('./apps/desktop/package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check if tag exists
+        id: check
+        run: |
+          if git rev-parse "v${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  typecheck:
+    needs: check-version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install
+      - name: Typecheck
+        run: bun run --cwd apps/desktop typecheck
+
+  build:
+    needs: [check-version, typecheck]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            arch: arm64
+          - os: macos-13
+            arch: x64
+          - os: windows-latest
+            arch: x64
+          - os: ubuntu-latest
+            arch: x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Rebuild native modules for Electron
+        working-directory: apps/desktop
+        run: node ../../scripts/rebuild-native.js
+
+      - name: Build with electron-vite
+        working-directory: apps/desktop
+        run: bun run build
+
+      - name: Package with electron-builder
+        working-directory: apps/desktop
+        run: npx electron-builder --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.os }}-${{ matrix.arch }}
+          path: |
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.zip
+            apps/desktop/release/*.exe
+            apps/desktop/release/*.AppImage
+          if-no-files-found: error
+
+  release:
+    needs: [check-version, build]
+    if: needs.check-version.outputs.is_tag_push == 'true' || needs.check-version.outputs.tag_exists == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create and push tag
+        if: needs.check-version.outputs.is_tag_push == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "v${{ needs.check-version.outputs.version }}"
+          git push origin "v${{ needs.check-version.outputs.version }}"
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ needs.check-version.outputs.version }}"
+          generate_release_notes: true
+          files: |
+            artifacts/*.dmg
+            artifacts/*.zip
+            artifacts/*.exe
+            artifacts/*.AppImage
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

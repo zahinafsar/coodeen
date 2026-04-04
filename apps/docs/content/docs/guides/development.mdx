@@ -5,73 +5,48 @@ description: Set up the Coodeen development environment and contribute.
 
 ## Prerequisites
 
-- [Bun](https://bun.sh/) (primary runtime)
+- [Bun](https://bun.sh/)
 - [Node.js 18+](https://nodejs.org/)
 - Git
 
 ## Setup
 
 ```bash
-# Clone the repository
 git clone https://github.com/zahinafsar/coodeen.git
 cd coodeen
-
-# Install dependencies
 bun install
 ```
 
-## Development Servers
+## Running Locally
 
 ```bash
-# Run both API and web in parallel
+# Start the desktop app in development mode
 bun run dev
-
-# Run individually
-bun run dev:server    # API on :3099
-bun run dev:web       # Vite on :5173
 ```
 
-During development, the Vite dev server runs on port 5173 with hot module replacement. The API server runs on port 3099. The Vite config proxies API requests to the server automatically.
+This launches the Electron app with hot reload — changes to the renderer update instantly.
 
 ## Type Checking
 
 ```bash
-bun run typecheck
+bun run --cwd apps/desktop typecheck
 ```
 
 ## Building
 
 ```bash
-# Build both server and web
+# Build the app for production
 bun run build
 
-# Build for npm distribution
-bun run build:npm
-
-# Dry run npm publish
-bun run publish:npm:dry
+# Build and package as an installer for your platform
+cd apps/desktop && bun run build:prod
 ```
-
-The `build:npm` command:
-
-1. Builds the React frontend
-2. Generates the Prisma client
-3. Builds the CLI package with tsup
-4. Copies Prisma schema and static assets into the CLI dist
-
-## Publishing
-
-```bash
-bun run publish:npm
-```
-
-This builds everything and publishes the `coodeen` package to npm.
 
 ## Project Structure
 
 | Directory        | Purpose                                |
 | ---------------- | -------------------------------------- |
-| `apps/server`    | Hono API server                        |
-| `apps/web`       | React frontend (Vite + Tailwind)       |
-| `apps/docs`      | Documentation site (Fumadocs + Next.js)|
-| `packages/cli`   | CLI entry point (`npx coodeen`)        |
+| `apps/desktop`   | Electron desktop app (main + renderer) |
+| `apps/docs`      | Documentation site (Next.js + Fumadocs)|
+| `packages/cli`   | Legacy CLI package                     |
+| `scripts/`       | Build helper scripts                   |

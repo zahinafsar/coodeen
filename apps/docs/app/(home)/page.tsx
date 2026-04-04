@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 function CoodIcon({ className }: { className?: string }) {
   return (
@@ -377,6 +377,75 @@ function CursorGlow() {
   );
 }
 
+const REPO_BASE = 'https://github.com/zahinafsar/coodeen';
+const DOWNLOAD_BASE = `${REPO_BASE}/releases/latest/download`;
+
+const DOWNLOADS = [
+  { key: 'mac', label: 'macOS', file: 'Coodeen-mac-arm64.dmg', icon: 'apple' },
+  { key: 'windows', label: 'Windows', file: 'Coodeen-Setup.exe', icon: 'windows' },
+  { key: 'linux', label: 'Linux', file: 'Coodeen-linux.AppImage', icon: 'linux' },
+] as const;
+
+function detectPlatform(): string {
+  if (typeof navigator === 'undefined') return 'mac_arm64';
+  const ua = navigator.userAgent.toLowerCase();
+  if (ua.includes('win')) return 'windows';
+  if (ua.includes('linux')) return 'linux';
+  if (ua.includes('mac')) return 'mac';
+  return 'mac';
+}
+
+function PlatformIcon({ type, className }: { type: string; className?: string }) {
+  if (type === 'apple') {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+        <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
+      </svg>
+    );
+  }
+  if (type === 'windows') {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+        <path d="M3 12V6.5l8-1.1V12H3zm0 .5h8v6.6l-8-1.1V12.5zM11.5 5.3l9.5-1.3v8h-9.5V5.3zm0 7.2h9.5v8l-9.5-1.3V12.5z" />
+      </svg>
+    );
+  }
+  // linux
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12.504 0c-.155 0-.315.008-.48.021-4.226.333-3.105 4.807-3.17 6.298-.076 1.092-.3 1.953-1.05 3.02-.885 1.051-2.127 2.75-2.716 4.521-.278.832-.41 1.684-.287 2.489a.424.424 0 00-.11.135c-.26.268-.45.6-.663.839-.199.199-.485.267-.797.4-.313.136-.658.269-.864.68-.09.189-.136.394-.132.602 0 .199.027.4.055.536.058.399.116.728.04.97-.249.68-.28 1.145-.106 1.484.174.334.535.47.94.601.81.2 1.91.135 2.774.6.926.466 1.866.67 2.616.47.526-.116.97-.464 1.208-.946.587-.003 1.23-.269 2.26-.334.699-.058 1.574.267 2.577.2.025.134.063.198.114.333l.003.003c.391.778 1.113 1.368 1.884 1.43.868.065 1.544-.378 1.773-1.014.643.026 1.312-.236 1.996-.882.191-.18.379-.39.541-.622.349.086.733.065 1.145-.207.411-.272.652-.756.687-1.299.063-1.08-.459-1.882-1.368-2.248-.3-.13-.636-.2-.974-.263-.015-.07-.034-.134-.054-.198-.137-.343-.27-.676-.437-1.01-.175-.393-.382-.728-.596-1.067-.194-.308-.35-.683-.54-.903-.105-.148-.22-.265-.323-.363-.026-.027-.04-.048-.07-.07l-.007-.004a1.635 1.635 0 00-.088-.064l.007-.009c.146-.247.271-.461.406-.681.178-.37.329-.718.452-1.148.106-.381.16-.758.21-1.078.074-.525.132-1.116.27-1.571.142-.46.3-.791.508-1.05.154-.192.314-.358.49-.505l.007-.007a1.5 1.5 0 00.09-.103c.564-.648.893-1.467.954-2.392.064-.98-.161-1.854-.562-2.608-.814-1.502-2.127-2.406-3.328-2.95C14.555.247 13.51.06 12.504 0z" />
+    </svg>
+  );
+}
+
+function HeroDownload() {
+  const [platform, setPlatform] = useState('mac');
+
+  useEffect(() => {
+    setPlatform(detectPlatform());
+  }, []);
+
+  const primary = DOWNLOADS.find((d) => d.key === platform) ?? DOWNLOADS[0];
+
+  return (
+    <div className="animate-hero-fade mb-24 flex flex-col items-center gap-4">
+      <a
+        href={`${DOWNLOAD_BASE}/${primary.file}`}
+        className="inline-flex h-12 items-center gap-3 rounded-lg bg-[#00363E] px-8 text-sm font-semibold text-white transition-all hover:bg-[#004a54] hover:shadow-lg hover:shadow-[#00363E]/40"
+      >
+        <PlatformIcon type={primary.icon} className="h-5 w-5" />
+        Download for {primary.label}
+      </a>
+      <a
+        href={`${REPO_BASE}/releases`}
+        className="text-sm text-white/40 underline decoration-white/20 underline-offset-4 transition-colors hover:text-white/60"
+      >
+        All releases
+      </a>
+    </div>
+  );
+}
+
 export default function HomePage() {
   return (
     <main className="animate-screen-shake relative flex min-h-screen flex-col overflow-hidden bg-[#0a0e14]">
@@ -412,18 +481,7 @@ export default function HomePage() {
         </p>
 
         {/* CTA */}
-        <div className="animate-hero-fade mb-24 flex flex-col items-center gap-4 sm:flex-row">
-          <Link
-            href="/docs"
-            className="inline-flex h-12 items-center rounded-lg bg-[#00363E] px-8 text-sm font-semibold text-white transition-all hover:bg-[#004a54] hover:shadow-lg hover:shadow-[#00363E]/40"
-          >
-            Get Started
-          </Link>
-          <div className="inline-flex h-12 items-center gap-2 rounded-lg border border-white/[0.1] bg-white/[0.04] px-6 font-mono text-sm text-white/70 backdrop-blur-sm">
-            <span className="text-white/40">$</span>
-            <span>npx coodeen</span>
-          </div>
-        </div>
+        <HeroDownload />
       </div>
 
       {/* Product mockup */}

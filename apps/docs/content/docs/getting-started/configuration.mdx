@@ -5,23 +5,21 @@ description: Configure Coodeen's AI providers, models, and project settings.
 
 ## Data Storage
 
-All data is stored locally in your home directory:
+All data is stored locally in the platform-specific app data directory:
 
-```
-~/.coodeen/
-└── data.db          # SQLite database
-                     #   - sessions & messages
-                     #   - provider API keys
-                     #   - app configuration
-```
+| Platform | Database Path |
+|----------|---------------|
+| macOS | `~/Library/Application Support/coodeen/coodeen.db` |
+| Windows | `%APPDATA%/coodeen/coodeen.db` |
+| Linux | `~/.config/coodeen/coodeen.db` |
 
-No data is sent anywhere except to the AI provider you configure.
+The SQLite database stores sessions, messages, provider API keys, and app configuration. No data is sent anywhere except to the AI provider you configure.
 
 ## Project Directory
 
-Coodeen automatically detects the directory you run it from. The AI agent operates within this directory — reading, writing, and editing files relative to it.
+Select your project directory using the folder picker in the top bar. The AI agent operates within this directory — reading, writing, and editing files relative to it.
 
-You can also change the project directory from the UI using the folder picker in the top bar.
+You can change the project directory at any time. Each session remembers its own project directory.
 
 ## Model Selection
 

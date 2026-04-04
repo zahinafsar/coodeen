@@ -5,12 +5,12 @@ description: Run shell commands directly within Coodeen.
 
 ## Overview
 
-Coodeen includes a built-in terminal emulator powered by [xterm.js](https://xtermjs.org/). It connects to a pseudo-terminal (PTY) on your machine via WebSocket, giving you a full shell experience without leaving the editor.
+Coodeen includes a built-in terminal emulator powered by [xterm.js](https://xtermjs.org/). It connects to a pseudo-terminal (PTY) on your machine via Electron IPC, giving you a full shell experience without leaving the editor.
 
 ## Features
 
 - **Full terminal emulation** — Runs your default shell (bash, zsh, etc.)
-- **WebSocket connection** — Real-time bidirectional communication with the PTY
+- **Native PTY** — Uses node-pty for real terminal behavior (colors, tab completion, etc.)
 - **Multiple sessions** — Open multiple terminal tabs for different tasks
 - **Integrated** — No need to switch to a separate terminal app
 

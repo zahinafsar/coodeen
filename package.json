@@ -2,22 +2,19 @@
   "name": "coodeen",
   "private": true,
   "type": "module",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "bun run --cwd apps/server dev & bun run --cwd apps/web dev",
-    "dev:server": "bun run --cwd apps/server dev",
-    "dev:web": "bun run --cwd apps/web dev",
+    "setup": "bun install && node scripts/rebuild-native.js",
+    "dev": "cd apps/desktop && bun run dev",
+    "build": "cd apps/desktop && bun run build",
     "dev:docs": "bun run --cwd apps/docs dev",
-    "build": "bun run --cwd apps/server build && bun run --cwd apps/web build",
-    "typecheck": "bun run --cwd apps/server typecheck && bun run --cwd apps/web typecheck",
-    "build:npm": "bun run --cwd apps/web build && bun run --cwd apps/server db:generate && bun run --cwd packages/cli build:cli && mkdir -p packages/cli/prisma && cp apps/server/prisma/schema.prisma packages/cli/prisma/schema.prisma && mkdir -p packages/cli/dist/static && cp -r apps/server/src/static/. packages/cli/dist/static/",
-    "publish:npm": "bun run build:npm && cd packages/cli && npm publish",
-    "publish:npm:dry": "bun run build:npm && cd packages/cli && npm pack --dry-run",
     "lint": "eslint ."
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
-    "@types/bun": "^1.3.9",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
@@ -28,8 +25,8 @@
     "vite": "^6.1.0"
   },
   "dependencies": {
-    "hono": "^4.7.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "tsx": "^4.21.0"
   }
 }

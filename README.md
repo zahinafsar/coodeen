@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/zahinafsar/coodeen/main/apps/web/public/logo.svg" alt="Coodeen" width="400" />
+  <img src="https://raw.githubusercontent.com/zahinafsar/coodeen/main/apps/docs/public/logo.svg" alt="Coodeen" width="400" />
 </p>
 
 <p align="center">
@@ -7,97 +7,64 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/coodeen"><img src="https://img.shields.io/npm/v/coodeen" alt="npm version" /></a>
-  <a href="https://www.npmjs.com/package/coodeen"><img src="https://img.shields.io/npm/dm/coodeen" alt="npm downloads" /></a>
-  <img src="https://img.shields.io/node/v/coodeen" alt="node version" />
-  <a href="https://github.com/zahinafsar/coodeen/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/coodeen" alt="license" /></a>
+  <a href="https://github.com/zahinafsar/coodeen/releases/latest"><img src="https://img.shields.io/github/v/release/zahinafsar/coodeen" alt="latest release" /></a>
+  <a href="https://github.com/zahinafsar/coodeen/releases"><img src="https://img.shields.io/github/downloads/zahinafsar/coodeen/total" alt="downloads" /></a>
+  <a href="https://github.com/zahinafsar/coodeen/blob/main/LICENSE"><img src="https://img.shields.io/github/license/zahinafsar/coodeen" alt="license" /></a>
 </p>
 
 ---
 
-## Quick Start
+## Download
 
-```bash
-npx coodeen
-```
+Download the latest release for your platform:
 
-That's it. Your browser opens to the editor automatically.
+| Platform | Download |
+|----------|----------|
+| macOS (Apple Silicon) | [Coodeen-mac-arm64.dmg](https://github.com/zahinafsar/coodeen/releases/latest/download/Coodeen-mac-arm64.dmg) |
+| macOS (Intel) | [Coodeen-mac-x64.dmg](https://github.com/zahinafsar/coodeen/releases/latest/download/Coodeen-mac-x64.dmg) |
+| Windows | [Coodeen-Setup.exe](https://github.com/zahinafsar/coodeen/releases/latest/download/Coodeen-Setup.exe) |
+| Linux | [Coodeen-linux.AppImage](https://github.com/zahinafsar/coodeen/releases/latest/download/Coodeen-linux.AppImage) |
+
+Or browse [all releases](https://github.com/zahinafsar/coodeen/releases).
 
 ## Features
 
 - **Multi-model chat** — Talk to OpenAI, Anthropic, or Google models about your code
 - **Live preview** — See your running app side-by-side with the conversation
 - **Screenshot capture** — Select any area of the preview and send it to the AI
+- **Built-in terminal** — Full shell access via integrated terminal
+- **File explorer** — Browse and manage project files
+- **Git integration** — View branches, status, and commit history
 - **Session management** — Switch between projects and pick up where you left off
-- **Auto project detection** — Automatically uses the directory you run the command from
 - **Fully local** — Your API keys, conversations, and data never leave your machine
 
-## Usage
+## Getting Started
 
-### Start the server
-
-```bash
-# Run from your project directory — it auto-selects the folder
-cd ~/my-app
-npx coodeen
-
-# Show help
-npx coodeen --help
-```
-
-### Global install
-
-```bash
-npm install -g coodeen
-
-coodeen
-```
-
-### Example workflow
-
-```bash
-# 1. cd into your project
-cd ~/my-app
-
-# 2. Start coodeen
-npx coodeen
-
-# 3. Browser opens to http://localhost:3099/editor/
-# 4. Add your API key in Settings (gear icon)
-# 5. Point the preview panel to your dev server (e.g. http://localhost:3000)
-# 6. Start chatting — ask the AI to build features, fix bugs, or explain code
-# 7. Capture screenshots from the preview to give the AI visual context
-```
+1. Download and install Coodeen for your platform
+2. Launch the app
+3. Open Settings (gear icon) and add an API key for at least one provider
+4. Select a project directory using the folder picker
+5. Point the preview panel to your dev server (e.g. `http://localhost:3000`)
+6. Start chatting — ask the AI to build features, fix bugs, or explain code
 
 ## Setup
 
-On first run, Coodeen will:
-
-1. Create `~/.coodeen/` for your local database
-2. Initialize the SQLite database automatically
-3. Start the server and open your browser
-
-Then configure at least one AI provider through the settings panel:
+On first launch, Coodeen creates a local SQLite database to store your sessions, messages, and settings. Configure at least one AI provider:
 
 | Provider | Get API Key | Models |
 |----------|-------------|--------|
 | OpenAI | [platform.openai.com](https://platform.openai.com/api-keys) | GPT-4o, GPT-4.1, GPT-4.1-mini |
-| Anthropic | [console.anthropic.com](https://console.anthropic.com/) | Claude Sonnet, Claude Haiku |
+| Anthropic | [console.anthropic.com](https://console.anthropic.com/) | Claude Sonnet 4, Claude Haiku |
 | Google | [aistudio.google.com](https://aistudio.google.com/apikey) | Gemini 2.5 Pro, Gemini 2.5 Flash |
-
-## Requirements
-
-- **Node.js 18+**
-- An API key for at least one supported provider
 
 ## How It Works
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  Coodeen (http://localhost:3099/editor/)         │
+│  Coodeen                                        │
 ├────────────────────┬────────────────────────────┤
 │                    │                            │
-│   Chat Panel       │   Preview Panel            │
+│   Chat Panel       │   Preview / Files / Git    │
 │                    │                            │
 │   > Fix the nav    │   ┌──────────────────┐     │
 │                    │   │  Your running app │     │
@@ -111,31 +78,29 @@ Then configure at least one AI provider through the settings panel:
 └─────────────────────────────────────────────────┘
 ```
 
-Coodeen runs entirely on your machine:
+Coodeen is a native desktop application built with Electron. Everything runs locally on your machine:
 
-- **Backend** — Hono server with SQLite (via Prisma), streaming chat via SSE, filesystem access for code editing
-- **Frontend** — React app with resizable split-pane layout, Markdown rendering, syntax highlighting
+- **Main process** — Electron with SQLite (Drizzle ORM), IPC handlers for filesystem, git, terminal, and AI
+- **Renderer** — React app with resizable split-pane layout, Markdown rendering, syntax highlighting
+- **AI agent** — Vercel AI SDK with tool calling for code read/write/edit/search/bash
 
 ## Architecture
 
 ```
 coodeen/
 ├── apps/
-│   ├── server/          # Hono API server (Bun + Node.js compatible)
+│   ├── desktop/         # Electron desktop app
 │   │   ├── src/
-│   │   │   ├── agent/   # AI chat agent (Vercel AI SDK)
-│   │   │   ├── routes/  # API routes (chat, sessions, providers, fs)
-│   │   │   ├── tools/   # Code tools (read, write, edit, grep, glob)
-│   │   │   └── db/      # Prisma ORM (SQLite)
-│   │   └── prisma/      # Database schema
-│   └── web/             # React frontend (Vite + Tailwind)
-│       └── src/
-│           ├── components/
-│           │   ├── chat/      # Chat panel, message list, prompt input
-│           │   └── preview/   # Preview iframe, screenshot capture
-│           └── lib/           # API client, types
+│   │   │   ├── main.ts        # Electron main process
+│   │   │   ├── preload.ts     # IPC bridge (context isolation)
+│   │   │   ├── handlers/      # IPC handlers (chat, fs, git, pty, etc.)
+│   │   │   ├── tools/         # AI tools (read, write, edit, grep, bash, etc.)
+│   │   │   ├── db/            # SQLite + Drizzle ORM
+│   │   │   └── renderer/      # React frontend
+│   │   └── electron-builder.yml
+│   └── docs/            # Documentation site (Next.js + Fumadocs)
 └── packages/
-    └── cli/             # npm CLI package (npx coodeen)
+    └── cli/             # Legacy CLI package
 ```
 
 ## Development
@@ -144,50 +109,33 @@ coodeen/
 # Install dependencies
 bun install
 
-# Run dev servers (API + Vite)
+# Run in development mode
 bun run dev
 
-# Run individually
-bun run dev:server    # API on :3099
-bun run dev:web       # Vite on :5173
-
 # Type check
-bun run typecheck
+bun run --cwd apps/desktop typecheck
 
-# Build for npm
-bun run build:npm
-
-# Publish to npm
-bun run publish:npm
+# Build for production
+bun run build
 ```
 
 ## Data Storage
 
-All data is stored locally:
+All data is stored locally in the platform-specific app data directory:
 
-```
-~/.coodeen/
-└── data.db          # SQLite database
-                     #   - sessions & messages
-                     #   - provider API keys
-                     #   - app configuration
-```
+| Platform | Path |
+|----------|------|
+| macOS | `~/Library/Application Support/coodeen/coodeen.db` |
+| Windows | `%APPDATA%/coodeen/coodeen.db` |
+| Linux | `~/.config/coodeen/coodeen.db` |
 
 No data is sent anywhere except to the AI provider you configure.
 
 ## Troubleshooting
 
-**Database issues**
+**Database issues** — Delete the database file at the path above and relaunch Coodeen. A fresh database will be created automatically.
 
-```bash
-# Reset the database (deletes all sessions)
-rm ~/.coodeen/data.db
-npx coodeen
-```
-
-**AI can't see screenshots**
-
-Make sure you're using a vision-capable model (GPT-4o, GPT-4.1, Gemini 2.5 Pro). Models like GPT-4.1-nano don't support image inputs.
+**AI can't see screenshots** — Make sure you're using a vision-capable model (GPT-4o, GPT-4.1, Claude Sonnet 4, Gemini 2.5 Pro).
 
 ## License
 
