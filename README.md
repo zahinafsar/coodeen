@@ -59,26 +59,7 @@ On first launch, Coodeen creates a local SQLite database to store your sessions,
 
 ## How It Works
 
-```
-┌─────────────────────────────────────────────────┐
-│  Coodeen                                        │
-├────────────────────┬────────────────────────────┤
-│                    │                            │
-│   Chat Panel       │   Preview / Files / Git    │
-│                    │                            │
-│   > Fix the nav    │   ┌──────────────────┐     │
-│                    │   │  Your running app │     │
-│   AI: I'll update  │   │    (any URL)      │     │
-│   the header...    │   │                  │     │
-│                    │   └──────────────────┘     │
-│   [Screenshot]     │                            │
-│                    │                            │
-├────────────────────┴────────────────────────────┤
-│  Model: gpt-4o  │  Project: ~/my-app            │
-└─────────────────────────────────────────────────┘
-```
-
-Coodeen is a native desktop application built with Electron. Everything runs locally on your machine:
+Coodeen is a split-pane desktop app — chat on the left, preview / files / git / terminal on the right. Everything runs locally on your machine:
 
 - **Main process** — Electron with SQLite (Drizzle ORM), IPC handlers for filesystem, git, terminal, and AI
 - **Renderer** — React app with resizable split-pane layout, Markdown rendering, syntax highlighting
