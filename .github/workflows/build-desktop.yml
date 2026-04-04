@@ -91,6 +91,9 @@ jobs:
         working-directory: apps/desktop
         run: node ../../scripts/rebuild-native.js
 
+      - name: Copy production dependencies
+        run: node scripts/copy-modules.js
+
       - name: Build with electron-vite
         working-directory: apps/desktop
         run: bun run build
