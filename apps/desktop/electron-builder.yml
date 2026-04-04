@@ -1,11 +1,19 @@
 electronVersion: "35.0.0"
 appId: com.coodeen.desktop
 productName: Coodeen
+npmRebuild: false
+asar: false
 directories:
   buildResources: build
   output: release
+  app: .
 files:
-  - out/**/*
+  - "**/*"
+  - "!src"
+  - "!release"
+  - "!node_modules"
+  - "!*.ts"
+  - "!*.yml"
 mac:
   category: public.app-category.developer-tools
   artifactName: "Coodeen-mac-${arch}.${ext}"
