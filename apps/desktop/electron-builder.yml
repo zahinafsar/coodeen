@@ -1,3 +1,4 @@
+electronVersion: "35.0.0"
 appId: com.coodeen.desktop
 productName: Coodeen
 directories:
