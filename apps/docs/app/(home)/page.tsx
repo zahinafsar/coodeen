@@ -375,7 +375,6 @@ function CursorGlow() {
 }
 
 const REPO_BASE = 'https://github.com/zahinafsar/coodeen';
-const DOWNLOAD_BASE = `${REPO_BASE}/releases/latest/download`;
 
 const DOWNLOADS = [
   { key: 'mac', label: 'macOS', file: 'Coodeen-mac-arm64.dmg', icon: 'apple' },
