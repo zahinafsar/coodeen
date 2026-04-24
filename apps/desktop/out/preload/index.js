@@ -12,15 +12,26 @@ const electronAPI = {
   },
   // ── Chat ──────────────────────────────────────────────
   chat: {
-    stream: (params) => electron.ipcRenderer.invoke("chat:stream", params),
-    stop: (sessionId) => electron.ipcRenderer.invoke("chat:stop", sessionId),
+    prompt: (params) => electron.ipcRenderer.invoke("chat:prompt", params),
+    stop: (sessionId) => electron.ipcRenderer.invoke("chat:stop", sessionId)
+  },
+  // ── Opencode raw event stream ─────────────────────────
+  opencode: {
     onEvent: (callback) => {
       const handler = (_e, data) => callback(data);
-      electron.ipcRenderer.on("chat:event", handler);
+      electron.ipcRenderer.on("opencode:event", handler);
       return () => {
-        electron.ipcRenderer.removeListener("chat:event", handler);
+        electron.ipcRenderer.removeListener("opencode:event", handler);
       };
-    }
+    },
+    onStatus: (callback) => {
+      const handler = (_e, data) => callback(data);
+      electron.ipcRenderer.on("opencode:status", handler);
+      return () => {
+        electron.ipcRenderer.removeListener("opencode:status", handler);
+      };
+    },
+    reconnect: () => electron.ipcRenderer.invoke("opencode:reconnect")
   },
   // ── Filesystem ────────────────────────────────────────
   fs: {
@@ -73,13 +84,10 @@ const electronAPI = {
   },
   // ── Providers ─────────────────────────────────────────
   providers: {
-    list: () => electron.ipcRenderer.invoke("providers:list"),
-    models: (providerName) => electron.ipcRenderer.invoke("providers:models", providerName),
     connectedModels: () => electron.ipcRenderer.invoke("providers:connectedModels"),
-    freeModels: () => electron.ipcRenderer.invoke("providers:freeModels"),
-    config: () => electron.ipcRenderer.invoke("providers:config"),
-    upsert: (id, data) => electron.ipcRenderer.invoke("providers:upsert", id, data),
-    delete: (id) => electron.ipcRenderer.invoke("providers:delete", id)
+    hasKey: (id) => electron.ipcRenderer.invoke("providers:hasKey", id),
+    setApiKey: (id, apiKey) => electron.ipcRenderer.invoke("providers:setApiKey", id, apiKey),
+    deleteApiKey: (id) => electron.ipcRenderer.invoke("providers:deleteApiKey", id)
   },
   // ── Config ────────────────────────────────────────────
   config: {
@@ -104,13 +112,6 @@ const electronAPI = {
       };
     },
     sendResult: (requestId, result) => electron.ipcRenderer.send(`preview:action-result:${requestId}`, result)
-  },
-  // ── Skills ────────────────────────────────────────────
-  skills: {
-    list: () => electron.ipcRenderer.invoke("skills:list"),
-    create: (name, description, content) => electron.ipcRenderer.invoke("skills:create", name, description, content),
-    createRaw: (slug, raw) => electron.ipcRenderer.invoke("skills:createRaw", slug, raw),
-    delete: (name) => electron.ipcRenderer.invoke("skills:delete", name)
   }
 };
 electron.contextBridge.exposeInMainWorld("electronAPI", electronAPI);

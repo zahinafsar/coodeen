@@ -1,21 +1,49 @@
-import { useEffect, useRef, useCallback } from "react";
-import type { ChatMessage } from "../../lib/types";
+import { useEffect, useRef, useCallback, useMemo } from "react";
 import { MessageBubble } from "./MessageBubble";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import type { Message, Part } from "../../stores/chat-store";
 
 interface MessageListProps {
-  messages: ChatMessage[];
+  messages: Array<Message & { parts: Part[] }>;
+  working: boolean;
 }
 
-export function MessageList({ messages }: MessageListProps) {
+/**
+ * Opencode emits one assistant message per LLM step. Visually we want a
+ * single "turn" per user request, so collapse consecutive assistant
+ * messages into one combined bubble whose parts are concatenated in order.
+ */
+function mergeAssistantTurns(
+  messages: Array<Message & { parts: Part[] }>,
+): Array<Message & { parts: Part[] }> {
+  const out: Array<Message & { parts: Part[] }> = [];
+  for (const msg of messages) {
+    const last = out[out.length - 1];
+    if (last && last.role === "assistant" && msg.role === "assistant") {
+      out[out.length - 1] = {
+        ...last,
+        time: {
+          ...last.time,
+          // Turn is complete only when the latest step completes.
+          completed: msg.time.completed,
+        },
+        parts: [...last.parts, ...msg.parts],
+      };
+    } else {
+      out.push(msg);
+    }
+  }
+  return out;
+}
+
+export function MessageList({ messages, working }: MessageListProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
-  const isStreamingRef = useRef(false);
+  const workingRef = useRef(false);
+  workingRef.current = working;
 
-  const isStreaming = messages.some((m) => m.isStreaming);
-  isStreamingRef.current = isStreaming;
+  const merged = useMemo(() => mergeAssistantTurns(messages), [messages]);
 
-  /** Resolve the actual scrollable viewport inside Radix ScrollArea */
   const getViewport = useCallback(
     () =>
       wrapperRef.current?.querySelector<HTMLDivElement>(
@@ -34,12 +62,10 @@ export function MessageList({ messages }: MessageListProps) {
     if (!isNearBottom()) return;
 
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
-
     rafRef.current = requestAnimationFrame(() => {
       const el = getViewport();
       if (!el) return;
-      // Instant during streaming to avoid jitter; smooth for new messages
-      if (isStreamingRef.current) {
+      if (workingRef.current) {
         el.scrollTop = el.scrollHeight;
       } else {
         el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
@@ -68,7 +94,7 @@ export function MessageList({ messages }: MessageListProps) {
     <div ref={wrapperRef} className="flex-1 min-h-0">
       <ScrollArea className="h-full">
         <div className="flex flex-col gap-3 p-4">
-          {messages.map((msg) => (
+          {merged.map((msg) => (
             <MessageBubble key={msg.id} message={msg} />
           ))}
         </div>

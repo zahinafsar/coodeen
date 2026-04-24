@@ -13,6 +13,11 @@ files:
   - "!release"
   - "!*.ts"
   - "!*.yml"
+extraResources:
+  - from: resources/bin
+    to: bin
+    filter:
+      - "**/*"
 mac:
   category: public.app-category.developer-tools
   artifactName: "Coodeen-mac-${arch}.${ext}"

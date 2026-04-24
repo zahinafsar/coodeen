@@ -22,1647 +22,2453 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 const electron = require("electron");
-const path = require("path");
-const Database = require("better-sqlite3");
-const betterSqlite3 = require("drizzle-orm/better-sqlite3");
-const fs = require("fs");
-const sqliteCore = require("drizzle-orm/sqlite-core");
-const drizzleOrm = require("drizzle-orm");
-const ai = require("ai");
-const anthropic = require("@ai-sdk/anthropic");
-const openai = require("@ai-sdk/openai");
-const google = require("@ai-sdk/google");
-const openaiCompatible = require("@ai-sdk/openai-compatible");
-const promises = require("fs/promises");
-const url = require("url");
-const v4 = require("zod/v4");
-const node_path = require("node:path");
-const promises$1 = require("node:fs/promises");
-const fg = require("fast-glob");
-const node_os = require("node:os");
-const node_crypto = require("node:crypto");
+const require$$0$1 = require("path");
 const node_child_process = require("node:child_process");
 const node_fs = require("node:fs");
-const os = require("os");
-function cuid() {
-  const ts = Date.now().toString(36);
-  const rand = Math.random().toString(36).slice(2, 10);
-  return `c${ts}${rand}`;
-}
-const sessions$1 = sqliteCore.sqliteTable("sessions", {
-  id: sqliteCore.text("id").primaryKey().$defaultFn(cuid),
-  title: sqliteCore.text("title").notNull(),
-  providerId: sqliteCore.text("provider_id"),
-  modelId: sqliteCore.text("model_id"),
-  projectDir: sqliteCore.text("project_dir"),
-  previewUrl: sqliteCore.text("preview_url"),
-  createdAt: sqliteCore.integer("created_at", { mode: "timestamp" }).notNull().default(drizzleOrm.sql`(unixepoch())`),
-  updatedAt: sqliteCore.integer("updated_at", { mode: "timestamp" }).notNull().default(drizzleOrm.sql`(unixepoch())`)
-});
-const messages = sqliteCore.sqliteTable("messages", {
-  id: sqliteCore.text("id").primaryKey().$defaultFn(cuid),
-  sessionId: sqliteCore.text("session_id").notNull().references(() => sessions$1.id, { onDelete: "cascade" }),
-  role: sqliteCore.text("role").notNull(),
-  content: sqliteCore.text("content").notNull(),
-  images: sqliteCore.text("images"),
-  createdAt: sqliteCore.integer("created_at", { mode: "timestamp" }).notNull().default(drizzleOrm.sql`(unixepoch())`)
-});
-const providers = sqliteCore.sqliteTable("providers", {
-  id: sqliteCore.text("id").primaryKey(),
-  apiKey: sqliteCore.text("api_key").notNull(),
-  modelId: sqliteCore.text("model_id").notNull(),
-  createdAt: sqliteCore.integer("created_at", { mode: "timestamp" }).notNull().default(drizzleOrm.sql`(unixepoch())`),
-  updatedAt: sqliteCore.integer("updated_at", { mode: "timestamp" }).notNull().default(drizzleOrm.sql`(unixepoch())`)
-});
-const config = sqliteCore.sqliteTable("config", {
-  key: sqliteCore.text("key").primaryKey(),
-  value: sqliteCore.text("value").notNull(),
-  updatedAt: sqliteCore.integer("updated_at", { mode: "timestamp" }).notNull().default(drizzleOrm.sql`(unixepoch())`)
-});
-const schema = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
-  __proto__: null,
-  config,
-  messages,
-  providers,
-  sessions: sessions$1
-}, Symbol.toStringTag, { value: "Module" }));
-let _db = null;
-function getDb() {
-  if (_db) return _db;
-  const userDataPath = electron.app.getPath("userData");
-  if (!fs.existsSync(userDataPath)) {
-    fs.mkdirSync(userDataPath, { recursive: true });
+const node_path = require("node:path");
+const require$$0$2 = require("child_process");
+const require$$0 = require("fs");
+const promises = require("node:fs/promises");
+const node_os = require("node:os");
+const createSseClient = ({ onSseError, onSseEvent, responseTransformer, responseValidator, sseDefaultRetryDelay, sseMaxRetryAttempts, sseMaxRetryDelay, sseSleepFn, url, ...options }) => {
+  let lastEventId;
+  const sleep = sseSleepFn ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
+  const createStream = async function* () {
+    let retryDelay = sseDefaultRetryDelay ?? 3e3;
+    let attempt = 0;
+    const signal = options.signal ?? new AbortController().signal;
+    while (true) {
+      if (signal.aborted)
+        break;
+      attempt++;
+      const headers = options.headers instanceof Headers ? options.headers : new Headers(options.headers);
+      if (lastEventId !== void 0) {
+        headers.set("Last-Event-ID", lastEventId);
+      }
+      try {
+        const response = await fetch(url, { ...options, headers, signal });
+        if (!response.ok)
+          throw new Error(`SSE failed: ${response.status} ${response.statusText}`);
+        if (!response.body)
+          throw new Error("No body in SSE response");
+        const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+        let buffer = "";
+        const abortHandler = () => {
+          try {
+            void reader.cancel();
+          } catch {
+          }
+        };
+        signal.addEventListener("abort", abortHandler);
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done)
+              break;
+            buffer += value;
+            const chunks = buffer.split("\n\n");
+            buffer = chunks.pop() ?? "";
+            for (const chunk of chunks) {
+              const lines = chunk.split("\n");
+              const dataLines = [];
+              let eventName;
+              for (const line of lines) {
+                if (line.startsWith("data:")) {
+                  dataLines.push(line.replace(/^data:\s*/, ""));
+                } else if (line.startsWith("event:")) {
+                  eventName = line.replace(/^event:\s*/, "");
+                } else if (line.startsWith("id:")) {
+                  lastEventId = line.replace(/^id:\s*/, "");
+                } else if (line.startsWith("retry:")) {
+                  const parsed = Number.parseInt(line.replace(/^retry:\s*/, ""), 10);
+                  if (!Number.isNaN(parsed)) {
+                    retryDelay = parsed;
+                  }
+                }
+              }
+              let data;
+              let parsedJson = false;
+              if (dataLines.length) {
+                const rawData = dataLines.join("\n");
+                try {
+                  data = JSON.parse(rawData);
+                  parsedJson = true;
+                } catch {
+                  data = rawData;
+                }
+              }
+              if (parsedJson) {
+                if (responseValidator) {
+                  await responseValidator(data);
+                }
+                if (responseTransformer) {
+                  data = await responseTransformer(data);
+                }
+              }
+              onSseEvent?.({
+                data,
+                event: eventName,
+                id: lastEventId,
+                retry: retryDelay
+              });
+              if (dataLines.length) {
+                yield data;
+              }
+            }
+          }
+        } finally {
+          signal.removeEventListener("abort", abortHandler);
+          reader.releaseLock();
+        }
+        break;
+      } catch (error) {
+        onSseError?.(error);
+        if (sseMaxRetryAttempts !== void 0 && attempt >= sseMaxRetryAttempts) {
+          break;
+        }
+        const backoff = Math.min(retryDelay * 2 ** (attempt - 1), sseMaxRetryDelay ?? 3e4);
+        await sleep(backoff);
+      }
+    }
+  };
+  const stream = createStream();
+  return { stream };
+};
+const getAuthToken = async (auth, callback) => {
+  const token = typeof callback === "function" ? await callback(auth) : callback;
+  if (!token) {
+    return;
   }
-  const dbPath = path.join(userDataPath, "coodeen.db");
-  const sqlite = new Database(dbPath);
-  sqlite.pragma("journal_mode = WAL");
-  sqlite.pragma("foreign_keys = ON");
-  _db = betterSqlite3.drizzle(sqlite, { schema });
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS sessions (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      provider_id TEXT,
-      model_id TEXT,
-      project_dir TEXT,
-      preview_url TEXT,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-
-    CREATE TABLE IF NOT EXISTS messages (
-      id TEXT PRIMARY KEY,
-      session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-      role TEXT NOT NULL,
-      content TEXT NOT NULL,
-      images TEXT,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_messages_session_id ON messages(session_id);
-
-    CREATE TABLE IF NOT EXISTS providers (
-      id TEXT PRIMARY KEY,
-      api_key TEXT NOT NULL,
-      model_id TEXT NOT NULL,
-      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-
-    CREATE TABLE IF NOT EXISTS config (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL,
-      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
-    );
-  `);
-  return _db;
+  if (auth.scheme === "bearer") {
+    return `Bearer ${token}`;
+  }
+  if (auth.scheme === "basic") {
+    return `Basic ${btoa(token)}`;
+  }
+  return token;
+};
+const jsonBodySerializer = {
+  bodySerializer: (body) => JSON.stringify(body, (_key, value) => typeof value === "bigint" ? value.toString() : value)
+};
+const separatorArrayExplode = (style) => {
+  switch (style) {
+    case "label":
+      return ".";
+    case "matrix":
+      return ";";
+    case "simple":
+      return ",";
+    default:
+      return "&";
+  }
+};
+const separatorArrayNoExplode = (style) => {
+  switch (style) {
+    case "form":
+      return ",";
+    case "pipeDelimited":
+      return "|";
+    case "spaceDelimited":
+      return "%20";
+    default:
+      return ",";
+  }
+};
+const separatorObjectExplode = (style) => {
+  switch (style) {
+    case "label":
+      return ".";
+    case "matrix":
+      return ";";
+    case "simple":
+      return ",";
+    default:
+      return "&";
+  }
+};
+const serializeArrayParam = ({ allowReserved, explode, name, style, value }) => {
+  if (!explode) {
+    const joinedValues2 = (allowReserved ? value : value.map((v) => encodeURIComponent(v))).join(separatorArrayNoExplode(style));
+    switch (style) {
+      case "label":
+        return `.${joinedValues2}`;
+      case "matrix":
+        return `;${name}=${joinedValues2}`;
+      case "simple":
+        return joinedValues2;
+      default:
+        return `${name}=${joinedValues2}`;
+    }
+  }
+  const separator = separatorArrayExplode(style);
+  const joinedValues = value.map((v) => {
+    if (style === "label" || style === "simple") {
+      return allowReserved ? v : encodeURIComponent(v);
+    }
+    return serializePrimitiveParam({
+      allowReserved,
+      name,
+      value: v
+    });
+  }).join(separator);
+  return style === "label" || style === "matrix" ? separator + joinedValues : joinedValues;
+};
+const serializePrimitiveParam = ({ allowReserved, name, value }) => {
+  if (value === void 0 || value === null) {
+    return "";
+  }
+  if (typeof value === "object") {
+    throw new Error("Deeply-nested arrays/objects aren’t supported. Provide your own `querySerializer()` to handle these.");
+  }
+  return `${name}=${allowReserved ? value : encodeURIComponent(value)}`;
+};
+const serializeObjectParam = ({ allowReserved, explode, name, style, value, valueOnly }) => {
+  if (value instanceof Date) {
+    return valueOnly ? value.toISOString() : `${name}=${value.toISOString()}`;
+  }
+  if (style !== "deepObject" && !explode) {
+    let values = [];
+    Object.entries(value).forEach(([key, v]) => {
+      values = [...values, key, allowReserved ? v : encodeURIComponent(v)];
+    });
+    const joinedValues2 = values.join(",");
+    switch (style) {
+      case "form":
+        return `${name}=${joinedValues2}`;
+      case "label":
+        return `.${joinedValues2}`;
+      case "matrix":
+        return `;${name}=${joinedValues2}`;
+      default:
+        return joinedValues2;
+    }
+  }
+  const separator = separatorObjectExplode(style);
+  const joinedValues = Object.entries(value).map(([key, v]) => serializePrimitiveParam({
+    allowReserved,
+    name: style === "deepObject" ? `${name}[${key}]` : key,
+    value: v
+  })).join(separator);
+  return style === "label" || style === "matrix" ? separator + joinedValues : joinedValues;
+};
+const PATH_PARAM_RE = /\{[^{}]+\}/g;
+const defaultPathSerializer = ({ path, url: _url }) => {
+  let url = _url;
+  const matches = _url.match(PATH_PARAM_RE);
+  if (matches) {
+    for (const match of matches) {
+      let explode = false;
+      let name = match.substring(1, match.length - 1);
+      let style = "simple";
+      if (name.endsWith("*")) {
+        explode = true;
+        name = name.substring(0, name.length - 1);
+      }
+      if (name.startsWith(".")) {
+        name = name.substring(1);
+        style = "label";
+      } else if (name.startsWith(";")) {
+        name = name.substring(1);
+        style = "matrix";
+      }
+      const value = path[name];
+      if (value === void 0 || value === null) {
+        continue;
+      }
+      if (Array.isArray(value)) {
+        url = url.replace(match, serializeArrayParam({ explode, name, style, value }));
+        continue;
+      }
+      if (typeof value === "object") {
+        url = url.replace(match, serializeObjectParam({
+          explode,
+          name,
+          style,
+          value,
+          valueOnly: true
+        }));
+        continue;
+      }
+      if (style === "matrix") {
+        url = url.replace(match, `;${serializePrimitiveParam({
+          name,
+          value
+        })}`);
+        continue;
+      }
+      const replaceValue = encodeURIComponent(style === "label" ? `.${value}` : value);
+      url = url.replace(match, replaceValue);
+    }
+  }
+  return url;
+};
+const getUrl = ({ baseUrl: baseUrl2, path, query, querySerializer, url: _url }) => {
+  const pathUrl = _url.startsWith("/") ? _url : `/${_url}`;
+  let url = (baseUrl2 ?? "") + pathUrl;
+  if (path) {
+    url = defaultPathSerializer({ path, url });
+  }
+  let search = query ? querySerializer(query) : "";
+  if (search.startsWith("?")) {
+    search = search.substring(1);
+  }
+  if (search) {
+    url += `?${search}`;
+  }
+  return url;
+};
+const createQuerySerializer = ({ allowReserved, array, object } = {}) => {
+  const querySerializer = (queryParams) => {
+    const search = [];
+    if (queryParams && typeof queryParams === "object") {
+      for (const name in queryParams) {
+        const value = queryParams[name];
+        if (value === void 0 || value === null) {
+          continue;
+        }
+        if (Array.isArray(value)) {
+          const serializedArray = serializeArrayParam({
+            allowReserved,
+            explode: true,
+            name,
+            style: "form",
+            value,
+            ...array
+          });
+          if (serializedArray)
+            search.push(serializedArray);
+        } else if (typeof value === "object") {
+          const serializedObject = serializeObjectParam({
+            allowReserved,
+            explode: true,
+            name,
+            style: "deepObject",
+            value,
+            ...object
+          });
+          if (serializedObject)
+            search.push(serializedObject);
+        } else {
+          const serializedPrimitive = serializePrimitiveParam({
+            allowReserved,
+            name,
+            value
+          });
+          if (serializedPrimitive)
+            search.push(serializedPrimitive);
+        }
+      }
+    }
+    return search.join("&");
+  };
+  return querySerializer;
+};
+const getParseAs = (contentType) => {
+  if (!contentType) {
+    return "stream";
+  }
+  const cleanContent = contentType.split(";")[0]?.trim();
+  if (!cleanContent) {
+    return;
+  }
+  if (cleanContent.startsWith("application/json") || cleanContent.endsWith("+json")) {
+    return "json";
+  }
+  if (cleanContent === "multipart/form-data") {
+    return "formData";
+  }
+  if (["application/", "audio/", "image/", "video/"].some((type) => cleanContent.startsWith(type))) {
+    return "blob";
+  }
+  if (cleanContent.startsWith("text/")) {
+    return "text";
+  }
+  return;
+};
+const checkForExistence = (options, name) => {
+  if (!name) {
+    return false;
+  }
+  if (options.headers.has(name) || options.query?.[name] || options.headers.get("Cookie")?.includes(`${name}=`)) {
+    return true;
+  }
+  return false;
+};
+const setAuthParams = async ({ security, ...options }) => {
+  for (const auth of security) {
+    if (checkForExistence(options, auth.name)) {
+      continue;
+    }
+    const token = await getAuthToken(auth, options.auth);
+    if (!token) {
+      continue;
+    }
+    const name = auth.name ?? "Authorization";
+    switch (auth.in) {
+      case "query":
+        if (!options.query) {
+          options.query = {};
+        }
+        options.query[name] = token;
+        break;
+      case "cookie":
+        options.headers.append("Cookie", `${name}=${token}`);
+        break;
+      case "header":
+      default:
+        options.headers.set(name, token);
+        break;
+    }
+  }
+};
+const buildUrl = (options) => getUrl({
+  baseUrl: options.baseUrl,
+  path: options.path,
+  query: options.query,
+  querySerializer: typeof options.querySerializer === "function" ? options.querySerializer : createQuerySerializer(options.querySerializer),
+  url: options.url
+});
+const mergeConfigs = (a, b) => {
+  const config = { ...a, ...b };
+  if (config.baseUrl?.endsWith("/")) {
+    config.baseUrl = config.baseUrl.substring(0, config.baseUrl.length - 1);
+  }
+  config.headers = mergeHeaders(a.headers, b.headers);
+  return config;
+};
+const mergeHeaders = (...headers) => {
+  const mergedHeaders = new Headers();
+  for (const header of headers) {
+    if (!header || typeof header !== "object") {
+      continue;
+    }
+    const iterator = header instanceof Headers ? header.entries() : Object.entries(header);
+    for (const [key, value] of iterator) {
+      if (value === null) {
+        mergedHeaders.delete(key);
+      } else if (Array.isArray(value)) {
+        for (const v of value) {
+          mergedHeaders.append(key, v);
+        }
+      } else if (value !== void 0) {
+        mergedHeaders.set(key, typeof value === "object" ? JSON.stringify(value) : value);
+      }
+    }
+  }
+  return mergedHeaders;
+};
+class Interceptors {
+  _fns;
+  constructor() {
+    this._fns = [];
+  }
+  clear() {
+    this._fns = [];
+  }
+  getInterceptorIndex(id) {
+    if (typeof id === "number") {
+      return this._fns[id] ? id : -1;
+    } else {
+      return this._fns.indexOf(id);
+    }
+  }
+  exists(id) {
+    const index = this.getInterceptorIndex(id);
+    return !!this._fns[index];
+  }
+  eject(id) {
+    const index = this.getInterceptorIndex(id);
+    if (this._fns[index]) {
+      this._fns[index] = null;
+    }
+  }
+  update(id, fn) {
+    const index = this.getInterceptorIndex(id);
+    if (this._fns[index]) {
+      this._fns[index] = fn;
+      return id;
+    } else {
+      return false;
+    }
+  }
+  use(fn) {
+    this._fns = [...this._fns, fn];
+    return this._fns.length - 1;
+  }
 }
-const sessionDb = {
-  create(data) {
-    const db = getDb();
-    const result = db.insert(sessions$1).values({
-      title: data.title,
-      providerId: data.providerId ?? null,
-      modelId: data.modelId ?? null,
-      projectDir: data.projectDir ?? null,
-      previewUrl: data.previewUrl ?? null
-    }).returning().get();
-    return result;
+const createInterceptors = () => ({
+  error: new Interceptors(),
+  request: new Interceptors(),
+  response: new Interceptors()
+});
+const defaultQuerySerializer = createQuerySerializer({
+  allowReserved: false,
+  array: {
+    explode: true,
+    style: "form"
   },
-  get(id) {
-    const db = getDb();
-    return db.select().from(sessions$1).where(drizzleOrm.eq(sessions$1.id, id)).get();
-  },
-  list() {
-    const db = getDb();
-    return db.select().from(sessions$1).orderBy(drizzleOrm.desc(sessions$1.updatedAt)).all();
-  },
-  update(id, data) {
-    const db = getDb();
-    const updateData = {
-      updatedAt: /* @__PURE__ */ new Date()
+  object: {
+    explode: true,
+    style: "deepObject"
+  }
+});
+const defaultHeaders = {
+  "Content-Type": "application/json"
+};
+const createConfig = (override = {}) => ({
+  ...jsonBodySerializer,
+  headers: defaultHeaders,
+  parseAs: "auto",
+  querySerializer: defaultQuerySerializer,
+  ...override
+});
+const createClient = (config = {}) => {
+  let _config = mergeConfigs(createConfig(), config);
+  const getConfig = () => ({ ..._config });
+  const setConfig = (config2) => {
+    _config = mergeConfigs(_config, config2);
+    return getConfig();
+  };
+  const interceptors = createInterceptors();
+  const beforeRequest = async (options) => {
+    const opts = {
+      ..._config,
+      ...options,
+      fetch: options.fetch ?? _config.fetch ?? globalThis.fetch,
+      headers: mergeHeaders(_config.headers, options.headers),
+      serializedBody: void 0
     };
-    if (data.title !== void 0) updateData.title = data.title;
-    if (data.providerId !== void 0) updateData.providerId = data.providerId;
-    if (data.modelId !== void 0) updateData.modelId = data.modelId;
-    if (data.projectDir !== void 0) updateData.projectDir = data.projectDir;
-    if (data.previewUrl !== void 0) updateData.previewUrl = data.previewUrl;
-    return db.update(sessions$1).set(updateData).where(drizzleOrm.eq(sessions$1.id, id)).returning().get();
-  },
-  delete(id) {
-    const db = getDb();
-    db.delete(sessions$1).where(drizzleOrm.eq(sessions$1.id, id)).run();
-  }
+    if (opts.security) {
+      await setAuthParams({
+        ...opts,
+        security: opts.security
+      });
+    }
+    if (opts.requestValidator) {
+      await opts.requestValidator(opts);
+    }
+    if (opts.body && opts.bodySerializer) {
+      opts.serializedBody = opts.bodySerializer(opts.body);
+    }
+    if (opts.serializedBody === void 0 || opts.serializedBody === "") {
+      opts.headers.delete("Content-Type");
+    }
+    const url = buildUrl(opts);
+    return { opts, url };
+  };
+  const request = async (options) => {
+    const { opts, url } = await beforeRequest(options);
+    const requestInit = {
+      redirect: "follow",
+      ...opts,
+      body: opts.serializedBody
+    };
+    let request2 = new Request(url, requestInit);
+    for (const fn of interceptors.request._fns) {
+      if (fn) {
+        request2 = await fn(request2, opts);
+      }
+    }
+    const _fetch = opts.fetch;
+    let response = await _fetch(request2);
+    for (const fn of interceptors.response._fns) {
+      if (fn) {
+        response = await fn(response, request2, opts);
+      }
+    }
+    const result = {
+      request: request2,
+      response
+    };
+    if (response.ok) {
+      if (response.status === 204 || response.headers.get("Content-Length") === "0") {
+        return opts.responseStyle === "data" ? {} : {
+          data: {},
+          ...result
+        };
+      }
+      const parseAs = (opts.parseAs === "auto" ? getParseAs(response.headers.get("Content-Type")) : opts.parseAs) ?? "json";
+      let data;
+      switch (parseAs) {
+        case "arrayBuffer":
+        case "blob":
+        case "formData":
+        case "json":
+        case "text":
+          data = await response[parseAs]();
+          break;
+        case "stream":
+          return opts.responseStyle === "data" ? response.body : {
+            data: response.body,
+            ...result
+          };
+      }
+      if (parseAs === "json") {
+        if (opts.responseValidator) {
+          await opts.responseValidator(data);
+        }
+        if (opts.responseTransformer) {
+          data = await opts.responseTransformer(data);
+        }
+      }
+      return opts.responseStyle === "data" ? data : {
+        data,
+        ...result
+      };
+    }
+    const textError = await response.text();
+    let jsonError;
+    try {
+      jsonError = JSON.parse(textError);
+    } catch {
+    }
+    const error = jsonError ?? textError;
+    let finalError = error;
+    for (const fn of interceptors.error._fns) {
+      if (fn) {
+        finalError = await fn(error, response, request2, opts);
+      }
+    }
+    finalError = finalError || {};
+    if (opts.throwOnError) {
+      throw finalError;
+    }
+    return opts.responseStyle === "data" ? void 0 : {
+      error: finalError,
+      ...result
+    };
+  };
+  const makeMethod = (method) => {
+    const fn = (options) => request({ ...options, method });
+    fn.sse = async (options) => {
+      const { opts, url } = await beforeRequest(options);
+      return createSseClient({
+        ...opts,
+        body: opts.body,
+        headers: opts.headers,
+        method,
+        url
+      });
+    };
+    return fn;
+  };
+  return {
+    buildUrl,
+    connect: makeMethod("CONNECT"),
+    delete: makeMethod("DELETE"),
+    get: makeMethod("GET"),
+    getConfig,
+    head: makeMethod("HEAD"),
+    interceptors,
+    options: makeMethod("OPTIONS"),
+    patch: makeMethod("PATCH"),
+    post: makeMethod("POST"),
+    put: makeMethod("PUT"),
+    request,
+    setConfig,
+    trace: makeMethod("TRACE")
+  };
 };
-const messageDb = {
-  append(sessionId, role, content, images) {
-    const db = getDb();
-    return db.insert(messages).values({
-      sessionId,
-      role,
-      content,
-      images: images?.length ? JSON.stringify(images) : null
-    }).returning().get();
-  },
-  listBySession(sessionId) {
-    const db = getDb();
-    return db.select().from(messages).where(drizzleOrm.eq(messages.sessionId, sessionId)).orderBy(drizzleOrm.asc(messages.createdAt)).all();
+const client$1 = createClient(createConfig({
+  baseUrl: "http://localhost:4096"
+}));
+class _HeyApiClient {
+  _client = client$1;
+  constructor(args) {
+    if (args?.client) {
+      this._client = args.client;
+    }
   }
-};
-function registerSessionHandlers() {
-  electron.ipcMain.handle("sessions:list", () => {
-    return sessionDb.list();
+}
+class Global extends _HeyApiClient {
+  /**
+   * Get events
+   */
+  event(options) {
+    return (options?.client ?? this._client).get.sse({
+      url: "/global/event",
+      ...options
+    });
+  }
+}
+class Project extends _HeyApiClient {
+  /**
+   * List all projects
+   */
+  list(options) {
+    return (options?.client ?? this._client).get({
+      url: "/project",
+      ...options
+    });
+  }
+  /**
+   * Get the current project
+   */
+  current(options) {
+    return (options?.client ?? this._client).get({
+      url: "/project/current",
+      ...options
+    });
+  }
+}
+class Pty extends _HeyApiClient {
+  /**
+   * List all PTY sessions
+   */
+  list(options) {
+    return (options?.client ?? this._client).get({
+      url: "/pty",
+      ...options
+    });
+  }
+  /**
+   * Create a new PTY session
+   */
+  create(options) {
+    return (options?.client ?? this._client).post({
+      url: "/pty",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers
+      }
+    });
+  }
+  /**
+   * Remove a PTY session
+   */
+  remove(options) {
+    return (options.client ?? this._client).delete({
+      url: "/pty/{id}",
+      ...options
+    });
+  }
+  /**
+   * Get PTY session info
+   */
+  get(options) {
+    return (options.client ?? this._client).get({
+      url: "/pty/{id}",
+      ...options
+    });
+  }
+  /**
+   * Update PTY session
+   */
+  update(options) {
+    return (options.client ?? this._client).put({
+      url: "/pty/{id}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers
+      }
+    });
+  }
+  /**
+   * Connect to a PTY session
+   */
+  connect(options) {
+    return (options.client ?? this._client).get({
+      url: "/pty/{id}/connect",
+      ...options
+    });
+  }
+}
+class Config extends _HeyApiClient {
+  /**
+   * Get config info
+   */
+  get(options) {
+    return (options?.client ?? this._client).get({
+      url: "/config",
+      ...options
+    });
+  }
+  /**
+   * Update config
+   */
+  update(options) {
+    return (options?.client ?? this._client).patch({
+      url: "/config",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers
+      }
+    });
+  }
+  /**
+   * List all providers
+   */
+  providers(options) {
+    return (options?.client ?? this._client).get({
+      url: "/config/providers",
+      ...options
+    });
+  }
+}
+class Tool extends _HeyApiClient {
+  /**
+   * List all tool IDs (including built-in and dynamically registered)
+   */
+  ids(options) {
+    return (options?.client ?? this._client).get({
+      url: "/experimental/tool/ids",
+      ...options
+    });
+  }
+  /**
+   * List tools with JSON schema parameters for a provider/model
+   */
+  list(options) {
+    return (options.client ?? this._client).get({
+      url: "/experimental/tool",
+      ...options
+    });
+  }
+}
+class Instance extends _HeyApiClient {
+  /**
+   * Dispose the current instance
+   */
+  dispose(options) {
+    return (options?.client ?? this._client).post({
+      url: "/instance/dispose",
+      ...options
+    });
+  }
+}
+class Path extends _HeyApiClient {
+  /**
+   * Get the current path
+   */
+  get(options) {
+    return (options?.client ?? this._client).get({
+      url: "/path",
+      ...options
+    });
+  }
+}
+class Vcs extends _HeyApiClient {
+  /**
+   * Get VCS info for the current instance
+   */
+  get(options) {
+    return (options?.client ?? this._client).get({
+      url: "/vcs",
+      ...options
+    });
+  }
+}
+class Session extends _HeyApiClient {
+  /**
+   * List all sessions
+   */
+  list(options) {
+    return (options?.client ?? this._client).get({
+      url: "/session",
+      ...options
+    });
+  }
+  /**
+   * Create a new session
+   */
+  create(options) {
+    return (options?.client ?? this._client).post({
+      url: "/session",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers
+      }
+    });
+  }
+  /**
+   * Get session status
+   */
+  status(options) {
+    return (options?.client ?? this._client).get({
+      url: "/session/status",
+      ...options
+    });
+  }
+  /**
+   * Delete a session and all its data
+   */
+  delete(options) {
+    return (options.client ?? this._client).delete({
+      url: "/session/{id}",
+      ...options
+    });
+  }
+  /**
+   * Get session
+   */
+  get(options) {
+    return (options.client ?? this._client).get({
+      url: "/session/{id}",
+      ...options
+    });
+  }
+  /**
+   * Update session properties
+   */
+  update(options) {
+    return (options.client ?? this._client).patch({
+      url: "/session/{id}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers
+      }
+    });
+  }
+  /**
+   * Get a session's children
+   */
+  children(options) {
+    return (options.client ?? this._client).get({
+      url: "/session/{id}/children",
+      ...options
+    });
+  }
+  /**
+   * Get the todo list for a session
+   */
+  todo(options) {
+    return (options.client ?? this._client).get({
+      url: "/session/{id}/todo",
+      ...options
+    });
+  }
+  /**
+   * Analyze the app and create an AGENTS.md file
+   */
+  init(options) {
+    return (options.client ?? this._client).post({
+      url: "/session/{id}/init",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers
+      }
+    });
+  }
+  /**
+   * Fork an existing session at a specific message
+   */
+  fork(options) {
+    return (options.client ?? this._client).post({
+      url: "/session/{id}/fork",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers
+      }
+    });
+  }
+  /**
+   * Abort a session
+   */
+  abort(options) {
+    return (options.client ?? this._client).post({
+      url: "/session/{id}/abort",
+      ...options
+    });
+  }
+  /**
+   * Unshare the session
+   */
+  unshare(options) {
+    return (options.client ?? this._client).delete({
+      url: "/session/{id}/share",
+      ...options
+    });
+  }
+  /**
+   * Share a session
+   */
+  share(options) {
+    return (options.client ?? this._client).post({
+      url: "/session/{id}/share",
+      ...options
+    });
+  }
+  /**
+   * Get the diff for this session
+   */
+  diff(options) {
+    return (options.client ?? this._client).get({
+      url: "/session/{id}/diff",
+      ...options
+    });
+  }
+  /**
+   * Summarize the session
+   */
+  summarize(options) {
+    return (options.client ?? this._client).post({
+      url: "/session/{id}/summarize",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers
+      }
+    });
+  }
+  /**
+   * List messages for a session
+   */
+  messages(options) {
+    return (options.client ?? this._client).get({
+      url: "/session/{id}/message",
+      ...options
+    });
+  }
+  /**
+   * Create and send a new message to a session
+   */
+  prompt(options) {
+    return (options.client ?? this._client).post({
+      url: "/session/{id}/message",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers
+      }
+    });
+  }
+  /**
+   * Get a message from a session
+   */
+  message(options) {
+    return (options.client ?? this._client).get({
+      url: "/session/{id}/message/{messageID}",
+      ...options
+    });
+  }
+  /**
+   * Create and send a new message to a session, start if needed and return immediately
+   */
+  promptAsync(options) {
+    return (options.client ?? this._client).post({
+      url: "/session/{id}/prompt_async",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers
+      }
+    });
+  }
+  /**
+   * Send a new command to a session
+   */
+  command(options) {
+    return (options.client ?? this._client).post({
+      url: "/session/{id}/command",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers
+      }
+    });
+  }
+  /**
+   * Run a shell command
+   */
+  shell(options) {
+    return (options.client ?? this._client).post({
+      url: "/session/{id}/shell",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers
+      }
+    });
+  }
+  /**
+   * Revert a message
+   */
+  revert(options) {
+    return (options.client ?? this._client).post({
+      url: "/session/{id}/revert",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers
+      }
+    });
+  }
+  /**
+   * Restore all reverted messages
+   */
+  unrevert(options) {
+    return (options.client ?? this._client).post({
+      url: "/session/{id}/unrevert",
+      ...options
+    });
+  }
+}
+class Command extends _HeyApiClient {
+  /**
+   * List all commands
+   */
+  list(options) {
+    return (options?.client ?? this._client).get({
+      url: "/command",
+      ...options
+    });
+  }
+}
+class Oauth extends _HeyApiClient {
+  /**
+   * Authorize a provider using OAuth
+   */
+  authorize(options) {
+    return (options.client ?? this._client).post({
+      url: "/provider/{id}/oauth/authorize",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers
+      }
+    });
+  }
+  /**
+   * Handle OAuth callback for a provider
+   */
+  callback(options) {
+    return (options.client ?? this._client).post({
+      url: "/provider/{id}/oauth/callback",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers
+      }
+    });
+  }
+}
+class Provider extends _HeyApiClient {
+  /**
+   * List all providers
+   */
+  list(options) {
+    return (options?.client ?? this._client).get({
+      url: "/provider",
+      ...options
+    });
+  }
+  /**
+   * Get provider authentication methods
+   */
+  auth(options) {
+    return (options?.client ?? this._client).get({
+      url: "/provider/auth",
+      ...options
+    });
+  }
+  oauth = new Oauth({ client: this._client });
+}
+class Find extends _HeyApiClient {
+  /**
+   * Find text in files
+   */
+  text(options) {
+    return (options.client ?? this._client).get({
+      url: "/find",
+      ...options
+    });
+  }
+  /**
+   * Find files
+   */
+  files(options) {
+    return (options.client ?? this._client).get({
+      url: "/find/file",
+      ...options
+    });
+  }
+  /**
+   * Find workspace symbols
+   */
+  symbols(options) {
+    return (options.client ?? this._client).get({
+      url: "/find/symbol",
+      ...options
+    });
+  }
+}
+class File extends _HeyApiClient {
+  /**
+   * List files and directories
+   */
+  list(options) {
+    return (options.client ?? this._client).get({
+      url: "/file",
+      ...options
+    });
+  }
+  /**
+   * Read a file
+   */
+  read(options) {
+    return (options.client ?? this._client).get({
+      url: "/file/content",
+      ...options
+    });
+  }
+  /**
+   * Get file status
+   */
+  status(options) {
+    return (options?.client ?? this._client).get({
+      url: "/file/status",
+      ...options
+    });
+  }
+}
+class App extends _HeyApiClient {
+  /**
+   * Write a log entry to the server logs
+   */
+  log(options) {
+    return (options?.client ?? this._client).post({
+      url: "/log",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers
+      }
+    });
+  }
+  /**
+   * List all agents
+   */
+  agents(options) {
+    return (options?.client ?? this._client).get({
+      url: "/agent",
+      ...options
+    });
+  }
+}
+class Auth extends _HeyApiClient {
+  /**
+   * Remove OAuth credentials for an MCP server
+   */
+  remove(options) {
+    return (options.client ?? this._client).delete({
+      url: "/mcp/{name}/auth",
+      ...options
+    });
+  }
+  /**
+   * Start OAuth authentication flow for an MCP server
+   */
+  start(options) {
+    return (options.client ?? this._client).post({
+      url: "/mcp/{name}/auth",
+      ...options
+    });
+  }
+  /**
+   * Complete OAuth authentication with authorization code
+   */
+  callback(options) {
+    return (options.client ?? this._client).post({
+      url: "/mcp/{name}/auth/callback",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers
+      }
+    });
+  }
+  /**
+   * Start OAuth flow and wait for callback (opens browser)
+   */
+  authenticate(options) {
+    return (options.client ?? this._client).post({
+      url: "/mcp/{name}/auth/authenticate",
+      ...options
+    });
+  }
+  /**
+   * Set authentication credentials
+   */
+  set(options) {
+    return (options.client ?? this._client).put({
+      url: "/auth/{id}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers
+      }
+    });
+  }
+}
+class Mcp extends _HeyApiClient {
+  /**
+   * Get MCP server status
+   */
+  status(options) {
+    return (options?.client ?? this._client).get({
+      url: "/mcp",
+      ...options
+    });
+  }
+  /**
+   * Add MCP server dynamically
+   */
+  add(options) {
+    return (options?.client ?? this._client).post({
+      url: "/mcp",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers
+      }
+    });
+  }
+  /**
+   * Connect an MCP server
+   */
+  connect(options) {
+    return (options.client ?? this._client).post({
+      url: "/mcp/{name}/connect",
+      ...options
+    });
+  }
+  /**
+   * Disconnect an MCP server
+   */
+  disconnect(options) {
+    return (options.client ?? this._client).post({
+      url: "/mcp/{name}/disconnect",
+      ...options
+    });
+  }
+  auth = new Auth({ client: this._client });
+}
+class Lsp extends _HeyApiClient {
+  /**
+   * Get LSP server status
+   */
+  status(options) {
+    return (options?.client ?? this._client).get({
+      url: "/lsp",
+      ...options
+    });
+  }
+}
+class Formatter extends _HeyApiClient {
+  /**
+   * Get formatter status
+   */
+  status(options) {
+    return (options?.client ?? this._client).get({
+      url: "/formatter",
+      ...options
+    });
+  }
+}
+class Control extends _HeyApiClient {
+  /**
+   * Get the next TUI request from the queue
+   */
+  next(options) {
+    return (options?.client ?? this._client).get({
+      url: "/tui/control/next",
+      ...options
+    });
+  }
+  /**
+   * Submit a response to the TUI request queue
+   */
+  response(options) {
+    return (options?.client ?? this._client).post({
+      url: "/tui/control/response",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers
+      }
+    });
+  }
+}
+class Tui extends _HeyApiClient {
+  /**
+   * Append prompt to the TUI
+   */
+  appendPrompt(options) {
+    return (options?.client ?? this._client).post({
+      url: "/tui/append-prompt",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers
+      }
+    });
+  }
+  /**
+   * Open the help dialog
+   */
+  openHelp(options) {
+    return (options?.client ?? this._client).post({
+      url: "/tui/open-help",
+      ...options
+    });
+  }
+  /**
+   * Open the session dialog
+   */
+  openSessions(options) {
+    return (options?.client ?? this._client).post({
+      url: "/tui/open-sessions",
+      ...options
+    });
+  }
+  /**
+   * Open the theme dialog
+   */
+  openThemes(options) {
+    return (options?.client ?? this._client).post({
+      url: "/tui/open-themes",
+      ...options
+    });
+  }
+  /**
+   * Open the model dialog
+   */
+  openModels(options) {
+    return (options?.client ?? this._client).post({
+      url: "/tui/open-models",
+      ...options
+    });
+  }
+  /**
+   * Submit the prompt
+   */
+  submitPrompt(options) {
+    return (options?.client ?? this._client).post({
+      url: "/tui/submit-prompt",
+      ...options
+    });
+  }
+  /**
+   * Clear the prompt
+   */
+  clearPrompt(options) {
+    return (options?.client ?? this._client).post({
+      url: "/tui/clear-prompt",
+      ...options
+    });
+  }
+  /**
+   * Execute a TUI command (e.g. agent_cycle)
+   */
+  executeCommand(options) {
+    return (options?.client ?? this._client).post({
+      url: "/tui/execute-command",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers
+      }
+    });
+  }
+  /**
+   * Show a toast notification in the TUI
+   */
+  showToast(options) {
+    return (options?.client ?? this._client).post({
+      url: "/tui/show-toast",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers
+      }
+    });
+  }
+  /**
+   * Publish a TUI event
+   */
+  publish(options) {
+    return (options?.client ?? this._client).post({
+      url: "/tui/publish",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers
+      }
+    });
+  }
+  control = new Control({ client: this._client });
+}
+class Event extends _HeyApiClient {
+  /**
+   * Get events
+   */
+  subscribe(options) {
+    return (options?.client ?? this._client).get.sse({
+      url: "/event",
+      ...options
+    });
+  }
+}
+class OpencodeClient extends _HeyApiClient {
+  /**
+   * Respond to a permission request
+   */
+  postSessionIdPermissionsPermissionId(options) {
+    return (options.client ?? this._client).post({
+      url: "/session/{id}/permissions/{permissionID}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers
+      }
+    });
+  }
+  global = new Global({ client: this._client });
+  project = new Project({ client: this._client });
+  pty = new Pty({ client: this._client });
+  config = new Config({ client: this._client });
+  tool = new Tool({ client: this._client });
+  instance = new Instance({ client: this._client });
+  path = new Path({ client: this._client });
+  vcs = new Vcs({ client: this._client });
+  session = new Session({ client: this._client });
+  command = new Command({ client: this._client });
+  provider = new Provider({ client: this._client });
+  find = new Find({ client: this._client });
+  file = new File({ client: this._client });
+  app = new App({ client: this._client });
+  mcp = new Mcp({ client: this._client });
+  lsp = new Lsp({ client: this._client });
+  formatter = new Formatter({ client: this._client });
+  tui = new Tui({ client: this._client });
+  auth = new Auth({ client: this._client });
+  event = new Event({ client: this._client });
+}
+function pick(value, fallback) {
+  if (!value)
+    return;
+  if (!fallback)
+    return value;
+  if (value === fallback)
+    return fallback;
+  if (value === encodeURIComponent(fallback))
+    return fallback;
+  return value;
+}
+function rewrite(request, directory) {
+  if (request.method !== "GET" && request.method !== "HEAD")
+    return request;
+  const value = pick(request.headers.get("x-opencode-directory"), directory);
+  if (!value)
+    return request;
+  const url = new URL(request.url);
+  if (!url.searchParams.has("directory")) {
+    url.searchParams.set("directory", value);
+  }
+  const next = new Request(url, request);
+  next.headers.delete("x-opencode-directory");
+  return next;
+}
+function createOpencodeClient(config) {
+  if (!config?.fetch) {
+    const customFetch = (req) => {
+      req.timeout = false;
+      return fetch(req);
+    };
+    config = {
+      ...config,
+      fetch: customFetch
+    };
+  }
+  if (config?.directory) {
+    config.headers = {
+      ...config.headers,
+      "x-opencode-directory": encodeURIComponent(config.directory)
+    };
+  }
+  const client2 = createClient(config);
+  client2.interceptors.request.use((request) => rewrite(request, config?.directory));
+  return new OpencodeClient({ client: client2 });
+}
+var commonjsGlobal = typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : {};
+var crossSpawn = { exports: {} };
+var windows;
+var hasRequiredWindows;
+function requireWindows() {
+  if (hasRequiredWindows) return windows;
+  hasRequiredWindows = 1;
+  windows = isexe;
+  isexe.sync = sync;
+  var fs = require$$0;
+  function checkPathExt(path, options) {
+    var pathext = options.pathExt !== void 0 ? options.pathExt : process.env.PATHEXT;
+    if (!pathext) {
+      return true;
+    }
+    pathext = pathext.split(";");
+    if (pathext.indexOf("") !== -1) {
+      return true;
+    }
+    for (var i = 0; i < pathext.length; i++) {
+      var p = pathext[i].toLowerCase();
+      if (p && path.substr(-p.length).toLowerCase() === p) {
+        return true;
+      }
+    }
+    return false;
+  }
+  function checkStat(stat, path, options) {
+    if (!stat.isSymbolicLink() && !stat.isFile()) {
+      return false;
+    }
+    return checkPathExt(path, options);
+  }
+  function isexe(path, options, cb) {
+    fs.stat(path, function(er, stat) {
+      cb(er, er ? false : checkStat(stat, path, options));
+    });
+  }
+  function sync(path, options) {
+    return checkStat(fs.statSync(path), path, options);
+  }
+  return windows;
+}
+var mode;
+var hasRequiredMode;
+function requireMode() {
+  if (hasRequiredMode) return mode;
+  hasRequiredMode = 1;
+  mode = isexe;
+  isexe.sync = sync;
+  var fs = require$$0;
+  function isexe(path, options, cb) {
+    fs.stat(path, function(er, stat) {
+      cb(er, er ? false : checkStat(stat, options));
+    });
+  }
+  function sync(path, options) {
+    return checkStat(fs.statSync(path), options);
+  }
+  function checkStat(stat, options) {
+    return stat.isFile() && checkMode(stat, options);
+  }
+  function checkMode(stat, options) {
+    var mod = stat.mode;
+    var uid = stat.uid;
+    var gid = stat.gid;
+    var myUid = options.uid !== void 0 ? options.uid : process.getuid && process.getuid();
+    var myGid = options.gid !== void 0 ? options.gid : process.getgid && process.getgid();
+    var u = parseInt("100", 8);
+    var g = parseInt("010", 8);
+    var o = parseInt("001", 8);
+    var ug = u | g;
+    var ret = mod & o || mod & g && gid === myGid || mod & u && uid === myUid || mod & ug && myUid === 0;
+    return ret;
+  }
+  return mode;
+}
+var isexe_1;
+var hasRequiredIsexe;
+function requireIsexe() {
+  if (hasRequiredIsexe) return isexe_1;
+  hasRequiredIsexe = 1;
+  var core;
+  if (process.platform === "win32" || commonjsGlobal.TESTING_WINDOWS) {
+    core = requireWindows();
+  } else {
+    core = requireMode();
+  }
+  isexe_1 = isexe;
+  isexe.sync = sync;
+  function isexe(path, options, cb) {
+    if (typeof options === "function") {
+      cb = options;
+      options = {};
+    }
+    if (!cb) {
+      if (typeof Promise !== "function") {
+        throw new TypeError("callback not provided");
+      }
+      return new Promise(function(resolve, reject) {
+        isexe(path, options || {}, function(er, is) {
+          if (er) {
+            reject(er);
+          } else {
+            resolve(is);
+          }
+        });
+      });
+    }
+    core(path, options || {}, function(er, is) {
+      if (er) {
+        if (er.code === "EACCES" || options && options.ignoreErrors) {
+          er = null;
+          is = false;
+        }
+      }
+      cb(er, is);
+    });
+  }
+  function sync(path, options) {
+    try {
+      return core.sync(path, options || {});
+    } catch (er) {
+      if (options && options.ignoreErrors || er.code === "EACCES") {
+        return false;
+      } else {
+        throw er;
+      }
+    }
+  }
+  return isexe_1;
+}
+var which_1;
+var hasRequiredWhich;
+function requireWhich() {
+  if (hasRequiredWhich) return which_1;
+  hasRequiredWhich = 1;
+  const isWindows = process.platform === "win32" || process.env.OSTYPE === "cygwin" || process.env.OSTYPE === "msys";
+  const path = require$$0$1;
+  const COLON = isWindows ? ";" : ":";
+  const isexe = requireIsexe();
+  const getNotFoundError = (cmd) => Object.assign(new Error(`not found: ${cmd}`), { code: "ENOENT" });
+  const getPathInfo = (cmd, opt) => {
+    const colon = opt.colon || COLON;
+    const pathEnv = cmd.match(/\//) || isWindows && cmd.match(/\\/) ? [""] : [
+      // windows always checks the cwd first
+      ...isWindows ? [process.cwd()] : [],
+      ...(opt.path || process.env.PATH || /* istanbul ignore next: very unusual */
+      "").split(colon)
+    ];
+    const pathExtExe = isWindows ? opt.pathExt || process.env.PATHEXT || ".EXE;.CMD;.BAT;.COM" : "";
+    const pathExt = isWindows ? pathExtExe.split(colon) : [""];
+    if (isWindows) {
+      if (cmd.indexOf(".") !== -1 && pathExt[0] !== "")
+        pathExt.unshift("");
+    }
+    return {
+      pathEnv,
+      pathExt,
+      pathExtExe
+    };
+  };
+  const which = (cmd, opt, cb) => {
+    if (typeof opt === "function") {
+      cb = opt;
+      opt = {};
+    }
+    if (!opt)
+      opt = {};
+    const { pathEnv, pathExt, pathExtExe } = getPathInfo(cmd, opt);
+    const found = [];
+    const step = (i) => new Promise((resolve, reject) => {
+      if (i === pathEnv.length)
+        return opt.all && found.length ? resolve(found) : reject(getNotFoundError(cmd));
+      const ppRaw = pathEnv[i];
+      const pathPart = /^".*"$/.test(ppRaw) ? ppRaw.slice(1, -1) : ppRaw;
+      const pCmd = path.join(pathPart, cmd);
+      const p = !pathPart && /^\.[\\\/]/.test(cmd) ? cmd.slice(0, 2) + pCmd : pCmd;
+      resolve(subStep(p, i, 0));
+    });
+    const subStep = (p, i, ii) => new Promise((resolve, reject) => {
+      if (ii === pathExt.length)
+        return resolve(step(i + 1));
+      const ext = pathExt[ii];
+      isexe(p + ext, { pathExt: pathExtExe }, (er, is) => {
+        if (!er && is) {
+          if (opt.all)
+            found.push(p + ext);
+          else
+            return resolve(p + ext);
+        }
+        return resolve(subStep(p, i, ii + 1));
+      });
+    });
+    return cb ? step(0).then((res) => cb(null, res), cb) : step(0);
+  };
+  const whichSync = (cmd, opt) => {
+    opt = opt || {};
+    const { pathEnv, pathExt, pathExtExe } = getPathInfo(cmd, opt);
+    const found = [];
+    for (let i = 0; i < pathEnv.length; i++) {
+      const ppRaw = pathEnv[i];
+      const pathPart = /^".*"$/.test(ppRaw) ? ppRaw.slice(1, -1) : ppRaw;
+      const pCmd = path.join(pathPart, cmd);
+      const p = !pathPart && /^\.[\\\/]/.test(cmd) ? cmd.slice(0, 2) + pCmd : pCmd;
+      for (let j = 0; j < pathExt.length; j++) {
+        const cur = p + pathExt[j];
+        try {
+          const is = isexe.sync(cur, { pathExt: pathExtExe });
+          if (is) {
+            if (opt.all)
+              found.push(cur);
+            else
+              return cur;
+          }
+        } catch (ex) {
+        }
+      }
+    }
+    if (opt.all && found.length)
+      return found;
+    if (opt.nothrow)
+      return null;
+    throw getNotFoundError(cmd);
+  };
+  which_1 = which;
+  which.sync = whichSync;
+  return which_1;
+}
+var pathKey = { exports: {} };
+var hasRequiredPathKey;
+function requirePathKey() {
+  if (hasRequiredPathKey) return pathKey.exports;
+  hasRequiredPathKey = 1;
+  const pathKey$1 = (options = {}) => {
+    const environment = options.env || process.env;
+    const platform = options.platform || process.platform;
+    if (platform !== "win32") {
+      return "PATH";
+    }
+    return Object.keys(environment).reverse().find((key) => key.toUpperCase() === "PATH") || "Path";
+  };
+  pathKey.exports = pathKey$1;
+  pathKey.exports.default = pathKey$1;
+  return pathKey.exports;
+}
+var resolveCommand_1;
+var hasRequiredResolveCommand;
+function requireResolveCommand() {
+  if (hasRequiredResolveCommand) return resolveCommand_1;
+  hasRequiredResolveCommand = 1;
+  const path = require$$0$1;
+  const which = requireWhich();
+  const getPathKey = requirePathKey();
+  function resolveCommandAttempt(parsed, withoutPathExt) {
+    const env = parsed.options.env || process.env;
+    const cwd = process.cwd();
+    const hasCustomCwd = parsed.options.cwd != null;
+    const shouldSwitchCwd = hasCustomCwd && process.chdir !== void 0 && !process.chdir.disabled;
+    if (shouldSwitchCwd) {
+      try {
+        process.chdir(parsed.options.cwd);
+      } catch (err) {
+      }
+    }
+    let resolved;
+    try {
+      resolved = which.sync(parsed.command, {
+        path: env[getPathKey({ env })],
+        pathExt: withoutPathExt ? path.delimiter : void 0
+      });
+    } catch (e) {
+    } finally {
+      if (shouldSwitchCwd) {
+        process.chdir(cwd);
+      }
+    }
+    if (resolved) {
+      resolved = path.resolve(hasCustomCwd ? parsed.options.cwd : "", resolved);
+    }
+    return resolved;
+  }
+  function resolveCommand(parsed) {
+    return resolveCommandAttempt(parsed) || resolveCommandAttempt(parsed, true);
+  }
+  resolveCommand_1 = resolveCommand;
+  return resolveCommand_1;
+}
+var _escape = {};
+var hasRequired_escape;
+function require_escape() {
+  if (hasRequired_escape) return _escape;
+  hasRequired_escape = 1;
+  const metaCharsRegExp = /([()\][%!^"`<>&|;, *?])/g;
+  function escapeCommand(arg) {
+    arg = arg.replace(metaCharsRegExp, "^$1");
+    return arg;
+  }
+  function escapeArgument(arg, doubleEscapeMetaChars) {
+    arg = `${arg}`;
+    arg = arg.replace(/(?=(\\+?)?)\1"/g, '$1$1\\"');
+    arg = arg.replace(/(?=(\\+?)?)\1$/, "$1$1");
+    arg = `"${arg}"`;
+    arg = arg.replace(metaCharsRegExp, "^$1");
+    if (doubleEscapeMetaChars) {
+      arg = arg.replace(metaCharsRegExp, "^$1");
+    }
+    return arg;
+  }
+  _escape.command = escapeCommand;
+  _escape.argument = escapeArgument;
+  return _escape;
+}
+var shebangRegex;
+var hasRequiredShebangRegex;
+function requireShebangRegex() {
+  if (hasRequiredShebangRegex) return shebangRegex;
+  hasRequiredShebangRegex = 1;
+  shebangRegex = /^#!(.*)/;
+  return shebangRegex;
+}
+var shebangCommand;
+var hasRequiredShebangCommand;
+function requireShebangCommand() {
+  if (hasRequiredShebangCommand) return shebangCommand;
+  hasRequiredShebangCommand = 1;
+  const shebangRegex2 = requireShebangRegex();
+  shebangCommand = (string = "") => {
+    const match = string.match(shebangRegex2);
+    if (!match) {
+      return null;
+    }
+    const [path, argument] = match[0].replace(/#! ?/, "").split(" ");
+    const binary = path.split("/").pop();
+    if (binary === "env") {
+      return argument;
+    }
+    return argument ? `${binary} ${argument}` : binary;
+  };
+  return shebangCommand;
+}
+var readShebang_1;
+var hasRequiredReadShebang;
+function requireReadShebang() {
+  if (hasRequiredReadShebang) return readShebang_1;
+  hasRequiredReadShebang = 1;
+  const fs = require$$0;
+  const shebangCommand2 = requireShebangCommand();
+  function readShebang(command) {
+    const size = 150;
+    const buffer = Buffer.alloc(size);
+    let fd;
+    try {
+      fd = fs.openSync(command, "r");
+      fs.readSync(fd, buffer, 0, size, 0);
+      fs.closeSync(fd);
+    } catch (e) {
+    }
+    return shebangCommand2(buffer.toString());
+  }
+  readShebang_1 = readShebang;
+  return readShebang_1;
+}
+var parse_1;
+var hasRequiredParse;
+function requireParse() {
+  if (hasRequiredParse) return parse_1;
+  hasRequiredParse = 1;
+  const path = require$$0$1;
+  const resolveCommand = requireResolveCommand();
+  const escape = require_escape();
+  const readShebang = requireReadShebang();
+  const isWin = process.platform === "win32";
+  const isExecutableRegExp = /\.(?:com|exe)$/i;
+  const isCmdShimRegExp = /node_modules[\\/].bin[\\/][^\\/]+\.cmd$/i;
+  function detectShebang(parsed) {
+    parsed.file = resolveCommand(parsed);
+    const shebang = parsed.file && readShebang(parsed.file);
+    if (shebang) {
+      parsed.args.unshift(parsed.file);
+      parsed.command = shebang;
+      return resolveCommand(parsed);
+    }
+    return parsed.file;
+  }
+  function parseNonShell(parsed) {
+    if (!isWin) {
+      return parsed;
+    }
+    const commandFile = detectShebang(parsed);
+    const needsShell = !isExecutableRegExp.test(commandFile);
+    if (parsed.options.forceShell || needsShell) {
+      const needsDoubleEscapeMetaChars = isCmdShimRegExp.test(commandFile);
+      parsed.command = path.normalize(parsed.command);
+      parsed.command = escape.command(parsed.command);
+      parsed.args = parsed.args.map((arg) => escape.argument(arg, needsDoubleEscapeMetaChars));
+      const shellCommand = [parsed.command].concat(parsed.args).join(" ");
+      parsed.args = ["/d", "/s", "/c", `"${shellCommand}"`];
+      parsed.command = process.env.comspec || "cmd.exe";
+      parsed.options.windowsVerbatimArguments = true;
+    }
+    return parsed;
+  }
+  function parse(command, args, options) {
+    if (args && !Array.isArray(args)) {
+      options = args;
+      args = null;
+    }
+    args = args ? args.slice(0) : [];
+    options = Object.assign({}, options);
+    const parsed = {
+      command,
+      args,
+      options,
+      file: void 0,
+      original: {
+        command,
+        args
+      }
+    };
+    return options.shell ? parsed : parseNonShell(parsed);
+  }
+  parse_1 = parse;
+  return parse_1;
+}
+var enoent;
+var hasRequiredEnoent;
+function requireEnoent() {
+  if (hasRequiredEnoent) return enoent;
+  hasRequiredEnoent = 1;
+  const isWin = process.platform === "win32";
+  function notFoundError(original, syscall) {
+    return Object.assign(new Error(`${syscall} ${original.command} ENOENT`), {
+      code: "ENOENT",
+      errno: "ENOENT",
+      syscall: `${syscall} ${original.command}`,
+      path: original.command,
+      spawnargs: original.args
+    });
+  }
+  function hookChildProcess(cp, parsed) {
+    if (!isWin) {
+      return;
+    }
+    const originalEmit = cp.emit;
+    cp.emit = function(name, arg1) {
+      if (name === "exit") {
+        const err = verifyENOENT(arg1, parsed);
+        if (err) {
+          return originalEmit.call(cp, "error", err);
+        }
+      }
+      return originalEmit.apply(cp, arguments);
+    };
+  }
+  function verifyENOENT(status, parsed) {
+    if (isWin && status === 1 && !parsed.file) {
+      return notFoundError(parsed.original, "spawn");
+    }
+    return null;
+  }
+  function verifyENOENTSync(status, parsed) {
+    if (isWin && status === 1 && !parsed.file) {
+      return notFoundError(parsed.original, "spawnSync");
+    }
+    return null;
+  }
+  enoent = {
+    hookChildProcess,
+    verifyENOENT,
+    verifyENOENTSync,
+    notFoundError
+  };
+  return enoent;
+}
+var hasRequiredCrossSpawn;
+function requireCrossSpawn() {
+  if (hasRequiredCrossSpawn) return crossSpawn.exports;
+  hasRequiredCrossSpawn = 1;
+  const cp = require$$0$2;
+  const parse = requireParse();
+  const enoent2 = requireEnoent();
+  function spawn(command, args, options) {
+    const parsed = parse(command, args, options);
+    const spawned = cp.spawn(parsed.command, parsed.args, parsed.options);
+    enoent2.hookChildProcess(spawned, parsed);
+    return spawned;
+  }
+  function spawnSync(command, args, options) {
+    const parsed = parse(command, args, options);
+    const result = cp.spawnSync(parsed.command, parsed.args, parsed.options);
+    result.error = result.error || enoent2.verifyENOENTSync(result.status, parsed);
+    return result;
+  }
+  crossSpawn.exports = spawn;
+  crossSpawn.exports.spawn = spawn;
+  crossSpawn.exports.sync = spawnSync;
+  crossSpawn.exports._parse = parse;
+  crossSpawn.exports._enoent = enoent2;
+  return crossSpawn.exports;
+}
+requireCrossSpawn();
+let child = null;
+let client = null;
+let baseUrl = null;
+let readyPromise = null;
+let subscriptionLoopActive = false;
+let subscriptionAbort = null;
+let stopped = false;
+const HEARTBEAT_MS = 15e3;
+const RECONNECT_MIN_MS = 500;
+const RECONNECT_MAX_MS = 5e3;
+function resolveBinaryPath() {
+  const binName = process.platform === "win32" ? "opencode.exe" : "opencode";
+  if (electron.app.isPackaged) {
+    return node_path.join(process.resourcesPath, "bin", binName);
+  }
+  const devPath = node_path.resolve(__dirname, "../../resources/bin", binName);
+  if (node_fs.existsSync(devPath)) return devPath;
+  return binName;
+}
+async function boot() {
+  const binary = resolveBinaryPath();
+  const args = ["serve", "--hostname=127.0.0.1", "--port=0"];
+  const proc = node_child_process.spawn(binary, args, {
+    env: { ...process.env },
+    stdio: ["ignore", "pipe", "pipe"]
   });
-  electron.ipcMain.handle("sessions:get", (_e, id) => {
-    return sessionDb.get(id);
+  child = proc;
+  const url = await new Promise((resolveUrl, rejectUrl) => {
+    let stdoutBuf = "";
+    let stderrBuf = "";
+    const timer = setTimeout(() => {
+      rejectUrl(
+        new Error(
+          `Timed out waiting for opencode sidecar.
+stdout: ${stdoutBuf}
+stderr: ${stderrBuf}`
+        )
+      );
+    }, 1e4);
+    proc.stdout?.on("data", (chunk) => {
+      stdoutBuf += chunk.toString();
+      for (const line of stdoutBuf.split("\n")) {
+        const m = line.match(/opencode server listening\s+on\s+(https?:\/\/\S+)/);
+        if (m) {
+          clearTimeout(timer);
+          resolveUrl(m[1]);
+          return;
+        }
+      }
+    });
+    proc.stderr?.on("data", (chunk) => {
+      stderrBuf += chunk.toString();
+    });
+    proc.on("exit", (code, signal) => {
+      clearTimeout(timer);
+      rejectUrl(
+        new Error(
+          `opencode sidecar exited early (code=${code} signal=${signal})
+stdout: ${stdoutBuf}
+stderr: ${stderrBuf}`
+        )
+      );
+    });
+    proc.on("error", (err) => {
+      clearTimeout(timer);
+      rejectUrl(err);
+    });
+  });
+  baseUrl = url;
+  const c = createOpencodeClient({ baseUrl: url });
+  client = c;
+  console.log(`[opencode] sidecar ready at ${url}`);
+  startEventBus(c);
+  return c;
+}
+function dirOptions(dir) {
+  if (!dir) return {};
+  return {
+    headers: {
+      "x-opencode-directory": encodeURIComponent(dir)
+    },
+    query: { directory: dir }
+  };
+}
+function broadcast(channel, payload) {
+  for (const win of electron.BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed()) {
+      win.webContents.send(channel, payload);
+    }
+  }
+}
+async function runSubscription(c, signal) {
+  const sub = await c.global.event({ signal });
+  let heartbeat = null;
+  const resetHeartbeat = () => {
+    if (heartbeat) clearTimeout(heartbeat);
+    heartbeat = setTimeout(() => {
+      subscriptionAbort?.abort();
+    }, HEARTBEAT_MS);
+  };
+  resetHeartbeat();
+  try {
+    for await (const raw of sub.stream) {
+      if (signal.aborted) break;
+      resetHeartbeat();
+      const evt = raw?.payload ?? raw;
+      console.log("[opencode] event:", evt?.type);
+      broadcast("opencode:event", evt);
+    }
+  } finally {
+    if (heartbeat) clearTimeout(heartbeat);
+  }
+}
+async function startEventBus(c) {
+  if (subscriptionLoopActive) return;
+  subscriptionLoopActive = true;
+  let attempt = 0;
+  while (!stopped) {
+    subscriptionAbort = new AbortController();
+    try {
+      broadcast("opencode:status", { connected: true });
+      await runSubscription(c, subscriptionAbort.signal);
+      attempt = 0;
+    } catch (err) {
+      if (stopped) break;
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn("[opencode] event bus error:", msg);
+    } finally {
+      broadcast("opencode:status", { connected: false });
+    }
+    if (stopped) break;
+    const delay = Math.min(
+      RECONNECT_MAX_MS,
+      RECONNECT_MIN_MS * Math.pow(2, attempt)
+    );
+    attempt = Math.min(attempt + 1, 6);
+    await new Promise((r) => setTimeout(r, delay));
+  }
+  subscriptionLoopActive = false;
+}
+function reconnectEventBus() {
+  subscriptionAbort?.abort();
+}
+function startOpencodeSidecar() {
+  if (!readyPromise) {
+    stopped = false;
+    readyPromise = boot();
+  }
+  return readyPromise;
+}
+function getClient() {
+  if (!client) {
+    throw new Error("opencode sidecar not ready — call startOpencodeSidecar first");
+  }
+  return client;
+}
+function getBaseUrl() {
+  return baseUrl;
+}
+function stopOpencodeSidecar() {
+  stopped = true;
+  subscriptionAbort?.abort();
+  if (child && !child.killed) {
+    try {
+      child.kill();
+    } catch {
+    }
+  }
+  child = null;
+  client = null;
+  baseUrl = null;
+  readyPromise = null;
+  subscriptionLoopActive = false;
+}
+function prefsPath() {
+  return node_path.join(electron.app.getPath("userData"), "session-prefs.json");
+}
+function load() {
+  const p = prefsPath();
+  if (!node_fs.existsSync(p)) return {};
+  try {
+    return JSON.parse(node_fs.readFileSync(p, "utf-8"));
+  } catch {
+    return {};
+  }
+}
+function save(data) {
+  const p = prefsPath();
+  node_fs.mkdirSync(node_path.dirname(p), { recursive: true });
+  node_fs.writeFileSync(p, JSON.stringify(data, null, 2), "utf-8");
+}
+function getPrefs(sessionId) {
+  return load()[sessionId] ?? {};
+}
+function setPrefs(sessionId, patch) {
+  const all = load();
+  all[sessionId] = { ...all[sessionId], ...patch };
+  save(all);
+  return all[sessionId];
+}
+function deletePrefs(sessionId) {
+  const all = load();
+  delete all[sessionId];
+  save(all);
+}
+function allPrefs() {
+  return load();
+}
+function mergeSession(s) {
+  const prefs = getPrefs(s.id);
+  return {
+    id: s.id,
+    title: s.title,
+    projectDir: s.directory ?? null,
+    providerId: prefs.providerId ?? null,
+    modelId: prefs.modelId ?? null,
+    previewUrl: prefs.previewUrl ?? null,
+    createdAt: s.time ? new Date(s.time.created).toISOString() : "",
+    updatedAt: s.time ? new Date(s.time.updated).toISOString() : ""
+  };
+}
+function registerSessionHandlers() {
+  electron.ipcMain.handle("sessions:list", async () => {
+    const client2 = getClient();
+    const res = await client2.session.list();
+    const list = res.data ?? [];
+    return list.map(mergeSession).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  });
+  electron.ipcMain.handle("sessions:get", async (_e, id) => {
+    const client2 = getClient();
+    const res = await client2.session.get({ path: { id } });
+    if (!res.data) return null;
+    return mergeSession(res.data);
   });
   electron.ipcMain.handle(
     "sessions:create",
-    (_e, data) => {
-      return sessionDb.create({
-        title: data.title ?? "New Session",
-        providerId: data.providerId,
-        modelId: data.modelId,
-        projectDir: data.projectDir,
-        previewUrl: data.previewUrl
+    async (_e, data) => {
+      const client2 = getClient();
+      const res = await client2.session.create({
+        body: { title: data.title ?? "New Session" },
+        ...dirOptions(data.projectDir)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       });
+      const r = res;
+      if (r?.error || r?.response && !r.response.ok) {
+        const msg = r.error?.data?.message ?? r.error?.message ?? `Failed to create session (${r.response?.status ?? "?"})`;
+        throw new Error(String(msg));
+      }
+      const s = r.data;
+      if (!s?.id) throw new Error("Session create returned no id");
+      if (data.providerId || data.modelId || data.previewUrl) {
+        setPrefs(s.id, {
+          providerId: data.providerId,
+          modelId: data.modelId,
+          previewUrl: data.previewUrl
+        });
+      }
+      return mergeSession(s);
     }
   );
   electron.ipcMain.handle(
     "sessions:update",
-    (_e, id, data) => {
-      return sessionDb.update(id, data);
+    async (_e, id, data) => {
+      const client2 = getClient();
+      if (data.title !== void 0) {
+        await client2.session.update({
+          path: { id },
+          body: { title: data.title },
+          query: data.projectDir ? { directory: data.projectDir } : void 0
+        });
+      }
+      if (data.providerId !== void 0 || data.modelId !== void 0 || data.previewUrl !== void 0) {
+        setPrefs(id, {
+          providerId: data.providerId,
+          modelId: data.modelId,
+          previewUrl: data.previewUrl
+        });
+      }
+      const res = await client2.session.get({ path: { id } });
+      return res.data ? mergeSession(res.data) : null;
     }
   );
-  electron.ipcMain.handle("sessions:delete", (_e, id) => {
-    sessionDb.delete(id);
+  electron.ipcMain.handle("sessions:delete", async (_e, id) => {
+    const client2 = getClient();
+    await client2.session.delete({ path: { id } });
+    deletePrefs(id);
     return { ok: true };
   });
-  electron.ipcMain.handle("sessions:getMessages", (_e, sessionId) => {
-    return messageDb.listBySession(sessionId);
+  electron.ipcMain.handle("sessions:getMessages", async (_e, sessionId) => {
+    const client2 = getClient();
+    const res = await client2.session.messages({ path: { id: sessionId } });
+    return res.data ?? [];
   });
+  electron.ipcMain.handle("sessions:allPrefs", () => allPrefs());
 }
-const providerDb = {
-  list() {
-    const db = getDb();
-    return db.select().from(providers).orderBy(drizzleOrm.desc(providers.createdAt)).all();
-  },
-  get(id) {
-    const db = getDb();
-    return db.select().from(providers).where(drizzleOrm.eq(providers.id, id)).get();
-  },
-  upsert(id, data) {
-    const db = getDb();
-    const existing = db.select().from(providers).where(drizzleOrm.eq(providers.id, id)).get();
-    if (existing) {
-      return db.update(providers).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(drizzleOrm.eq(providers.id, id)).returning().get();
+function buildParts(prompt, images) {
+  const parts = [];
+  if (images) {
+    for (const dataUrl of images) {
+      const m = dataUrl.match(/^data:([^;]+);/);
+      parts.push({ type: "file", mime: m?.[1] ?? "image/png", url: dataUrl });
     }
-    return db.insert(providers).values({ id, ...data }).returning().get();
-  },
-  delete(id) {
-    const db = getDb();
-    db.delete(providers).where(drizzleOrm.eq(providers.id, id)).run();
   }
-};
-const __dirname$1 = path.dirname(url.fileURLToPath(require("url").pathToFileURL(__filename).href));
-const LOCAL_PATH = path.resolve(__dirname$1, "../../../../models.json");
-const RAW_URL = "https://raw.githubusercontent.com/zahinafsar/coodeen/main/models.json";
-const CACHE_TTL_MS = 5 * 60 * 1e3;
-let cached = null;
-let cachedAt = 0;
-async function readLocal() {
-  try {
-    const text = await promises.readFile(LOCAL_PATH, "utf-8");
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
+  parts.push({ type: "text", text: prompt });
+  return parts;
 }
-async function fetchRemote() {
-  try {
-    const res = await fetch(RAW_URL, {
-      signal: AbortSignal.timeout(1e4),
-      headers: { "Cache-Control": "no-cache" }
-    });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
-    return null;
-  }
-}
-async function getModelsConfig() {
-  if (cached && Date.now() - cachedAt < CACHE_TTL_MS) {
-    return cached;
-  }
-  const raw = await readLocal() ?? await fetchRemote();
-  if (raw) {
-    cached = raw;
-    cachedAt = Date.now();
-    return cached;
-  }
-  if (cached) return cached;
-  throw new Error("Failed to load models config from local file or GitHub");
-}
-async function getFreeModels() {
-  const config2 = await getModelsConfig();
-  return config2.free.models;
-}
-async function modelSupportsImage(providerId, modelId) {
-  const config2 = await getModelsConfig();
-  if (providerId === config2.free.provider) {
-    const entry2 = config2.free.models.find((m) => m.id === modelId);
-    return entry2?.input?.includes("image") ?? false;
-  }
-  const provider = config2.providers[providerId];
-  if (!provider) return false;
-  const entry = provider.models.find((m) => m.id === modelId);
-  return entry?.input?.includes("image") ?? false;
-}
-async function resolveProvider(providerId, modelId) {
-  if (providerId === "opencode") {
-    const config2 = await getModelsConfig();
-    const zen = openaiCompatible.createOpenAICompatible({
-      name: config2.free.provider,
-      baseURL: config2.free.baseURL,
-      apiKey: "public"
-    });
-    const model2 = zen.chatModel(modelId);
-    return { model: model2, providerId, modelId };
-  }
-  const providerRow = providerDb.get(providerId);
-  if (!providerRow) {
-    return {
-      error: `Provider '${providerId}' not configured. Go to Settings.`
-    };
-  }
-  if (!providerRow.apiKey) {
-    return {
-      error: `API key not configured for ${providerId}. Go to Settings.`
-    };
-  }
-  const { apiKey } = providerRow;
-  let model;
-  switch (providerId) {
-    case "anthropic": {
-      const anthropic$1 = anthropic.createAnthropic({ apiKey });
-      model = anthropic$1(modelId);
-      break;
-    }
-    case "openai": {
-      const openai$1 = openai.createOpenAI({ apiKey });
-      model = openai$1(modelId);
-      break;
-    }
-    case "google": {
-      const google$1 = google.createGoogleGenerativeAI({ apiKey });
-      model = google$1(modelId);
-      break;
-    }
-    default:
-      return { error: `Unsupported provider: ${providerId}` };
-  }
-  return { model, providerId, modelId };
-}
-function isResolveError(result) {
-  return "error" in result;
-}
-const MAX_LINES = 2e3;
-const MAX_BYTES = 50 * 1024;
-function truncateOutput(text) {
-  const lines = text.split("\n");
-  const totalBytes = Buffer.byteLength(text, "utf-8");
-  if (lines.length <= MAX_LINES && totalBytes <= MAX_BYTES) {
-    return text;
-  }
-  const out = [];
-  let bytes = 0;
-  for (let i = 0; i < lines.length && i < MAX_LINES; i++) {
-    const size = Buffer.byteLength(lines[i], "utf-8") + (i > 0 ? 1 : 0);
-    if (bytes + size > MAX_BYTES) break;
-    out.push(lines[i]);
-    bytes += size;
-  }
-  const removedLines = lines.length - out.length;
-  const removedBytes = totalBytes - bytes;
-  return out.join("\n") + `
-
-...${removedLines} lines / ${removedBytes} bytes truncated...
-Use read with offset/limit to view specific sections, or grep to search the full content.`;
-}
-const createReadTool = (projectDir) => ai.tool({
-  description: "Read a file from the local filesystem. The filePath parameter should be an absolute path. By default, returns up to 2000 lines from the start of the file. Use the offset parameter (1-indexed) to start from a later line. Use the grep tool to find specific content in large files. If unsure of the correct file path, use the glob tool to look up filenames. Contents are returned with each line prefixed by its line number. Any line longer than 2000 characters is truncated. Call this tool in parallel when you know there are multiple files you want to read. Avoid tiny repeated slices (30 line chunks). If you need more context, read a larger window.",
-  inputSchema: v4.z.object({
-    file_path: v4.z.string().describe("Absolute or project-relative path to the file to read"),
-    offset: v4.z.number().optional().describe("1-based line number to start reading from (default: 1)"),
-    limit: v4.z.number().optional().describe("Maximum number of lines to return (default: 2000)")
-  }),
-  execute: async ({ file_path, offset, limit }) => {
-    try {
-      const resolved = node_path.resolve(projectDir, file_path);
-      const raw = await promises$1.readFile(resolved, "utf-8");
-      let lines = raw.split("\n");
-      const start = (offset ?? 1) - 1;
-      if (start > 0) lines = lines.slice(start);
-      const maxLines = limit ?? 2e3;
-      const truncated = lines.length > maxLines;
-      if (truncated) lines = lines.slice(0, maxLines);
-      lines = lines.map((line) => line.length > 2e3 ? line.substring(0, 2e3) + "..." : line);
-      const numbered = lines.map((line, i) => `${start + i + 1}: ${line}`).join("\n");
-      let result = numbered;
-      if (truncated) {
-        result += `
-
-[Showing ${maxLines} of ${raw.split("\n").length} lines. Use offset=${start + maxLines + 1} to read more.]`;
-      }
-      return truncateOutput(result);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return `[Error reading file: ${message}]`;
-    }
-  }
-});
-const createWriteTool = (projectDir) => ai.tool({
-  description: "Writes a file to the local filesystem. This tool will overwrite the existing file if there is one at the provided path. If this is an existing file, you MUST use the read tool first to read the file's contents. ALWAYS prefer editing existing files in the codebase. NEVER write new files unless explicitly required. NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the user.",
-  inputSchema: v4.z.object({
-    file_path: v4.z.string().describe("Absolute or project-relative path to write to"),
-    content: v4.z.string().describe("The full content to write to the file")
-  }),
-  execute: async ({ file_path, content }) => {
-    try {
-      const resolved = node_path.resolve(projectDir, file_path);
-      await promises$1.mkdir(node_path.dirname(resolved), { recursive: true });
-      await promises$1.writeFile(resolved, content, "utf-8");
-      return `Wrote ${content.split("\n").length} lines to ${file_path}`;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return `[Error writing file: ${message}]`;
-    }
-  }
-});
-const createEditTool = (projectDir) => ai.tool({
-  description: "Performs exact string replacements in files. You must use the read tool at least once before editing a file. When editing text from read tool output, preserve the exact indentation (tabs/spaces) as it appears AFTER the line number prefix. The line number prefix format is: line number + colon + space. Everything after that space is the actual file content to match. ALWAYS prefer editing existing files. NEVER write new files unless explicitly required. The edit will FAIL if old_string is not found in the file. The edit will FAIL if old_string is found multiple times — provide more surrounding context to make it unique, or use replace_all. Use replace_all for replacing and renaming strings across the file.",
-  inputSchema: v4.z.object({
-    file_path: v4.z.string().describe("Absolute or project-relative path to the file to edit"),
-    old_string: v4.z.string().describe("The exact text to find (must match file content exactly, including whitespace and indentation)"),
-    new_string: v4.z.string().describe("The replacement text (must be different from old_string)"),
-    replace_all: v4.z.boolean().optional().describe("Replace all occurrences of old_string (default: false)")
-  }),
-  execute: async ({ file_path, old_string, new_string, replace_all }) => {
-    try {
-      const resolved = node_path.resolve(projectDir, file_path);
-      const content = await promises$1.readFile(resolved, "utf-8");
-      if (old_string === new_string) {
-        return `[Error: old_string and new_string are identical]`;
-      }
-      const occurrences = content.split(old_string).length - 1;
-      if (occurrences === 0) {
-        return `[Error: old_string not found in ${file_path}. Make sure it matches the file content exactly, including whitespace and indentation.]`;
-      }
-      if (occurrences > 1 && !replace_all) {
-        return `[Error: Found ${occurrences} matches for old_string. Provide more surrounding lines to identify the correct match, or use replace_all to change every instance.]`;
-      }
-      const updated = replace_all ? content.replaceAll(old_string, new_string) : content.replace(old_string, new_string);
-      await promises$1.writeFile(resolved, updated, "utf-8");
-      const count = replace_all ? occurrences : 1;
-      return `Edited ${file_path}: replaced ${count} occurrence${count > 1 ? "s" : ""}`;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return `[Error editing file: ${message}]`;
-    }
-  }
-});
-const createMultiEditTool = (projectDir) => ai.tool({
-  description: "Make multiple edits to a single file in one operation. Prefer this over the edit tool when you need to make multiple changes to the same file. Edits are applied sequentially — each edit operates on the result of the previous one. All edits must be valid or none are applied (atomic).",
-  inputSchema: v4.z.object({
-    file_path: v4.z.string().describe("Absolute or project-relative path to the file to edit"),
-    edits: v4.z.array(
-      v4.z.object({
-        old_string: v4.z.string().describe(
-          "The exact text to find (must match file content exactly, including whitespace)"
-        ),
-        new_string: v4.z.string().describe("The replacement text (must differ from old_string)"),
-        replace_all: v4.z.boolean().optional().describe("Replace all occurrences of old_string (default: false)")
-      })
-    ).min(1).describe("Array of edit operations to apply sequentially")
-  }),
-  execute: async ({ file_path, edits }) => {
-    try {
-      const resolved = node_path.resolve(projectDir, file_path);
-      let content = await promises$1.readFile(resolved, "utf-8");
-      let dryContent = content;
-      for (let i = 0; i < edits.length; i++) {
-        const edit = edits[i];
-        if (edit.old_string === edit.new_string) {
-          return `[Error: edit ${i + 1} — old_string and new_string are identical]`;
-        }
-        const occurrences = dryContent.split(edit.old_string).length - 1;
-        if (occurrences === 0) {
-          return `[Error: edit ${i + 1} — old_string not found in ${file_path}. Earlier edits may have changed the content. Verify each edit against the result of the previous one.]`;
-        }
-        if (occurrences > 1 && !edit.replace_all) {
-          return `[Error: edit ${i + 1} — old_string found ${occurrences} times. Use replace_all: true or provide more context to make it unique.]`;
-        }
-        if (edit.replace_all) {
-          dryContent = dryContent.replaceAll(edit.old_string, edit.new_string);
-        } else {
-          dryContent = dryContent.replace(edit.old_string, edit.new_string);
-        }
-      }
-      for (const edit of edits) {
-        if (edit.replace_all) {
-          content = content.replaceAll(edit.old_string, edit.new_string);
-        } else {
-          content = content.replace(edit.old_string, edit.new_string);
-        }
-      }
-      await promises$1.writeFile(resolved, content, "utf-8");
-      return `Applied ${edits.length} edits to ${file_path}`;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return `[Error editing file: ${message}]`;
-    }
-  }
-});
-const createGlobTool = (projectDir) => ai.tool({
-  description: 'Fast file pattern matching tool that works with any codebase size. Supports glob patterns like "**/*.js" or "src/**/*.ts". Returns matching file paths sorted by modification time. Use this tool when you need to find files by name patterns. It is always better to speculatively perform multiple searches in parallel if they are potentially useful.',
-  inputSchema: v4.z.object({
-    pattern: v4.z.string().describe('Glob pattern to match files (e.g. "**/*.ts", "src/**/*.tsx")')
-  }),
-  execute: async ({ pattern }) => {
-    try {
-      const absProjectDir = node_path.resolve(projectDir);
-      const matches = await fg(pattern, {
-        cwd: absProjectDir,
-        dot: false,
-        onlyFiles: true,
-        ignore: ["**/node_modules/**", "**/.git/**", "**/dist/**", "**/build/**"],
-        stats: true
-      });
-      matches.sort((a, b) => (b.stats?.mtimeMs ?? 0) - (a.stats?.mtimeMs ?? 0));
-      const relativePaths = matches.map((m) => node_path.relative(absProjectDir, node_path.resolve(absProjectDir, m.path)));
-      if (relativePaths.length === 0) return "No files matched the pattern.";
-      return truncateOutput(relativePaths.join("\n"));
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return `[Error globbing pattern: ${message}]`;
-    }
-  }
-});
-const createGrepTool = (projectDir) => ai.tool({
-  description: 'Fast content search tool that works with any codebase size. Searches file contents using regular expressions. Supports full regex syntax (eg. "log.*Error", "function\\s+\\w+"). Filter files by pattern with the include parameter (eg. "*.js", "*.{ts,tsx}"). Returns file paths and line numbers with at least one match. Use this tool when you need to find files containing specific patterns.',
-  inputSchema: v4.z.object({
-    pattern: v4.z.string().describe("Regular expression pattern to search for"),
-    path: v4.z.string().optional().describe("File or directory to search in (default: entire project)"),
-    include: v4.z.string().optional().describe('Glob pattern to filter files (eg. "*.ts", "*.{js,jsx}")')
-  }),
-  execute: async ({ pattern, path: path2, include }) => {
-    try {
-      const absProjectDir = node_path.resolve(projectDir);
-      const searchRoot = path2 ? node_path.resolve(absProjectDir, path2) : absProjectDir;
-      let regex;
-      try {
-        regex = new RegExp(pattern);
-      } catch {
-        return `[Error: Invalid regex pattern: ${pattern}]`;
-      }
-      let isFile = false;
-      try {
-        const s = await promises$1.stat(searchRoot);
-        isFile = s.isFile();
-      } catch {
-      }
-      let files;
-      if (isFile) {
-        files = [searchRoot];
-      } else {
-        const globPattern = include || "**/*";
-        files = await fg(globPattern, {
-          cwd: searchRoot,
-          dot: false,
-          onlyFiles: true,
-          ignore: [
-            "**/node_modules/**",
-            "**/.git/**",
-            "**/dist/**",
-            "**/build/**",
-            "**/*.png",
-            "**/*.jpg",
-            "**/*.gif",
-            "**/*.ico",
-            "**/*.woff",
-            "**/*.woff2",
-            "**/*.ttf",
-            "**/*.eot",
-            "**/*.mp4",
-            "**/*.webm",
-            "**/*.zip",
-            "**/*.tar",
-            "**/*.gz"
-          ]
-        });
-        files = files.map((f) => node_path.resolve(searchRoot, f));
-      }
-      const matchesByFile = /* @__PURE__ */ new Map();
-      let totalMatches = 0;
-      for (const filePath of files) {
-        try {
-          const content = await promises$1.readFile(filePath, "utf-8");
-          const lines = content.split("\n");
-          for (let i = 0; i < lines.length; i++) {
-            if (regex.test(lines[i])) {
-              const relPath = node_path.relative(absProjectDir, filePath);
-              if (!matchesByFile.has(relPath)) matchesByFile.set(relPath, []);
-              matchesByFile.get(relPath).push({
-                line: i + 1,
-                content: lines[i].trim()
-              });
-              totalMatches++;
-            }
-          }
-        } catch {
-        }
-      }
-      if (totalMatches === 0) {
-        return "No matches found.";
-      }
-      const outputLines = [`Found ${totalMatches} matches`];
-      for (const [filePath, matches] of matchesByFile) {
-        outputLines.push("");
-        outputLines.push(`${filePath}:`);
-        for (const m of matches) {
-          outputLines.push(`  Line ${m.line}: ${m.content}`);
-        }
-      }
-      return truncateOutput(outputLines.join("\n"));
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return `[Error searching files: ${message}]`;
-    }
-  }
-});
-const IGNORE_PATTERNS = [
-  "**/node_modules/**",
-  "**/.git/**",
-  "**/dist/**",
-  "**/build/**",
-  "**/target/**",
-  "**/__pycache__/**",
-  "**/.venv/**",
-  "**/venv/**",
-  "**/.idea/**",
-  "**/.vscode/**",
-  "**/coverage/**",
-  "**/.cache/**",
-  "**/tmp/**",
-  "**/temp/**",
-  "**/logs/**",
-  "**/.next/**",
-  "**/.turbo/**"
-];
-const FILE_LIMIT = 100;
-const createLsTool = (projectDir) => ai.tool({
-  description: "List files and directories in a tree view. Ignores common noise directories (node_modules, .git, dist, etc). Limited to 100 files. Use glob or grep for targeted searches.",
-  inputSchema: v4.z.object({
-    path: v4.z.string().optional().describe(
-      "Absolute or project-relative directory path (default: project root)"
-    )
-  }),
-  execute: async ({ path: path2 }) => {
-    try {
-      let renderDir = function(dirPath, depth) {
-        const indent = "  ".repeat(depth);
-        let output2 = "";
-        if (depth > 0) {
-          output2 += `${indent}${node_path.basename(dirPath)}/
-`;
-        }
-        const childIndent = "  ".repeat(depth + 1);
-        const children = Array.from(dirs).filter((d) => node_path.dirname(d) === dirPath && d !== dirPath).sort();
-        for (const child of children) {
-          output2 += renderDir(child, depth + 1);
-        }
-        const dirFiles = filesByDir.get(dirPath) || [];
-        for (const f of dirFiles.sort()) {
-          output2 += `${childIndent}${f}
-`;
-        }
-        return output2;
-      };
-      const searchPath = node_path.resolve(projectDir, path2 || ".");
-      const matches = await fg("**/*", {
-        cwd: searchPath,
-        dot: false,
-        onlyFiles: true,
-        ignore: IGNORE_PATTERNS
-      });
-      const files = matches.slice(0, FILE_LIMIT).sort();
-      if (files.length === 0) {
-        return `${searchPath}/
-  (empty)`;
-      }
-      const dirs = /* @__PURE__ */ new Set();
-      const filesByDir = /* @__PURE__ */ new Map();
-      for (const file of files) {
-        const dir = node_path.dirname(file);
-        const parts = dir === "." ? [] : dir.split("/");
-        for (let i = 0; i <= parts.length; i++) {
-          const dirPath = i === 0 ? "." : parts.slice(0, i).join("/");
-          dirs.add(dirPath);
-        }
-        if (!filesByDir.has(dir)) filesByDir.set(dir, []);
-        filesByDir.get(dir).push(node_path.basename(file));
-      }
-      const relPath = node_path.relative(projectDir, searchPath) || ".";
-      let output = `${relPath}/
-${renderDir(".", 0)}`;
-      if (matches.length > FILE_LIMIT) {
-        output += `
-(showing ${FILE_LIMIT} of ${matches.length} files — use glob for targeted search)`;
-      }
-      return truncateOutput(output);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return `[Error listing directory: ${message}]`;
-    }
-  }
-});
-const MAX_RESPONSE_SIZE = 5 * 1024 * 1024;
-const MAX_TIMEOUT = 12e4;
-function htmlToText(html) {
-  return html.replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<noscript[\s\S]*?<\/noscript>/gi, "").replace(/<nav[\s\S]*?<\/nav>/gi, "").replace(/<footer[\s\S]*?<\/footer>/gi, "").replace(/<!--[\s\S]*?-->/g, "").replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
-}
-function htmlToMarkdown(html) {
-  let md = html.replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<noscript[\s\S]*?<\/noscript>/gi, "").replace(/<nav[\s\S]*?<\/nav>/gi, "").replace(/<footer[\s\S]*?<\/footer>/gi, "").replace(/<!--[\s\S]*?-->/g, "").replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, "\n# $1\n").replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, "\n## $1\n").replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, "\n### $1\n").replace(/<h4[^>]*>([\s\S]*?)<\/h4>/gi, "\n#### $1\n").replace(/<h5[^>]*>([\s\S]*?)<\/h5>/gi, "\n##### $1\n").replace(/<h6[^>]*>([\s\S]*?)<\/h6>/gi, "\n###### $1\n").replace(/<pre[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/gi, "\n```\n$1\n```\n").replace(/<pre[^>]*>([\s\S]*?)<\/pre>/gi, "\n```\n$1\n```\n").replace(/<code[^>]*>([\s\S]*?)<\/code>/gi, "`$1`").replace(/<a[^>]+href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, "[$2]($1)").replace(/<(strong|b)[^>]*>([\s\S]*?)<\/\1>/gi, "**$2**").replace(/<(em|i)[^>]*>([\s\S]*?)<\/\1>/gi, "*$2*").replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, "- $1\n").replace(/<br\s*\/?>/gi, "\n").replace(/<\/p>/gi, "\n\n").replace(/<p[^>]*>/gi, "").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ");
-  md = md.replace(/\n{3,}/g, "\n\n").trim();
-  return md;
-}
-const createWebFetchTool = () => ai.tool({
-  description: "Fetch content from a URL and return it as markdown or plain text. Use this to read web pages, documentation, articles, or any URL. Returns cleaned content with HTML/JS/CSS removed.",
-  inputSchema: v4.z.object({
-    url: v4.z.string().describe("The URL to fetch content from"),
-    format: v4.z.enum(["text", "markdown"]).optional().describe(
-      "Output format: 'markdown' (default) preserves headings/links/code, 'text' is plain text"
-    ),
-    timeout: v4.z.number().optional().describe("Optional timeout in seconds (default: 30, max: 120)")
-  }),
-  execute: async ({ url: url2, format = "markdown", timeout }) => {
-    if (!url2.startsWith("http://") && !url2.startsWith("https://")) {
-      url2 = "https://" + url2;
-    }
-    const ms = Math.min((timeout ?? 30) * 1e3, MAX_TIMEOUT);
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), ms);
-    try {
-      try {
-        const res = await fetch(url2, {
-          headers: {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-            Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.9"
-          },
-          signal: controller.signal,
-          redirect: "follow"
-        });
-        clearTimeout(timer);
-        if (!res.ok) {
-          return `[Error: Request failed with status ${res.status}]`;
-        }
-        const contentLength = res.headers.get("content-length");
-        if (contentLength && parseInt(contentLength) > MAX_RESPONSE_SIZE) {
-          return `[Error: Response too large (exceeds 5MB limit)]`;
-        }
-        const html = await res.text();
-        if (html.length > MAX_RESPONSE_SIZE) {
-          return `[Error: Response too large (exceeds 5MB limit)]`;
-        }
-        const content = format === "text" ? htmlToText(html) : htmlToMarkdown(html);
-        return `Content from ${url2}:
-
-${content}`;
-      } catch (error) {
-        clearTimeout(timer);
-        if (error instanceof Error && error.name === "AbortError") {
-          return `[Error: Fetch timed out after ${ms / 1e3}s]`;
-        }
-        const message = error instanceof Error ? error.message : String(error);
-        return `[Error fetching URL: ${message}]`;
-      }
-    } catch (error) {
-      clearTimeout(timer);
-      const message = error instanceof Error ? error.message : String(error);
-      return `[Error: ${message}]`;
-    }
-  }
-});
-const MAX_IMAGE_SIZE = 20 * 1024 * 1024;
-const DEFAULT_TIMEOUT$1 = 3e4;
-const MIME_TO_EXT = {
-  "image/png": ".png",
-  "image/jpeg": ".jpg",
-  "image/gif": ".gif",
-  "image/webp": ".webp",
-  "image/svg+xml": ".svg"
-};
-const createImageFetchTool = (supportsVision) => ai.tool({
-  description: "Fetch an image from a URL, save it to a temp file, and return the file path. Use this when you need to download or inspect an image from a URL. Supports PNG, JPEG, GIF, WebP, SVG (max 20MB).",
-  inputSchema: v4.z.object({
-    url: v4.z.string().describe("The image URL to fetch")
-  }),
-  execute: async ({ url: url2 }) => {
-    if (!url2.startsWith("http://") && !url2.startsWith("https://")) {
-      url2 = "https://" + url2;
-    }
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT$1);
-    try {
-      const res = await fetch(url2, {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-          Accept: "image/*,*/*"
-        },
-        signal: controller.signal,
-        redirect: "follow"
-      });
-      clearTimeout(timer);
-      if (!res.ok) {
-        return `[Error: Request failed with status ${res.status}]`;
-      }
-      const contentType = res.headers.get("content-type") || "";
-      const mime = contentType.split(";")[0].trim();
-      if (!mime.startsWith("image/")) {
-        return `[Error: URL did not return an image (content-type: ${contentType})]`;
-      }
-      const contentLength = res.headers.get("content-length");
-      if (contentLength && parseInt(contentLength) > MAX_IMAGE_SIZE) {
-        return `[Error: Image too large (exceeds 20MB)]`;
-      }
-      const buffer = Buffer.from(await res.arrayBuffer());
-      if (buffer.byteLength > MAX_IMAGE_SIZE) {
-        return `[Error: Image too large (exceeds 20MB)]`;
-      }
-      const ext = MIME_TO_EXT[mime] || ".bin";
-      const dir = node_path.join(node_os.tmpdir(), "coodeen-images");
-      await promises$1.mkdir(dir, { recursive: true });
-      const filePath = node_path.join(dir, `${node_crypto.randomUUID()}${ext}`);
-      await promises$1.writeFile(filePath, buffer);
-      const sizeKB = Math.round(buffer.byteLength / 1024);
-      return `Image saved to ${filePath} (${mime}, ${sizeKB}KB)`;
-    } catch (error) {
-      clearTimeout(timer);
-      if (error instanceof Error && error.name === "AbortError") {
-        return `[Error: Image fetch timed out after ${DEFAULT_TIMEOUT$1 / 1e3}s]`;
-      }
-      return `[Error: ${error instanceof Error ? error.message : error}]`;
-    }
-  }
-});
-const GLOBAL_SKILLS_DIR = node_path.join(node_os.homedir(), ".coodeen", "skills");
-function parseSkillMd(raw) {
-  const match = raw.match(/^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/);
-  if (!match) return null;
-  const frontmatter = match[1];
-  const content = match[2].trim();
-  let name = "";
-  let description = "";
-  for (const line of frontmatter.split("\n")) {
-    const kv = line.match(/^(\w+)\s*:\s*(.+)$/);
-    if (!kv) continue;
-    if (kv[1] === "name") name = kv[2].trim().replace(/^["']|["']$/g, "");
-    if (kv[1] === "description") description = kv[2].trim().replace(/^["']|["']$/g, "");
-  }
-  if (!name) return null;
-  return { name, description, content };
-}
-async function scanDir(root) {
-  const skills = [];
-  try {
-    const entries = await promises$1.readdir(root, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      const skillMdPath = node_path.join(root, entry.name, "SKILL.md");
-      try {
-        const raw = await promises$1.readFile(skillMdPath, "utf-8");
-        const parsed = parseSkillMd(raw);
-        if (parsed) {
-          skills.push({
-            name: parsed.name,
-            description: parsed.description,
-            location: skillMdPath,
-            content: parsed.content,
-            enabled: true
-          });
-        }
-      } catch {
-      }
-    }
-  } catch {
-  }
-  return skills;
-}
-async function discoverSkills() {
-  const all = [];
-  const found = await scanDir(GLOBAL_SKILLS_DIR);
-  for (const skill of found) {
-    const idx = all.findIndex((s) => s.name === skill.name);
-    if (idx >= 0) all[idx] = skill;
-    else all.push(skill);
-  }
-  return all;
-}
-async function getSkill(name) {
-  const skills = await discoverSkills();
-  return skills.find((s) => s.name === name) ?? null;
-}
-async function createSkill(name, description, content) {
-  const dir = node_path.join(GLOBAL_SKILLS_DIR, name);
-  await promises$1.mkdir(dir, { recursive: true });
-  const skillMd = `---
-name: ${name}
-description: ${description}
----
-
-${content}
-`;
-  const location = node_path.join(dir, "SKILL.md");
-  await promises$1.writeFile(location, skillMd, "utf-8");
-  return { name, description, location, content, enabled: true };
-}
-async function createSkillRaw(slug, raw) {
-  const dir = node_path.join(GLOBAL_SKILLS_DIR, slug);
-  await promises$1.mkdir(dir, { recursive: true });
-  const location = node_path.join(dir, "SKILL.md");
-  await promises$1.writeFile(location, raw, "utf-8");
-}
-async function deleteSkill(name) {
-  const dir = node_path.join(GLOBAL_SKILLS_DIR, name);
-  try {
-    await promises$1.stat(dir);
-    await promises$1.rm(dir, { recursive: true, force: true });
-    return true;
-  } catch {
-    return false;
-  }
-}
-function createSkillTool() {
-  return ai.tool({
-    description: [
-      "Load a specialized skill that provides domain-specific instructions and workflows.",
-      "When you recognize that a task matches one of the available skills, use this tool to load the full skill instructions.",
-      "The skill will inject detailed instructions, workflows, and references into the conversation context."
-    ].join("\n"),
-    inputSchema: v4.z.object({
-      name: v4.z.string().describe("The name of the skill to load")
-    }),
-    execute: async ({ name }) => {
-      const skill = await getSkill(name);
-      if (!skill) {
-        const all = await discoverSkills();
-        const available = all.map((s) => s.name).join(", ");
-        return `Skill "${name}" not found. Available skills: ${available || "none"}`;
-      }
-      return [
-        `<skill_content name="${skill.name}">`,
-        `# Skill: ${skill.name}`,
-        "",
-        skill.content,
-        "",
-        `</skill_content>`
-      ].join("\n");
-    }
-  });
-}
-const DEFAULT_TIMEOUT = 2 * 60 * 1e3;
-const MAX_OUTPUT_BYTES = 100 * 1024;
-const createBashTool = (projectDir) => ai.tool({
-  description: "Executes a given bash command with optional timeout. IMPORTANT: This tool is for terminal operations like git, npm, docker, etc. DO NOT use it for file operations (reading, writing, editing, searching, finding files) — use the specialized tools instead. Use the workdir parameter to run in a different directory. AVOID using 'cd <directory> && <command>' patterns. Avoid using bash with find, grep, cat, head, tail, sed, awk, or echo — use the dedicated tools instead: glob (not find), grep tool (not grep/rg), read (not cat/head/tail), edit (not sed/awk), write (not echo). When issuing multiple independent commands, make multiple bash tool calls in parallel. If commands depend on each other, chain them with && in a single call.",
-  inputSchema: v4.z.object({
-    command: v4.z.string().describe("The shell command to execute"),
-    workdir: v4.z.string().optional().describe("Working directory. Defaults to the project directory."),
-    timeout: v4.z.number().optional().describe("Timeout in milliseconds (default: 120000). Set to 0 for no timeout."),
-    description: v4.z.string().describe("Clear, concise description of what this command does (5-10 words)")
-  }),
-  execute: async ({ command, workdir, timeout }) => {
-    const cwd = workdir ? node_path.resolve(projectDir, workdir) : projectDir;
-    const timeoutMs = timeout ?? DEFAULT_TIMEOUT;
-    try {
-      return await new Promise((resolve2) => {
-        let output = "";
-        let timedOut = false;
-        const proc = node_child_process.spawn(command, {
-          shell: true,
-          cwd,
-          stdio: ["ignore", "pipe", "pipe"],
-          env: { ...process.env }
-        });
-        const handleData = (chunk) => {
-          const text = chunk.toString();
-          output += text;
-          if (output.length > MAX_OUTPUT_BYTES) {
-            output = output.substring(0, MAX_OUTPUT_BYTES) + "\n\n[Output truncated — exceeded 100 KB limit]";
-            proc.kill();
-          }
-        };
-        proc.stdout?.on("data", handleData);
-        proc.stderr?.on("data", handleData);
-        let timeoutHandle = null;
-        if (timeoutMs > 0) {
-          timeoutHandle = setTimeout(() => {
-            timedOut = true;
-            proc.kill("SIGTERM");
-          }, timeoutMs);
-        }
-        proc.once("exit", (code) => {
-          if (timeoutHandle) clearTimeout(timeoutHandle);
-          if (timedOut) {
-            output += `
-
-[Command timed out after ${timeoutMs} ms]`;
-          }
-          if (code !== 0 && code !== null) {
-            output += `
-
-[Exit code: ${code}]`;
-          }
-          resolve2(truncateOutput(output.trim() || "[No output]"));
-        });
-        proc.once("error", (error) => {
-          if (timeoutHandle) clearTimeout(timeoutHandle);
-          output += `
-
-[Process error: ${error.message}]`;
-          resolve2(truncateOutput(output.trim() || "[No output]"));
-        });
-      });
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      return `[Error executing command: ${errorMsg}]`;
-    }
-  }
-});
-const sessionTodos = /* @__PURE__ */ new Map();
-const createTodoWriteTool = (sessionId) => ai.tool({
-  description: "Create and manage a task list for the current session. Use proactively for complex multi-step tasks (3+ steps). Helps track progress and shows the user what you're working on. Skip for single, trivial tasks.",
-  inputSchema: v4.z.object({
-    todos: v4.z.array(
-      v4.z.object({
-        content: v4.z.string().describe("Task description"),
-        status: v4.z.enum(["pending", "in_progress", "completed"]).describe("Task status")
-      })
-    ).describe("The full updated todo list")
-  }),
-  execute: async ({ todos }) => {
-    sessionTodos.set(sessionId, todos);
-    const pending = todos.filter((t) => t.status === "pending").length;
-    const inProgress = todos.filter((t) => t.status === "in_progress").length;
-    const completed = todos.filter((t) => t.status === "completed").length;
-    return `Todo list updated: ${completed} done, ${inProgress} in progress, ${pending} pending`;
-  }
-});
-const createTodoReadTool = (sessionId) => ai.tool({
-  description: "Read the current task list for this session. Use to check progress, plan next steps, or review remaining work.",
-  inputSchema: v4.z.object({}),
-  execute: async () => {
-    const todos = sessionTodos.get(sessionId) || [];
-    if (todos.length === 0) return "No todos yet.";
-    return todos.map((t, i) => `${i + 1}. [${t.status}] ${t.content}`).join("\n");
-  }
-});
-const sessionImages = /* @__PURE__ */ new Map();
-const createImageSaveTool = (projectDir, sessionId) => ai.tool({
-  description: "Save an image from the current conversation to a file. Use this when the user drops/pastes an image and asks you to save, use, or place it in the project. The image_index refers to the order of images attached to the user's message (0-based). Supports common formats: png, jpg, gif, webp, svg.",
-  inputSchema: v4.z.object({
-    image_index: v4.z.number().describe("Index of the image from the user's message (0-based, first image = 0)"),
-    file_path: v4.z.string().describe("Project-relative or absolute path to save the image to (e.g. 'public/logo.png')")
-  }),
-  execute: async ({ image_index, file_path }) => {
-    try {
-      const images = sessionImages.get(sessionId);
-      if (!images || images.length === 0) {
-        return `[Error: No images attached to the current message]`;
-      }
-      if (image_index < 0 || image_index >= images.length) {
-        return `[Error: Invalid image_index ${image_index}. ${images.length} image(s) available (0-${images.length - 1})]`;
-      }
-      const dataUrl = images[image_index];
-      const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-      if (!match) {
-        return `[Error: Image is not in base64 data URL format]`;
-      }
-      const buffer = Buffer.from(match[2], "base64");
-      const resolved = node_path.resolve(projectDir, file_path);
-      await promises$1.mkdir(node_path.dirname(resolved), { recursive: true });
-      await promises$1.writeFile(resolved, buffer);
-      const sizeKB = Math.round(buffer.length / 1024);
-      return `Saved image (${sizeKB}KB) to ${file_path}`;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return `[Error saving image: ${message}]`;
-    }
-  }
-});
-const SCREENSHOT_DIR = node_path.join(node_os.tmpdir(), "coodeen-screenshots");
-const ACTION_TIMEOUT = 1e4;
-function sendPreviewAction(getWindow2, payload) {
-  return new Promise((resolve) => {
-    const win = getWindow2();
-    if (!win) {
-      resolve({ success: false, error: "No window available" });
-      return;
-    }
-    const requestId = node_crypto.randomUUID();
-    const channel = `preview:action-result:${requestId}`;
-    const timeout = setTimeout(() => {
-      electron.ipcMain.removeAllListeners(channel);
-      resolve({ success: false, error: "Preview action timed out — is the preview panel open?" });
-    }, ACTION_TIMEOUT);
-    electron.ipcMain.once(channel, (_e, result) => {
-      clearTimeout(timeout);
-      resolve(result);
-    });
-    win.webContents.send("preview:action", { requestId, ...payload });
-  });
-}
-const createBrowserTool = (getWindow2, supportsVision) => ai.tool({
-  description: "Interact with the preview iframe. Use 'screenshot' to capture the current state of the preview panel. Use 'scroll' to scroll the page up/down by pixels or to top/bottom. Use 'click' to click an element by CSS selector.",
-  inputSchema: ai.zodSchema(
-    v4.z.object({
-      action: v4.z.enum(["screenshot", "scroll", "click"]).describe(
-        "Action to perform: 'screenshot' captures the preview, 'scroll' scrolls the page, 'click' clicks an element"
-      ),
-      direction: v4.z.enum(["up", "down"]).optional().describe(
-        "Scroll direction (required for scroll action)"
-      ),
-      amount: v4.z.union([
-        v4.z.number().describe("Pixels to scroll"),
-        v4.z.enum(["top", "bottom"]).describe("Scroll to absolute position")
-      ]).optional().describe(
-        "Scroll amount — pixels or 'top'/'bottom' (defaults to 500 for scroll action)"
-      ),
-      selector: v4.z.string().optional().describe(
-        "CSS selector of the element to click (required for click action)"
-      )
-    })
-  ),
-  execute: async (rawInput) => {
-    const input = {
-      ...rawInput,
-      amount: rawInput.amount ?? (rawInput.action === "scroll" ? 500 : void 0),
-      direction: rawInput.direction ?? (rawInput.action === "scroll" ? "down" : void 0)
-    };
-    if (input.action === "screenshot") {
-      const boundsResult = await sendPreviewAction(getWindow2, { action: "screenshot" });
-      if (!boundsResult.success) {
-        return { error: boundsResult.error ?? "Failed to get iframe bounds" };
-      }
-      const win = getWindow2();
-      if (!win) return { error: "No window available" };
-      const { x, y, width, height } = boundsResult.data;
-      const image = await win.webContents.capturePage({
-        x: Math.round(x),
-        y: Math.round(y),
-        width: Math.round(width),
-        height: Math.round(height)
-      });
-      const pngBuffer = image.toPNG();
-      await promises$1.mkdir(SCREENSHOT_DIR, { recursive: true });
-      const fileName = `preview-${Date.now()}.png`;
-      const filePath = node_path.join(SCREENSHOT_DIR, fileName);
-      await promises$1.writeFile(filePath, pngBuffer);
-      return { action: "screenshot", filePath };
-    }
-    const result = await sendPreviewAction(getWindow2, input);
-    if (!result.success) {
-      return { error: result.error ?? `${input.action} failed` };
-    }
-    return { action: input.action, success: true };
-  },
-  toModelOutput({ output }) {
-    if ("error" in output) {
-      return {
-        type: "text",
-        value: `[Browser tool error: ${output.error}]`
-      };
-    }
-    if (output.action === "screenshot" && "filePath" in output) {
-      const filePath = output.filePath;
-      if (supportsVision) {
-        try {
-          const data = node_fs.readFileSync(filePath);
-          const base64 = Buffer.from(data).toString("base64");
-          return {
-            type: "content",
-            value: [
-              {
-                type: "image-data",
-                data: base64,
-                mediaType: "image/png"
-              },
-              {
-                type: "text",
-                text: `[File: ${filePath}]`
-              }
-            ]
-          };
-        } catch {
-          return {
-            type: "text",
-            value: `Screenshot saved to ${filePath} but could not read it back.`
-          };
-        }
-      }
-      return {
-        type: "text",
-        value: `Screenshot saved to ${filePath}. This model does not support vision.`
-      };
-    }
-    return {
-      type: "text",
-      value: `${output.action} completed successfully.`
-    };
-  }
-});
-function stripHeredoc(input) {
-  const m = input.match(/^(?:cat\s+)?<<['"]?(\w+)['"]?\s*\n([\s\S]*?)\n\1\s*$/);
-  return m ? m[2] : input;
-}
-function parsePatch(patchText) {
-  const lines = stripHeredoc(patchText.trim()).split("\n");
-  const beginIdx = lines.findIndex((l) => l.trim() === "*** Begin Patch");
-  const endIdx = lines.findIndex((l) => l.trim() === "*** End Patch");
-  if (beginIdx === -1 || endIdx === -1 || beginIdx >= endIdx) {
-    throw new Error("Invalid patch format: missing Begin/End markers");
-  }
-  const hunks = [];
-  let i = beginIdx + 1;
-  while (i < endIdx) {
-    const line = lines[i];
-    if (line.startsWith("*** Add File:")) {
-      const filePath = line.slice("*** Add File:".length).trim();
-      i++;
-      let content = "";
-      while (i < endIdx && !lines[i].startsWith("***")) {
-        if (lines[i].startsWith("+")) content += lines[i].substring(1) + "\n";
-        i++;
-      }
-      if (content.endsWith("\n")) content = content.slice(0, -1);
-      hunks.push({ type: "add", path: filePath, contents: content });
-    } else if (line.startsWith("*** Delete File:")) {
-      hunks.push({ type: "delete", path: line.slice("*** Delete File:".length).trim() });
-      i++;
-    } else if (line.startsWith("*** Update File:")) {
-      const filePath = line.slice("*** Update File:".length).trim();
-      i++;
-      let movePath;
-      if (i < endIdx && lines[i].startsWith("*** Move to:")) {
-        movePath = lines[i].slice("*** Move to:".length).trim();
-        i++;
-      }
-      const chunks = [];
-      while (i < endIdx && !lines[i].startsWith("***")) {
-        if (lines[i].startsWith("@@")) {
-          const changeContext = lines[i].substring(2).trim() || void 0;
-          i++;
-          const oldLines = [];
-          const newLines = [];
-          let isEndOfFile = false;
-          while (i < endIdx && !lines[i].startsWith("@@") && !lines[i].startsWith("***")) {
-            if (lines[i] === "*** End of File") {
-              isEndOfFile = true;
-              i++;
-              break;
-            }
-            if (lines[i].startsWith(" ")) {
-              const c = lines[i].substring(1);
-              oldLines.push(c);
-              newLines.push(c);
-            } else if (lines[i].startsWith("-")) oldLines.push(lines[i].substring(1));
-            else if (lines[i].startsWith("+")) newLines.push(lines[i].substring(1));
-            i++;
-          }
-          chunks.push({ old_lines: oldLines, new_lines: newLines, change_context: changeContext, is_end_of_file: isEndOfFile || void 0 });
-        } else {
-          i++;
-        }
-      }
-      hunks.push({ type: "update", path: filePath, move_path: movePath, chunks });
-    } else {
-      i++;
-    }
-  }
-  return hunks;
-}
-function normalizeUnicode(s) {
-  return s.replace(/[\u2018\u2019\u201A\u201B]/g, "'").replace(/[\u201C\u201D\u201E\u201F]/g, '"').replace(/[\u2010-\u2015]/g, "-").replace(/\u2026/g, "...").replace(/\u00A0/g, " ");
-}
-function tryMatch(lines, pattern, start, cmp, eof) {
-  if (eof) {
-    const fromEnd = lines.length - pattern.length;
-    if (fromEnd >= start && pattern.every((p, j) => cmp(lines[fromEnd + j], p))) return fromEnd;
-  }
-  for (let i = start; i <= lines.length - pattern.length; i++) {
-    if (pattern.every((p, j) => cmp(lines[i + j], p))) return i;
-  }
-  return -1;
-}
-function seekSequence(lines, pattern, start, eof = false) {
-  if (!pattern.length) return -1;
-  let r = tryMatch(lines, pattern, start, (a, b) => a === b, eof);
-  if (r !== -1) return r;
-  r = tryMatch(lines, pattern, start, (a, b) => a.trimEnd() === b.trimEnd(), eof);
-  if (r !== -1) return r;
-  r = tryMatch(lines, pattern, start, (a, b) => a.trim() === b.trim(), eof);
-  if (r !== -1) return r;
-  return tryMatch(lines, pattern, start, (a, b) => normalizeUnicode(a.trim()) === normalizeUnicode(b.trim()), eof);
-}
-function deriveNewContents(filePath, chunks) {
-  let lines = node_fs.readFileSync(filePath, "utf-8").split("\n");
-  if (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
-  const replacements = [];
-  let idx = 0;
-  for (const chunk of chunks) {
-    if (chunk.change_context) {
-      const ci = seekSequence(lines, [chunk.change_context], idx);
-      if (ci === -1) throw new Error(`Context '${chunk.change_context}' not found in ${filePath}`);
-      idx = ci + 1;
-    }
-    if (chunk.old_lines.length === 0) {
-      const ins = lines.length > 0 && lines[lines.length - 1] === "" ? lines.length - 1 : lines.length;
-      replacements.push([ins, 0, chunk.new_lines]);
-      continue;
-    }
-    let pattern = chunk.old_lines;
-    let newSlice = chunk.new_lines;
-    let found = seekSequence(lines, pattern, idx, chunk.is_end_of_file);
-    if (found === -1 && pattern.length > 0 && pattern[pattern.length - 1] === "") {
-      pattern = pattern.slice(0, -1);
-      if (newSlice.length > 0 && newSlice[newSlice.length - 1] === "") newSlice = newSlice.slice(0, -1);
-      found = seekSequence(lines, pattern, idx, chunk.is_end_of_file);
-    }
-    if (found === -1) throw new Error(`Failed to find expected lines in ${filePath}:
-${chunk.old_lines.join("\n")}`);
-    replacements.push([found, pattern.length, newSlice]);
-    idx = found + pattern.length;
-  }
-  replacements.sort((a, b) => a[0] - b[0]);
-  const result = [...lines];
-  for (let i = replacements.length - 1; i >= 0; i--) {
-    const [start, len, seg] = replacements[i];
-    result.splice(start, len, ...seg);
-  }
-  if (result.length === 0 || result[result.length - 1] !== "") result.push("");
-  return result.join("\n");
-}
-const DESCRIPTION$1 = 'Apply a patch to create, update, delete, or move files. The patch format uses *** Begin Patch / *** End Patch markers with file sections:\n*** Add File: <path> — new file, every line prefixed with +\n*** Delete File: <path> — remove a file\n*** Update File: <path> — edit in place with @@ context and +/- lines\n*** Move to: <path> — rename (after Update File header)\n\nExample:\n*** Begin Patch\n*** Add File: hello.txt\n+Hello world\n*** Update File: src/app.py\n@@ def greet():\n-print("Hi")\n+print("Hello, world!")\n*** Delete File: obsolete.txt\n*** End Patch\n\nPrefer this over edit/multiedit for multi-file changes.';
-const createApplyPatchTool = (projectDir) => ai.tool({
-  description: DESCRIPTION$1,
-  inputSchema: v4.z.object({
-    patchText: v4.z.string().describe("The full patch text with Begin/End markers")
-  }),
-  execute: async ({ patchText }) => {
-    let hunks;
-    try {
-      hunks = parsePatch(patchText);
-    } catch (e) {
-      return `[Error parsing patch: ${e instanceof Error ? e.message : e}]`;
-    }
-    if (hunks.length === 0) return "[Error: patch contains no file operations]";
-    const summary = [];
-    for (const hunk of hunks) {
-      const filePath = node_path.resolve(projectDir, hunk.path);
-      try {
-        switch (hunk.type) {
-          case "add": {
-            await promises$1.mkdir(node_path.dirname(filePath), { recursive: true });
-            const content = hunk.contents.endsWith("\n") ? hunk.contents : hunk.contents + "\n";
-            await promises$1.writeFile(filePath, content, "utf-8");
-            summary.push(`A ${node_path.relative(projectDir, filePath)}`);
-            break;
-          }
-          case "delete": {
-            await promises$1.unlink(filePath);
-            summary.push(`D ${node_path.relative(projectDir, filePath)}`);
-            break;
-          }
-          case "update": {
-            const s = await promises$1.stat(filePath).catch(() => null);
-            if (!s || s.isDirectory()) return `[Error: cannot update ${hunk.path} — file not found]`;
-            const newContent = deriveNewContents(filePath, hunk.chunks);
-            const target = hunk.move_path ? node_path.resolve(projectDir, hunk.move_path) : filePath;
-            if (hunk.move_path) {
-              await promises$1.mkdir(node_path.dirname(target), { recursive: true });
-              await promises$1.writeFile(target, newContent, "utf-8");
-              await promises$1.unlink(filePath);
-              summary.push(`M ${node_path.relative(projectDir, target)} (moved from ${node_path.relative(projectDir, filePath)})`);
-            } else {
-              await promises$1.writeFile(filePath, newContent, "utf-8");
-              summary.push(`M ${node_path.relative(projectDir, filePath)}`);
-            }
-            break;
-          }
-        }
-      } catch (e) {
-        return `[Error applying hunk for ${hunk.path}: ${e instanceof Error ? e.message : e}]`;
-      }
-    }
-    return `Patch applied successfully:
-${summary.join("\n")}`;
-  }
-});
-const DESCRIPTION = "Execute multiple tool calls concurrently to reduce latency. Pass an array of {tool, parameters} objects (1–25). All run in parallel. Partial failures do not stop other calls. Cannot nest batch inside batch.\n\nGood for: reading many files, grep+glob+read combos, multiple bash commands, multi-file edits.\nBad for: operations that depend on prior output, ordered stateful mutations.";
-const createBatchTool = (getTools) => ai.tool({
-  description: DESCRIPTION,
-  inputSchema: v4.z.object({
-    tool_calls: v4.z.array(
-      v4.z.object({
-        tool: v4.z.string().describe("The name of the tool to execute"),
-        parameters: v4.z.record(v4.z.string(), v4.z.any()).describe("Parameters for the tool")
-      })
-    ).min(1).max(25).describe("Array of tool calls to execute in parallel")
-  }),
-  execute: async ({ tool_calls }) => {
-    const tools = getTools();
-    const results = await Promise.all(
-      tool_calls.map(async (call) => {
-        try {
-          if (call.tool === "batch") {
-            return { tool: call.tool, success: false, output: "Cannot nest batch inside batch" };
-          }
-          const t = tools[call.tool];
-          if (!t) {
-            return { tool: call.tool, success: false, output: `Unknown tool: ${call.tool}` };
-          }
-          if (!t.execute) {
-            return { tool: call.tool, success: false, output: `Tool ${call.tool} has no execute function` };
-          }
-          const output = await t.execute(call.parameters, { toolCallId: call.tool, messages: [], abortSignal: new AbortController().signal });
-          return { tool: call.tool, success: true, output };
-        } catch (e) {
-          return { tool: call.tool, success: false, output: e instanceof Error ? e.message : String(e) };
-        }
-      })
-    );
-    const ok = results.filter((r) => r.success).length;
-    const fail = results.length - ok;
-    const lines = results.map((r, i) => {
-      const status = r.success ? "ok" : "FAIL";
-      const out = typeof r.output === "string" ? r.output : JSON.stringify(r.output);
-      return `[${i + 1}] ${r.tool} (${status}):
-${out}`;
-    });
-    const header = fail > 0 ? `${ok}/${results.length} succeeded, ${fail} failed.` : `All ${ok} tools executed successfully.`;
-    return `${header}
-
-${lines.join("\n\n")}`;
-  }
-});
-function createTools(projectDir, supportsVision = true, sessionId = "default", getWindow2) {
-  const agentTools = {
-    read: createReadTool(projectDir),
-    glob: createGlobTool(projectDir),
-    grep: createGrepTool(projectDir),
-    ls: createLsTool(projectDir),
-    bash: createBashTool(projectDir),
-    webfetch: createWebFetchTool(),
-    imagefetch: createImageFetchTool(),
-    skill: createSkillTool(),
-    browser: createBrowserTool(getWindow2 ?? (() => null), supportsVision),
-    write: createWriteTool(projectDir),
-    edit: createEditTool(projectDir),
-    multiedit: createMultiEditTool(projectDir),
-    apply_patch: createApplyPatchTool(projectDir),
-    todo_write: createTodoWriteTool(sessionId),
-    todo_read: createTodoReadTool(sessionId),
-    imagesave: createImageSaveTool(projectDir, sessionId)
-  };
-  agentTools.batch = createBatchTool(() => agentTools);
-  return agentTools;
-}
-const activeStreams = /* @__PURE__ */ new Map();
-function registerChatHandlers(getWindow2) {
+function registerChatHandlers() {
   electron.ipcMain.handle(
-    "chat:stream",
+    "chat:prompt",
     async (_e, params) => {
-      const {
-        sessionId,
-        prompt,
-        providerId,
-        modelId,
-        images
-      } = params;
-      const projectDir = params.projectDir || process.cwd();
-      const controller = new AbortController();
-      activeStreams.set(sessionId, controller);
-      const win = getWindow2();
+      const { sessionId, prompt, providerId, modelId, projectDir, images } = params;
+      setPrefs(sessionId, { providerId, modelId });
       try {
-        await messageDb.append(sessionId, "user", prompt, images);
-        const resolved = await resolveProvider(providerId, modelId);
-        if (isResolveError(resolved)) {
-          win?.webContents.send("chat:event", {
-            sessionId,
-            event: { type: "error", message: resolved.error }
-          });
-          return;
-        }
-        const history = messageDb.listBySession(sessionId);
-        const msgs = history.map((m) => {
-          if (m.role === "user" && m.images) {
-            try {
-              const imgs = JSON.parse(m.images);
-              if (imgs.length > 0) {
-                const parts = imgs.map((dataUrl) => ({
-                  type: "image",
-                  image: dataUrl
-                }));
-                parts.push({ type: "text", text: m.content });
-                return { role: "user", content: parts };
-              }
-            } catch {
-            }
-          }
-          return {
-            role: m.role,
-            content: m.content
-          };
-        });
-        if (images && images.length > 0) {
-          const parts = images.map((dataUrl) => ({
-            type: "image",
-            image: dataUrl
-          }));
-          parts.push({ type: "text", text: prompt });
-          msgs.push({ role: "user", content: parts });
-        } else {
-          msgs.push({ role: "user", content: prompt });
-        }
-        const home = os.homedir();
-        const skills = await discoverSkills();
-        const systemPrompt = buildAgentSystemPrompt(
-          modelId,
-          home,
-          projectDir,
-          skills
+        const client2 = getClient();
+        console.log(
+          "[chat:prompt] sending",
+          { sessionId, providerId, modelId, projectDir }
         );
-        const supportsVision = await modelSupportsImage(providerId, modelId);
-        const tools = createTools(projectDir, supportsVision, sessionId, getWindow2);
-        const result = ai.streamText({
-          model: resolved.model,
-          system: systemPrompt,
-          messages: msgs,
-          tools,
-          stopWhen: ai.stepCountIs(25),
-          abortSignal: controller.signal
+        const result = await client2.session.prompt({
+          path: { id: sessionId },
+          body: {
+            model: { providerID: providerId, modelID: modelId },
+            parts: buildParts(prompt, images)
+          },
+          ...dirOptions(projectDir)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         });
-        let fullContent = "";
-        for await (const part of result.fullStream) {
-          if (controller.signal.aborted) break;
-          let event = null;
-          switch (part.type) {
-            case "text-delta":
-              fullContent += part.text;
-              event = { type: "token", content: part.text };
-              break;
-            case "tool-call":
-              event = {
-                type: "tool_call",
-                name: part.toolName,
-                input: part.input,
-                toolCallId: part.toolCallId
-              };
-              break;
-            case "tool-result":
-              event = {
-                type: "tool_result",
-                name: part.toolName,
-                output: part.output
-              };
-              break;
-            case "error": {
-              const errMsg = part.error instanceof Error ? part.error.message : String(part.error);
-              event = { type: "error", message: errMsg };
-              break;
-            }
-            default:
-              break;
-          }
-          if (event) {
-            win?.webContents.send("chat:event", { sessionId, event });
-          }
+        const r = result;
+        if (r?.error) {
+          const msg = r.error?.data?.message ?? r.error?.message ?? (typeof r.error === "string" ? r.error : "Prompt failed");
+          console.error("[chat:prompt] error:", r.error);
+          return { ok: false, error: String(msg) };
         }
-        if (fullContent.length > 0) {
-          const saved = messageDb.append(sessionId, "assistant", fullContent);
-          win?.webContents.send("chat:event", {
-            sessionId,
-            event: { type: "done", messageId: saved.id }
-          });
-        } else {
-          win?.webContents.send("chat:event", {
-            sessionId,
-            event: { type: "done", messageId: "" }
-          });
+        if (r?.response && !r.response.ok) {
+          const msg = `Prompt failed: ${r.response.status} ${r.response.statusText}`;
+          console.error("[chat:prompt]", msg, r);
+          return { ok: false, error: msg };
         }
+        console.log(
+          "[chat:prompt] ok, status:",
+          r?.response?.status,
+          "data keys:",
+          r?.data ? Object.keys(r.data) : "none"
+        );
+        return { ok: true };
       } catch (err) {
-        if (!controller.signal.aborted) {
-          const errorMessage = err instanceof Error ? err.message : "Internal error";
-          win?.webContents.send("chat:event", {
-            sessionId,
-            event: { type: "error", message: errorMessage }
-          });
-        }
-      } finally {
-        activeStreams.delete(sessionId);
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("[chat:prompt] threw:", err);
+        return { ok: false, error: message };
       }
     }
   );
-  electron.ipcMain.handle("chat:stop", (_e, sessionId) => {
-    const controller = activeStreams.get(sessionId);
-    if (controller) {
-      controller.abort();
-      activeStreams.delete(sessionId);
+  electron.ipcMain.handle(
+    "chat:stop",
+    async (_e, sessionId, projectDir) => {
+      try {
+        await getClient().session.abort({
+          path: { id: sessionId },
+          ...dirOptions(projectDir)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        });
+      } catch {
+      }
+      return { ok: true };
     }
+  );
+  electron.ipcMain.handle("opencode:reconnect", () => {
+    reconnectEventBus();
     return { ok: true };
   });
-}
-function buildAgentSystemPrompt(modelId, home, projectDir, skills) {
-  const skillContext = skills.length > 0 ? `
-
-You have access to specialized skills. When a task matches one of these skills, use the \`skill\` tool to load its instructions:
-${skills.map((s) => `- **${s.name}**: ${s.description}`).join("\n")}` : "";
-  return [
-    `You are Coodeen, the best coding agent on the planet.`,
-    `You are powered by the model named ${modelId}.`,
-    ``,
-    `<env>`,
-    `Working directory: ${projectDir}`,
-    `Home directory: ${home}`,
-    `Platform: ${process.platform}`,
-    `Today's date: ${(/* @__PURE__ */ new Date()).toDateString()}`,
-    `</env>`,
-    ``,
-    `# Tone and style`,
-    `- Only use emojis if the user explicitly requests it.`,
-    `- Your responses should be short and concise. You can use GitHub-flavored markdown for formatting.`,
-    `- Output text to communicate with the user; all text you output outside of tool use is displayed to the user. Only use tools to complete tasks. Never use tools like bash or code comments as means to communicate with the user.`,
-    `- NEVER create files unless they're absolutely necessary for achieving your goal. ALWAYS prefer editing an existing file to creating a new one.`,
-    ``,
-    `# Professional objectivity`,
-    `Prioritize technical accuracy and truthfulness over validating the user's beliefs. Focus on facts and problem-solving, providing direct, objective technical info without any unnecessary superlatives, praise, or emotional validation.`,
-    ``,
-    `# Required workflow for every user request`,
-    `For ANY non-trivial user request (questions, changes, bugs, features), you MUST follow this order:`,
-    `1. **Explore first.** Before answering or editing, use \`glob\`, \`grep\`, \`ls\`, and \`read\` to understand the relevant parts of the project. Do not skip this step — even for simple-sounding asks, verify assumptions against the actual code.`,
-    `2. **Plan with todo_write.** Immediately after exploring, call \`todo_write\` with a detailed checklist covering every step needed. Each item must be concrete and independently verifiable. Mark the first item \`in_progress\`, the rest \`pending\`. This list is rendered visually in the chat so the user sees progress live.`,
-    `3. **Execute.** Work the list top-to-bottom using the appropriate tools (edit, write, multiedit, apply_patch, bash, etc.).`,
-    `4. **Update todo_write after every completed step.** Re-call \`todo_write\` with the full updated list — flip the finished item to \`completed\` and the next to \`in_progress\`. Never batch multiple completions; update the list immediately when a step is done.`,
-    `5. **Finish.** When all items are \`completed\`, give a short final message summarizing the result.`,
-    ``,
-    `Skip ONLY for genuinely trivial single-step requests (e.g. "what is 2+2", a one-line conceptual answer). Anything touching code = full workflow.`,
-    `If you edit/write without first exploring and creating a todo_write, you have failed the workflow. Stop, explore, plan, then act.`,
-    ``,
-    `# Doing tasks`,
-    `The user will primarily request you perform software engineering tasks. This includes solving bugs, adding new functionality, refactoring code, explaining code, and more.`,
-    ``,
-    `# CRITICAL: Act, don't narrate`,
-    `- When the user describes how something should look or behave ("it should be like that", "it will be like that", "it must be X", "I expect X", "make it Y", "the image should be on the right", etc.), this is an INSTRUCTION TO CODE. You must immediately use tools (read, edit, write, bash) to implement the change. NEVER just respond with "Done" or "Updated" without actually calling tools to make the change.`,
-    `- Every user message that implies a change REQUIRES tool calls. If your response has zero tool calls but describes changes you "made", you failed. Go back and actually make the changes using tools.`,
-    `- NEVER say "Done", "Updated", "Fixed", "Changed" unless you have actually called edit/write/multiedit tools in that same response and the tool results confirm success.`,
-    `- If the user shows you a screenshot or describes a visual issue, you MUST read the relevant file, find the code responsible, and edit it. Do not guess — read first, then edit.`,
-    ``,
-    `# Tool usage policy`,
-    `- You can call multiple tools in a single response. If you intend to call multiple tools and there are no dependencies between them, make all independent tool calls in parallel.`,
-    `- Use specialized tools instead of bash commands when possible. For file operations, use dedicated tools: read for reading files instead of cat/head/tail, edit for editing instead of sed/awk, and write for creating files instead of cat with heredoc or echo redirection. Reserve bash exclusively for actual system commands and terminal operations.`,
-    `- NEVER use bash echo or other command-line tools to communicate thoughts, explanations, or instructions to the user. Output all communication directly in your response text instead.`,
-    `- When making multiple changes to the same file, use multiedit instead of multiple edit calls.`,
-    ``,
-    `# Code References`,
-    `When referencing specific functions or pieces of code include the pattern \`file_path:line_number\` to allow the user to easily navigate to the source code location.`,
-    ``,
-    `# Git`,
-    `- Only create commits when requested by the user. If unclear, ask first.`,
-    `- NEVER update the git config.`,
-    `- NEVER run destructive git commands (push --force, hard reset, etc) unless the user explicitly requests them.`,
-    `- NEVER skip hooks (--no-verify) unless the user explicitly requests it.`,
-    `- NEVER commit changes unless the user explicitly asks you to.`
-  ].join("\n") + skillContext;
 }
 const HIDDEN = /* @__PURE__ */ new Set([
   "node_modules",
@@ -1770,11 +2576,11 @@ function detectLanguage(name) {
   return EXT_LANG[node_path.extname(lower)] || "plaintext";
 }
 function registerFsHandlers() {
-  electron.ipcMain.handle("fs:listDirs", async (_e, path2) => {
-    const current = node_path.resolve(path2 || node_os.homedir());
+  electron.ipcMain.handle("fs:listDirs", async (_e, path) => {
+    const current = node_path.resolve(path || node_os.homedir());
     const parent = node_path.dirname(current) !== current ? node_path.dirname(current) : null;
     try {
-      const entries = await promises$1.readdir(current, { withFileTypes: true });
+      const entries = await promises.readdir(current, { withFileTypes: true });
       const dirs = entries.filter(
         (e) => e.isDirectory() && !e.name.startsWith(".") && !HIDDEN.has(e.name)
       ).map((e) => e.name).sort(
@@ -1785,10 +2591,10 @@ function registerFsHandlers() {
       throw new Error(`Cannot read directory: ${current}`);
     }
   });
-  electron.ipcMain.handle("fs:listTree", async (_e, path2) => {
-    const dirPath = node_path.resolve(path2);
+  electron.ipcMain.handle("fs:listTree", async (_e, path) => {
+    const dirPath = node_path.resolve(path);
     try {
-      const entries = await promises$1.readdir(dirPath, { withFileTypes: true });
+      const entries = await promises.readdir(dirPath, { withFileTypes: true });
       const result = [];
       for (const entry of entries) {
         if (entry.name.startsWith(".") && entry.name !== ".env") continue;
@@ -1810,10 +2616,10 @@ function registerFsHandlers() {
       throw new Error(`Cannot read directory: ${dirPath}`);
     }
   });
-  electron.ipcMain.handle("fs:readFile", async (_e, path2) => {
-    const filePath = node_path.resolve(path2);
+  electron.ipcMain.handle("fs:readFile", async (_e, path) => {
+    const filePath = node_path.resolve(path);
     try {
-      const s = await promises$1.stat(filePath);
+      const s = await promises.stat(filePath);
       if (!s.isFile()) throw new Error("Not a file");
       if (isBinary(filePath)) {
         return { binary: true, size: s.size };
@@ -1821,7 +2627,7 @@ function registerFsHandlers() {
       if (s.size > 2 * 1024 * 1024) {
         throw new Error(`File too large (> 2MB), size: ${s.size}`);
       }
-      const content = await promises$1.readFile(filePath, "utf-8");
+      const content = await promises.readFile(filePath, "utf-8");
       const language = detectLanguage(filePath);
       return { content, language };
     } catch (err) {
@@ -1832,11 +2638,11 @@ function registerFsHandlers() {
   });
   electron.ipcMain.handle(
     "fs:writeFile",
-    async (_e, path2, content) => {
-      const filePath = node_path.resolve(path2);
+    async (_e, path, content) => {
+      const filePath = node_path.resolve(path);
       try {
-        await promises$1.mkdir(node_path.dirname(filePath), { recursive: true });
-        await promises$1.writeFile(filePath, content, "utf-8");
+        await promises.mkdir(node_path.dirname(filePath), { recursive: true });
+        await promises.writeFile(filePath, content, "utf-8");
         return { ok: true };
       } catch {
         throw new Error(`Cannot write file: ${filePath}`);
@@ -1845,14 +2651,14 @@ function registerFsHandlers() {
   );
   electron.ipcMain.handle(
     "fs:createEntry",
-    async (_e, path2, type) => {
-      const targetPath = node_path.resolve(path2);
+    async (_e, path, type) => {
+      const targetPath = node_path.resolve(path);
       try {
         if (type === "dir") {
-          await promises$1.mkdir(targetPath, { recursive: true });
+          await promises.mkdir(targetPath, { recursive: true });
         } else {
-          await promises$1.mkdir(node_path.dirname(targetPath), { recursive: true });
-          await promises$1.writeFile(targetPath, "", "utf-8");
+          await promises.mkdir(node_path.dirname(targetPath), { recursive: true });
+          await promises.writeFile(targetPath, "", "utf-8");
         }
         return { ok: true };
       } catch {
@@ -1860,11 +2666,11 @@ function registerFsHandlers() {
       }
     }
   );
-  electron.ipcMain.handle("fs:deleteEntry", async (_e, path2) => {
-    const targetPath = node_path.resolve(path2);
+  electron.ipcMain.handle("fs:deleteEntry", async (_e, path) => {
+    const targetPath = node_path.resolve(path);
     try {
-      const s = await promises$1.stat(targetPath);
-      await promises$1.rm(targetPath, { recursive: s.isDirectory(), force: true });
+      const s = await promises.stat(targetPath);
+      await promises.rm(targetPath, { recursive: s.isDirectory(), force: true });
       return { ok: true };
     } catch {
       throw new Error(`Cannot delete: ${targetPath}`);
@@ -1874,9 +2680,9 @@ function registerFsHandlers() {
     "fs:upload",
     async (_e, dirPath, fileName, data) => {
       const targetDir = node_path.resolve(dirPath);
-      await promises$1.mkdir(targetDir, { recursive: true });
+      await promises.mkdir(targetDir, { recursive: true });
       const targetPath = node_path.join(targetDir, fileName);
-      await promises$1.writeFile(targetPath, Buffer.from(data));
+      await promises.writeFile(targetPath, Buffer.from(data));
       return { ok: true, name: fileName };
     }
   );
@@ -2241,110 +3047,113 @@ function registerPtyHandlers(getWindow2) {
     }));
   });
 }
-function maskKey(key) {
-  if (key.length <= 4) return "****";
-  return "*".repeat(key.length - 4) + key.slice(-4);
+function authFilePath() {
+  return node_path.join(node_os.homedir(), ".local", "share", "opencode", "auth.json");
+}
+function readAuthFile() {
+  const p = authFilePath();
+  if (!node_fs.existsSync(p)) return {};
+  try {
+    return JSON.parse(node_fs.readFileSync(p, "utf-8"));
+  } catch {
+    return {};
+  }
+}
+async function fetchProviders() {
+  const client2 = getClient();
+  const res = await client2.config.providers();
+  const data = res.data;
+  return data?.providers ?? [];
 }
 function registerProviderHandlers() {
-  electron.ipcMain.handle("providers:list", () => {
-    const list = providerDb.list();
-    return list.map((p) => ({ ...p, apiKey: maskKey(p.apiKey) }));
-  });
-  electron.ipcMain.handle("providers:models", async (_e, providerName) => {
-    const name = providerName.toLowerCase();
-    const config2 = await getModelsConfig();
-    if (name === config2.free.provider) {
-      const free = await getFreeModels();
-      return { provider: name, models: free.map((m) => m.id) };
-    }
-    const entry = config2.providers[name];
-    if (!entry) {
-      const supported = [
-        ...Object.keys(config2.providers),
-        config2.free.provider
-      ].join(", ");
-      throw new Error(
-        `Unknown provider: ${name}. Supported: ${supported}`
-      );
-    }
-    return { provider: name, models: entry.models.map((m) => m.id) };
-  });
   electron.ipcMain.handle("providers:connectedModels", async () => {
-    const [list, config2, free] = await Promise.all([
-      providerDb.list(),
-      getModelsConfig(),
-      getFreeModels()
-    ]);
-    const result = [
-      {
-        providerId: config2.free.provider,
-        label: config2.free.label,
-        models: free.map((m) => m.id),
-        free: true
-      }
-    ];
-    for (const p of list) {
-      const entry = config2.providers[p.id];
-      if (entry) {
-        result.push({
-          providerId: p.id,
-          label: entry.label,
-          models: entry.models.map((m) => m.id)
-        });
-      }
-    }
-    return result;
+    const providers = await fetchProviders();
+    return providers.map((p) => ({
+      providerId: p.id,
+      label: p.name,
+      models: Object.keys(p.models)
+    }));
   });
-  electron.ipcMain.handle("providers:freeModels", async () => {
-    return getFreeModels();
-  });
-  electron.ipcMain.handle("providers:config", async () => {
-    return getModelsConfig();
+  electron.ipcMain.handle("providers:hasKey", async (_e, id) => {
+    const auth = readAuthFile();
+    return !!auth[id];
   });
   electron.ipcMain.handle(
-    "providers:upsert",
-    (_e, id, data) => {
-      const result = providerDb.upsert(id, {
-        apiKey: data.apiKey,
-        modelId: ""
-      });
-      return { ...result, apiKey: maskKey(result.apiKey) };
+    "providers:setApiKey",
+    async (_e, id, apiKey) => {
+      try {
+        await getClient().auth.set({
+          path: { id },
+          body: { type: "api", key: apiKey }
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        });
+        await disposeOpencodeCache();
+        return { ok: true };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { ok: false, error: message };
+      }
     }
   );
-  electron.ipcMain.handle("providers:delete", (_e, id) => {
-    providerDb.delete(id);
-    return { ok: true };
+  electron.ipcMain.handle("providers:deleteApiKey", async (_e, id) => {
+    const base = getBaseUrl();
+    if (!base) return { ok: false, error: "sidecar not ready" };
+    try {
+      const res = await fetch(
+        `${base}/auth/${encodeURIComponent(id)}`,
+        { method: "DELETE" }
+      );
+      if (!res.ok) {
+        return {
+          ok: false,
+          error: `Delete failed: ${res.status} ${res.statusText}`
+        };
+      }
+      await disposeOpencodeCache();
+      return { ok: true };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { ok: false, error: message };
+    }
   });
 }
-const configDb = {
-  get(key) {
-    const db = getDb();
-    const row = db.select().from(config).where(drizzleOrm.eq(config.key, key)).get();
-    return row?.value ?? null;
-  },
-  set(key, value) {
-    const db = getDb();
-    const existing = db.select().from(config).where(drizzleOrm.eq(config.key, key)).get();
-    if (existing) {
-      db.update(config).set({ value, updatedAt: /* @__PURE__ */ new Date() }).where(drizzleOrm.eq(config.key, key)).run();
-    } else {
-      db.insert(config).values({ key, value }).run();
-    }
-  },
-  delete(key) {
-    const db = getDb();
-    db.delete(config).where(drizzleOrm.eq(config.key, key)).run();
+async function disposeOpencodeCache() {
+  const base = getBaseUrl();
+  if (!base) return;
+  try {
+    await fetch(`${base}/global/dispose`, { method: "POST" });
+  } catch (err) {
+    console.warn("[providers] failed to dispose opencode cache:", err);
   }
-};
+}
+function configPath() {
+  return node_path.join(electron.app.getPath("userData"), "app-config.json");
+}
+function loadConfig() {
+  const p = configPath();
+  if (!node_fs.existsSync(p)) return {};
+  try {
+    return JSON.parse(node_fs.readFileSync(p, "utf-8"));
+  } catch {
+    return {};
+  }
+}
+function saveConfig(data) {
+  const p = configPath();
+  node_fs.mkdirSync(node_path.dirname(p), { recursive: true });
+  node_fs.writeFileSync(p, JSON.stringify(data, null, 2), "utf-8");
+}
 function registerConfigHandlers() {
   electron.ipcMain.handle("config:getCwd", () => {
     return { cwd: process.cwd() };
   });
   electron.ipcMain.handle("config:getActiveProvider", () => {
-    return configDb.get("active-provider");
+    return loadConfig()["active-provider"] ?? null;
   });
   electron.ipcMain.handle("config:setActiveProvider", (_e, value) => {
-    configDb.set("active-provider", value);
+    const all = loadConfig();
+    all["active-provider"] = value;
+    saveConfig(all);
     return { ok: true };
   });
 }
@@ -2371,14 +3180,14 @@ function loadEnvFile(dirPath) {
 function registerActionHandlers() {
   electron.ipcMain.handle("actions:getConfig", async (_e, dir) => {
     const resolvedDir = node_path.resolve(dir);
-    const configPath = node_path.resolve(resolvedDir, "coodeen.json");
+    const configPath2 = node_path.resolve(resolvedDir, "coodeen.json");
     try {
-      const content = await node_fs.promises.readFile(configPath, "utf-8");
-      const config2 = JSON.parse(content);
+      const content = await node_fs.promises.readFile(configPath2, "utf-8");
+      const config = JSON.parse(content);
       return {
         ok: true,
-        actions: config2.actions || [],
-        name: config2.name
+        actions: config.actions || [],
+        name: config.name
       };
     } catch {
       return { ok: true, actions: [], name: "coodeen" };
@@ -2387,37 +3196,15 @@ function registerActionHandlers() {
   electron.ipcMain.handle("actions:run", async (_e, dir, script) => {
     const d = node_path.resolve(dir);
     const env = loadEnvFile(d);
-    const child = node_child_process.spawn(script, {
+    const child2 = node_child_process.spawn(script, {
       cwd: d,
       env,
       shell: true,
       detached: true,
       stdio: "ignore"
     });
-    child.unref();
-    return { ok: true, pid: child.pid };
-  });
-}
-function registerSkillHandlers() {
-  electron.ipcMain.handle("skills:list", async () => {
-    return discoverSkills();
-  });
-  electron.ipcMain.handle(
-    "skills:create",
-    async (_e, name, description, content) => {
-      return createSkill(name, description, content);
-    }
-  );
-  electron.ipcMain.handle(
-    "skills:createRaw",
-    async (_e, slug, raw) => {
-      await createSkillRaw(slug, raw);
-      return { ok: true };
-    }
-  );
-  electron.ipcMain.handle("skills:delete", async (_e, name) => {
-    const ok = await deleteSkill(name);
-    return { ok };
+    child2.unref();
+    return { ok: true, pid: child2.pid };
   });
 }
 let mainWindow = null;
@@ -2434,7 +3221,7 @@ function createWindow() {
     trafficLightPosition: { x: 16, y: 16 },
     backgroundColor: "#0a0a0a",
     webPreferences: {
-      preload: path.join(__dirname, "../preload/index.js"),
+      preload: require$$0$1.join(__dirname, "../preload/index.js"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
@@ -2444,23 +3231,26 @@ function createWindow() {
   if (process.env.ELECTRON_RENDERER_URL) {
     mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
   } else {
-    mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
+    mainWindow.loadFile(require$$0$1.join(__dirname, "../renderer/index.html"));
   }
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
 }
-electron.app.whenReady().then(() => {
-  getDb();
+electron.app.whenReady().then(async () => {
+  try {
+    await startOpencodeSidecar();
+  } catch (err) {
+    console.error("[main] failed to start opencode sidecar:", err);
+  }
   registerSessionHandlers();
-  registerChatHandlers(getWindow);
+  registerChatHandlers();
   registerFsHandlers();
   registerGitHandlers();
   registerPtyHandlers(getWindow);
   registerProviderHandlers();
   registerConfigHandlers();
   registerActionHandlers();
-  registerSkillHandlers();
   electron.ipcMain.handle(
     "capture:area",
     async (_e, x, y, width, height) => {
@@ -2485,4 +3275,7 @@ electron.app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     electron.app.quit();
   }
+});
+electron.app.on("before-quit", () => {
+  stopOpencodeSidecar();
 });

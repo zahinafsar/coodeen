@@ -1,11 +1,3 @@
-/** Mirrors the backend AgentEvent union */
-export type SSEEvent =
-  | { type: "token"; content: string }
-  | { type: "tool_call"; name: string; input: unknown; toolCallId: string }
-  | { type: "tool_result"; name: string; output: unknown }
-  | { type: "done"; messageId: string }
-  | { type: "error"; message: string };
-
 export interface Session {
   id: string;
   title: string;
@@ -17,30 +9,6 @@ export interface Session {
   updatedAt: string;
 }
 
-export interface Message {
-  id: string;
-  sessionId: string;
-  role: "user" | "assistant" | "system";
-  content: string;
-  images?: string | null; // JSON string from DB
-  createdAt: string;
-}
-
-export interface ToolCall {
-  name: string;
-  input: unknown;
-  output?: unknown;
-}
-
-export interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  toolCalls?: ToolCall[];
-  isStreaming?: boolean;
-  images?: string[];
-}
-
 export interface FileReference {
   filePath: string;
   startLine: number;
@@ -48,10 +16,3 @@ export interface FileReference {
   content: string;
 }
 
-export interface SkillInfo {
-  name: string;
-  description: string;
-  location: string;
-  content: string;
-  enabled: boolean;
-}

@@ -20,24 +20,27 @@ interface ElectronAPI {
       },
     ) => Promise<import("./lib/types").Session>;
     delete: (id: string) => Promise<{ ok: boolean }>;
-    getMessages: (sessionId: string) => Promise<import("./lib/types").Message[]>;
+    getMessages: (sessionId: string) => Promise<unknown[]>;
   };
   chat: {
-    stream: (params: {
+    prompt: (params: {
       sessionId: string;
       prompt: string;
       providerId: string;
       modelId: string;
       projectDir?: string;
       images?: string[];
-    }) => Promise<void>;
+    }) => Promise<{ ok: boolean; error?: string }>;
     stop: (sessionId: string) => Promise<{ ok: boolean }>;
+  };
+  opencode: {
     onEvent: (
-      callback: (data: {
-        sessionId: string;
-        event: import("./lib/types").SSEEvent;
-      }) => void,
+      callback: (evt: { type: string; properties?: unknown }) => void,
     ) => () => void;
+    onStatus: (
+      callback: (status: { connected: boolean }) => void,
+    ) => () => void;
+    reconnect: () => Promise<{ ok: boolean }>;
   };
   fs: {
     listDirs: (path?: string) => Promise<{
@@ -129,13 +132,16 @@ interface ElectronAPI {
     onExit: (callback: (data: { id: string; exitCode: number }) => void) => () => void;
   };
   providers: {
-    list: () => Promise<import("./lib/api").Provider[]>;
-    models: (providerName: string) => Promise<import("./lib/api").ModelsResponse>;
     connectedModels: () => Promise<import("./lib/api").ConnectedModelsItem[]>;
-    freeModels: () => Promise<import("./lib/api").FreeModel[]>;
-    config: () => Promise<import("./lib/api").ModelsConfig>;
-    upsert: (id: string, data: { apiKey: string }) => Promise<import("./lib/api").Provider>;
-    delete: (id: string) => Promise<{ ok: boolean }>;
+    hasKey: (id: string) => Promise<boolean>;
+    setApiKey: (id: string, apiKey: string) => Promise<{
+      ok: boolean;
+      error?: string;
+    }>;
+    deleteApiKey: (id: string) => Promise<{
+      ok: boolean;
+      error?: string;
+    }>;
   };
   config: {
     getCwd: () => Promise<{ cwd: string | null }>;
@@ -169,16 +175,6 @@ interface ElectronAPI {
       }) => void,
     ) => () => void;
     sendResult: (requestId: string, result: unknown) => void;
-  };
-  skills: {
-    list: () => Promise<import("./lib/types").SkillInfo[]>;
-    create: (
-      name: string,
-      description: string,
-      content: string,
-    ) => Promise<import("./lib/types").SkillInfo>;
-    createRaw: (slug: string, raw: string) => Promise<{ ok: boolean }>;
-    delete: (name: string) => Promise<{ ok: boolean }>;
   };
 }
 

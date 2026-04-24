@@ -1,40 +1,29 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import type { ChatMessage, Message, Session, ToolCall, FileReference } from "../../lib/types";
+import type { FileReference, Session } from "../../lib/types";
 import { api } from "../../lib/api";
-import type { ConnectedModelsItem } from "../../lib/api";
 import { useProject } from "../../contexts/ProjectContext";
 import { MessageList } from "./MessageList";
-import { PromptInput, type ModelSelection } from "./PromptInput";
+import { PromptInput } from "./PromptInput";
 import { SessionDrawer } from "./SessionDrawer";
 import logoSvg from "../../assets/logo.svg";
+import {
+  useChatSession,
+  hydrateSession,
+  clearSession,
+  type Message,
+  type Part,
+} from "../../stores/chat-store";
 
-let _msgId = 0;
-function nextId() {
-  return `local-${++_msgId}-${Date.now()}`;
-}
+// Hardcoded — user can't pick model.
+const MODEL = { providerId: "openai", modelId: "gpt-5.1-codex-max" };
 
 function generateSessionTitle(text: string): string {
   const trimmed = text.trim().replace(/\s+/g, " ");
   const MAX_TITLE = 60;
-  if (trimmed.length <= MAX_TITLE) {
-    return trimmed;
-  }
+  if (trimmed.length <= MAX_TITLE) return trimmed;
   return trimmed.substring(0, MAX_TITLE).replace(/\s+$/, "") + "...";
-}
-
-function dbMsgToChatMsg(m: Message): ChatMessage {
-  let images: string[] | undefined;
-  if (m.images) {
-    try { images = JSON.parse(m.images); } catch { /* ignore */ }
-  }
-  return {
-    id: m.id,
-    role: m.role as "user" | "assistant",
-    content: m.content,
-    images,
-  };
 }
 
 interface ChatPanelProps {
@@ -59,33 +48,10 @@ export function ChatPanel({
   const { projectDir, setProjectDir } = useProject();
 
   const [sessionId, setSessionId] = useState<string | null>(urlSessionId ?? null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [streaming, setStreaming] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const abortRef = useRef<(() => void) | null>(null);
 
-  // Model selection state
-  const [connectedModels, setConnectedModels] = useState<ConnectedModelsItem[]>([]);
-  const [selectedModel, setSelectedModel] = useState<ModelSelection | null>(null);
-
-  // Track whether we've done the initial load for the URL session
+  const { messages, working } = useChatSession(sessionId);
   const initialLoadDone = useRef(false);
-
-  // Fetch connected models on mount
-  useEffect(() => {
-    api.getConnectedModels().then((models) => {
-      setConnectedModels(models);
-      // Auto-select first model if none selected
-      if (models.length > 0 && models[0].models.length > 0) {
-        setSelectedModel({
-          providerId: models[0].providerId,
-          modelId: models[0].models[0],
-        });
-      }
-    }).catch(() => {
-      // silently fail — will show empty model list
-    });
-  }, []);
 
   // Load session from URL on mount
   useEffect(() => {
@@ -101,92 +67,52 @@ export function ChatPanel({
           navigate("/", { replace: true });
           return;
         }
-
         setSessionId(session.id);
-
-        // Restore model + projectDir + previewUrl
-        if (session.providerId && session.modelId) {
-          setSelectedModel({ providerId: session.providerId, modelId: session.modelId });
-        }
-        if (session.projectDir) {
-          setProjectDir(session.projectDir);
-        }
-        if (session.previewUrl) {
-          onPreviewUrlChange(session.previewUrl);
-        }
+        if (session.projectDir) setProjectDir(session.projectDir);
+        if (session.previewUrl) onPreviewUrlChange(session.previewUrl);
 
         const msgs = await api.getMessages(session.id);
-        setMessages(msgs.map(dbMsgToChatMsg));
+        hydrateSession(
+          session.id,
+          msgs as unknown as Array<{ info: Message; parts: Part[] }>,
+        );
       } catch {
         navigate("/", { replace: true });
       }
     })();
-  }, [urlSessionId, navigate, onPreviewUrlChange]);
+  }, [urlSessionId, navigate, onPreviewUrlChange, setProjectDir]);
 
   const loadSession = useCallback(
     async (session: Session) => {
       setSessionId(session.id);
       navigate(`/session/${session.id}`);
-
-      // Restore model + projectDir + previewUrl from session
-      if (session.providerId && session.modelId) {
-        setSelectedModel({ providerId: session.providerId, modelId: session.modelId });
-      }
-      if (session.projectDir) {
-        setProjectDir(session.projectDir);
-      }
-      if (session.previewUrl) {
-        onPreviewUrlChange(session.previewUrl);
-      }
+      if (session.projectDir) setProjectDir(session.projectDir);
+      if (session.previewUrl) onPreviewUrlChange(session.previewUrl);
 
       try {
         const msgs = await api.getMessages(session.id);
-        setMessages(msgs.map(dbMsgToChatMsg));
+        hydrateSession(
+          session.id,
+          msgs as unknown as Array<{ info: Message; parts: Part[] }>,
+        );
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Failed to load messages");
       }
     },
-    [navigate, onPreviewUrlChange],
+    [navigate, onPreviewUrlChange, setProjectDir],
   );
 
-  const createSession = useCallback(async () => {
-    try {
-      const session = await api.createSession({
-        providerId: selectedModel?.providerId,
-        modelId: selectedModel?.modelId,
-        projectDir: projectDir || undefined,
-        previewUrl,
-      });
-      setSessionId(session.id);
-      setMessages([]);
-      setRefreshKey((k) => k + 1);
-      navigate(`/session/${session.id}`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create session");
-    }
-  }, [selectedModel, projectDir, previewUrl, navigate]);
-
-  const deleteSession = useCallback(() => {
+  const createSession = useCallback(() => {
     setSessionId(null);
-    setMessages([]);
     navigate("/");
   }, [navigate]);
 
-  // Persist model selection to session
-  const handleModelChange = useCallback(
-    (model: ModelSelection | null) => {
-      setSelectedModel(model);
-      if (sessionId && model) {
-        api.updateSession(sessionId, {
-          providerId: model.providerId,
-          modelId: model.modelId,
-        }).catch(() => {});
-      }
-    },
-    [sessionId],
-  );
+  const deleteSession = useCallback(() => {
+    if (sessionId) clearSession(sessionId);
+    setSessionId(null);
+    navigate("/");
+  }, [navigate, sessionId]);
 
-  // Persist previewUrl to session when it changes
   const prevPreviewUrl = useRef(previewUrl);
   useEffect(() => {
     if (previewUrl !== prevPreviewUrl.current) {
@@ -197,21 +123,23 @@ export function ChatPanel({
     }
   }, [previewUrl, sessionId]);
 
-  // Persist projectDir to session when it changes
   const prevProjectDir = useRef(projectDir);
   useEffect(() => {
     if (projectDir !== prevProjectDir.current) {
+      const previous = prevProjectDir.current;
       prevProjectDir.current = projectDir;
-      if (sessionId) {
-        api.updateSession(sessionId, { projectDir }).catch(() => {});
+      if (sessionId && previous && previous !== projectDir) {
+        setSessionId(null);
+        navigate("/");
       }
     }
-  }, [projectDir, sessionId]);
+  }, [projectDir, sessionId, navigate]);
 
   const sendMessage = useCallback(
     async (prompt: string, screenshots?: string[]) => {
-      if (!selectedModel) {
-        toast.error("Please select a model or connect a provider from settings.");
+      const hasKey = await api.providerHasKey(MODEL.providerId).catch(() => false);
+      if (!hasKey) {
+        toast.error("Add your OpenAI API key");
         return;
       }
 
@@ -220,15 +148,15 @@ export function ChatPanel({
       if (!sid) {
         try {
           const session = await api.createSession({
-            providerId: selectedModel.providerId,
-            modelId: selectedModel.modelId,
+            providerId: MODEL.providerId,
+            modelId: MODEL.modelId,
             projectDir: projectDir || undefined,
             previewUrl,
           });
           sid = session.id;
           setSessionId(sid);
+          hydrateSession(sid, []);
           setRefreshKey((k) => k + 1);
-          // Update URL without triggering React Router remount
           window.history.replaceState(null, "", `#/session/${sid}`);
         } catch (err) {
           toast.error(err instanceof Error ? err.message : "Failed to create session");
@@ -236,98 +164,35 @@ export function ChatPanel({
         }
       }
 
-      const userMsg: ChatMessage = { id: nextId(), role: "user", content: prompt, images: screenshots };
-      const assistantId = nextId();
-      const assistantMsg: ChatMessage = {
-        id: assistantId,
-        role: "assistant",
-        content: "",
-        toolCalls: [],
-        isStreaming: true,
-      };
-
-      setMessages((prev) => [...prev, userMsg, assistantMsg]);
-      setStreaming(true);
-
       try {
-        const stream = api.streamChat(
-          sid,
+        const res = await window.electronAPI.chat.prompt({
+          sessionId: sid!,
           prompt,
-          selectedModel.providerId,
-          selectedModel.modelId,
-          projectDir || undefined,
-          screenshots,
-        );
-        abortRef.current = stream.abort;
-
-        for await (const event of stream) {
-          switch (event.type) {
-            case "token":
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantId ? { ...m, content: m.content + event.content } : m,
-                ),
-              );
-              break;
-            case "tool_call":
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantId
-                    ? { ...m, toolCalls: [...(m.toolCalls ?? []), { name: event.name, input: event.input } as ToolCall] }
-                    : m,
-                ),
-              );
-              break;
-            case "tool_result":
-              setMessages((prev) =>
-                prev.map((m) => {
-                  if (m.id !== assistantId) return m;
-                  const calls = [...(m.toolCalls ?? [])];
-                  for (let i = calls.length - 1; i >= 0; i--) {
-                    if (calls[i].name === event.name && calls[i].output === undefined) {
-                      calls[i] = { ...calls[i], output: event.output };
-                      break;
-                    }
-                  }
-                  return { ...m, toolCalls: calls };
-                }),
-              );
-              break;
-            case "done":
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantId ? { ...m, isStreaming: false, id: event.messageId || m.id } : m,
-                ),
-              );
-              break;
-            case "error":
-              toast.error(event.message);
-              setMessages((prev) =>
-                prev.map((m) => (m.id === assistantId ? { ...m, isStreaming: false } : m)),
-              );
-              break;
-          }
+          providerId: MODEL.providerId,
+          modelId: MODEL.modelId,
+          projectDir: projectDir || undefined,
+          images: screenshots,
+        });
+        if (!res.ok && res.error) {
+          toast.error(res.error);
         }
       } catch (err) {
-        if ((err as Error).name !== "AbortError") {
-          toast.error(err instanceof Error ? err.message : "Streaming failed");
-        }
-        setMessages((prev) =>
-          prev.map((m) => (m.id === assistantId ? { ...m, isStreaming: false } : m)),
-        );
+        toast.error(err instanceof Error ? err.message : "Failed to send message");
       } finally {
-        setStreaming(false);
-        abortRef.current = null;
-
-        // Auto-update session title from first message
         if (isFirstMessage && sid) {
           const title = generateSessionTitle(prompt);
           api.updateSession(sid, { title }).catch(() => {});
         }
       }
     },
-    [sessionId, selectedModel, projectDir, previewUrl],
+    [sessionId, projectDir, previewUrl],
   );
+
+  const handleStop = useCallback(() => {
+    if (sessionId) {
+      window.electronAPI.chat.stop(sessionId).catch(() => {});
+    }
+  }, [sessionId]);
 
   const isEmpty = messages.length === 0;
 
@@ -350,13 +215,10 @@ export function ChatPanel({
             />
             <PromptInput
               onSubmit={sendMessage}
-              disabled={streaming}
-              streaming={streaming}
-              onStop={() => abortRef.current?.()}
+              disabled={working}
+              streaming={working}
+              onStop={handleStop}
               variant="landing"
-              connectedModels={connectedModels}
-              selectedModel={selectedModel}
-              onModelChange={handleModelChange}
               fileReferences={fileReferences}
               onAddFileReference={onAddFileReference}
               onRemoveFileReference={onRemoveFileReference}
@@ -365,15 +227,12 @@ export function ChatPanel({
           </div>
         ) : (
           <>
-            <MessageList messages={messages} />
+            <MessageList messages={messages} working={working} />
             <PromptInput
               onSubmit={sendMessage}
-              disabled={streaming}
-              streaming={streaming}
-              onStop={() => abortRef.current?.()}
-              connectedModels={connectedModels}
-              selectedModel={selectedModel}
-              onModelChange={handleModelChange}
+              disabled={working}
+              streaming={working}
+              onStop={handleStop}
               fileReferences={fileReferences}
               onAddFileReference={onAddFileReference}
               onRemoveFileReference={onRemoveFileReference}

@@ -1,6 +1,5 @@
-import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { Menu, Settings, Loader2 } from "lucide-react";
+import { Menu, Loader2, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDrawer } from "../contexts/DrawerContext";
@@ -8,6 +7,7 @@ import { useProject } from "../contexts/ProjectContext";
 import { api } from "../lib/api";
 import { toast } from "sonner";
 import iconSvg from "../assets/icon.svg";
+import { ApiKeyDialog } from "./chat/ApiKeyDialog";
 
 interface CustomAction {
   label: string;
@@ -15,11 +15,11 @@ interface CustomAction {
 }
 
 export function TopBar() {
-  const navigate = useNavigate();
   const { toggle } = useDrawer();
   const { projectDir } = useProject();
   const [actions, setActions] = useState<CustomAction[]>([]);
   const [runningAction, setRunningAction] = useState<string | null>(null);
+  const [apiKeyOpen, setApiKeyOpen] = useState(false);
 
   // Load actions whenever projectDir changes
   useEffect(() => {
@@ -106,14 +106,15 @@ export function TopBar() {
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              onClick={() => navigate("/settings")}
+              onClick={() => setApiKeyOpen(true)}
             >
-              <Settings className="h-4 w-4" />
+              <KeyRound className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Settings</TooltipContent>
+          <TooltipContent>Set OpenAI API key</TooltipContent>
         </Tooltip>
       </div>
+      <ApiKeyDialog open={apiKeyOpen} onOpenChange={setApiKeyOpen} />
     </header>
   );
 }

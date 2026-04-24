@@ -1,11 +1,9 @@
 import { useState, useRef, useCallback, type KeyboardEvent, type FormEvent, type ClipboardEvent, type ChangeEvent, type DragEvent } from "react";
-import { Send, Square, X, Folder, Cpu, ImagePlus, FileCode } from "lucide-react";
+import { Send, Square, X, Folder, ImagePlus, FileCode } from "lucide-react";
 import { useElementSelection } from "../../contexts/ElementSelectionContext";
 import { useProject } from "../../contexts/ProjectContext";
-import type { ConnectedModelsItem } from "../../lib/api";
 import type { FileReference } from "../../lib/types";
 import { FolderPickerDialog } from "./FolderPickerDialog";
-import { ModelPickerDialog } from "./ModelPickerDialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,20 +31,12 @@ async function fetchImageAsDataUrl(url: string): Promise<string | null> {
   }
 }
 
-export interface ModelSelection {
-  providerId: string;
-  modelId: string;
-}
-
 interface PromptInputProps {
   onSubmit: (prompt: string, screenshots?: string[]) => void;
   disabled?: boolean;
   streaming?: boolean;
   onStop?: () => void;
   variant?: "default" | "landing";
-  connectedModels?: ConnectedModelsItem[];
-  selectedModel?: ModelSelection | null;
-  onModelChange?: (selection: ModelSelection) => void;
   fileReferences?: FileReference[];
   onAddFileReference?: (ref: FileReference) => void;
   onRemoveFileReference?: (index: number) => void;
@@ -59,9 +49,6 @@ export function PromptInput({
   streaming,
   onStop,
   variant = "default",
-  connectedModels = [],
-  selectedModel,
-  onModelChange,
   fileReferences = [],
   onAddFileReference,
   onRemoveFileReference,
@@ -70,7 +57,6 @@ export function PromptInput({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [folderPickerOpen, setFolderPickerOpen] = useState(false);
-  const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const { projectDir, setProjectDir } = useProject();
   const {
@@ -261,7 +247,6 @@ export function PromptInput({
   );
 
   const isLanding = variant === "landing";
-  const hasModels = connectedModels.length > 0;
 
   return (
     <form
@@ -368,24 +353,6 @@ export function PromptInput({
       )}
 
       <div className="flex items-center gap-2">
-        {/* File picker button */}
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          className="p-1.5 rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0"
-          title="Upload image"
-        >
-          <ImagePlus className="h-4 w-4" />
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          className="hidden"
-          onChange={handleFileSelect}
-        />
-
         <Textarea
           ref={textareaRef}
           className={cn(
@@ -421,18 +388,22 @@ export function PromptInput({
         )}
       </div>
       <div className="flex items-center gap-2">
-        {hasModels && (
-          <button
-            type="button"
-            onClick={() => setModelPickerOpen(true)}
-            className="flex items-center gap-1.5 h-7 px-2 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-md border border-border hover:bg-accent"
-          >
-            <Cpu className="h-3 w-3 shrink-0" />
-            <span className="truncate max-w-[200px]">
-              {selectedModel?.modelId || "Select model"}
-            </span>
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className="flex items-center justify-center h-7 w-7 text-muted-foreground hover:text-foreground transition-colors rounded-md border border-border hover:bg-accent shrink-0"
+          title="Upload image"
+        >
+          <ImagePlus className="h-3 w-3" />
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={handleFileSelect}
+        />
         <button
           type="button"
           onClick={() => setFolderPickerOpen(true)}
@@ -444,13 +415,6 @@ export function PromptInput({
           </span>
         </button>
       </div>
-      <ModelPickerDialog
-        open={modelPickerOpen}
-        onOpenChange={setModelPickerOpen}
-        onSelect={(sel) => onModelChange?.(sel)}
-        connectedModels={connectedModels}
-        selectedModel={selectedModel}
-      />
       <FolderPickerDialog
         open={folderPickerOpen}
         onOpenChange={setFolderPickerOpen}

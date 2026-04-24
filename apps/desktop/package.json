@@ -1,9 +1,11 @@
 {
   "name": "@coodeen/desktop",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "private": true,
   "main": "out/main/index.js",
   "scripts": {
+    "fetch-opencode": "node ../../scripts/fetch-opencode.js",
+    "prebuild": "node ../../scripts/fetch-opencode.js",
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "build:prod": "electron-vite build && node ../../scripts/copy-modules.js && electron-builder",
@@ -11,21 +13,15 @@
     "rebuild-native": "node ../../scripts/rebuild-native.js"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.47",
-    "@ai-sdk/google": "^3.0.31",
-    "@ai-sdk/openai": "^3.0.33",
-    "@ai-sdk/openai-compatible": "^2.0.30",
     "@lydell/node-pty": "^1.1.0",
+    "@opencode-ai/sdk": "^1.3.7",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "^4.2.1",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/addon-web-links": "^0.12.0",
     "@xterm/xterm": "^6.0.0",
-    "ai": "^6.0.99",
-    "better-sqlite3": "^11.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "drizzle-orm": "^0.44.0",
     "fast-glob": "^3.3.3",
     "lucide-react": "^0.575.0",
     "next-themes": "^0.4.6",
@@ -45,7 +41,6 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.0",
     "@types/prismjs": "^1.26.6",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

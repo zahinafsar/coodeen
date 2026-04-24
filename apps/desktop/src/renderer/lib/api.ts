@@ -1,41 +1,11 @@
-import type { Session, Message, SSEEvent, SkillInfo } from "./types";
+import type { Session } from "./types";
 
 const electron = window.electronAPI;
-
-export interface Provider {
-  id: string;
-  apiKey: string;
-  modelId: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface ModelsResponse {
-  provider: string;
-  models: string[];
-}
 
 export interface ConnectedModelsItem {
   providerId: string;
   label: string;
   models: string[];
-  free?: boolean;
-}
-
-export interface FreeModel {
-  id: string;
-  name: string;
-  input: string[];
-}
-
-export interface ModelsConfig {
-  providers: Record<string, { label: string; models: { id: string; input: string[] }[] }>;
-  free: {
-    provider: string;
-    label: string;
-    baseURL: string;
-    models: FreeModel[];
-  };
 }
 
 export interface DirListResponse {
@@ -72,21 +42,15 @@ export const api = {
 
   // ── Providers ──────────────────────────────────────────
 
-  getProviders: () => electron.providers.list(),
-
-  getModels: (providerName: string) =>
-    electron.providers.models(providerName),
-
   getConnectedModels: () => electron.providers.connectedModels(),
 
-  getFreeModels: () => electron.providers.freeModels(),
+  providerHasKey: (id: string) => electron.providers.hasKey(id),
 
-  getModelsConfig: () => electron.providers.config(),
+  setProviderApiKey: (id: string, apiKey: string) =>
+    electron.providers.setApiKey(id, apiKey),
 
-  saveProvider: (id: string, data: { apiKey: string }) =>
-    electron.providers.upsert(id, data),
-
-  deleteProvider: (id: string) => electron.providers.delete(id),
+  deleteProviderApiKey: (id: string) =>
+    electron.providers.deleteApiKey(id),
 
   // ── Sessions ──────────────────────────────────────────────
 
@@ -122,116 +86,6 @@ export const api = {
 
   getMessages: (sessionId: string) =>
     electron.sessions.getMessages(sessionId),
-
-  // ── Streaming Chat ────────────────────────────────────────
-
-  streamChat: (
-    sessionId: string,
-    prompt: string,
-    providerId: string,
-    modelId: string,
-    projectDir?: string,
-    images?: string[],
-    _signal?: AbortSignal,
-  ) => {
-    // Start the stream in main process
-    electron.chat.stream({
-      sessionId,
-      prompt,
-      providerId,
-      modelId,
-      projectDir,
-      images,
-    });
-
-    // Set up event listener for streaming events
-    let eventQueue: SSEEvent[] = [];
-    let resolve: ((value: IteratorResult<SSEEvent>) => void) | null = null;
-    let done = false;
-
-    const cleanup = electron.chat.onEvent((data) => {
-      if (data.sessionId !== sessionId) return;
-
-      const event = data.event as SSEEvent;
-
-      if (event.type === "done" || event.type === "error") {
-        if (resolve) {
-          resolve({ value: event, done: false });
-          resolve = null;
-        } else {
-          eventQueue.push(event);
-        }
-        // Mark as done after delivering the final event
-        setTimeout(() => {
-          done = true;
-          if (resolve) {
-            resolve({ value: undefined as unknown as SSEEvent, done: true });
-            resolve = null;
-          }
-        }, 0);
-        return;
-      }
-
-      if (resolve) {
-        resolve({ value: event, done: false });
-        resolve = null;
-      } else {
-        eventQueue.push(event);
-      }
-    });
-
-    const iterator: AsyncIterableIterator<SSEEvent> = {
-      next() {
-        if (eventQueue.length > 0) {
-          return Promise.resolve({
-            value: eventQueue.shift()!,
-            done: false,
-          });
-        }
-        if (done) {
-          cleanup();
-          return Promise.resolve({
-            value: undefined as unknown as SSEEvent,
-            done: true,
-          });
-        }
-        return new Promise<IteratorResult<SSEEvent>>((r) => {
-          resolve = r;
-        });
-      },
-      [Symbol.asyncIterator]() {
-        return this;
-      },
-    };
-
-    return {
-      [Symbol.asyncIterator]: () => iterator,
-      abort: () => {
-        electron.chat.stop(sessionId);
-        done = true;
-        cleanup();
-        if (resolve) {
-          resolve({
-            value: undefined as unknown as SSEEvent,
-            done: true,
-          });
-          resolve = null;
-        }
-      },
-    };
-  },
-
-  // ── Skills ──────────────────────────────────────────────
-
-  getSkills: () => electron.skills.list(),
-
-  createSkill: (name: string, description: string, content: string) =>
-    electron.skills.create(name, description, content),
-
-  createSkillRaw: (slug: string, raw: string) =>
-    electron.skills.createRaw(slug, raw),
-
-  deleteSkill: (name: string) => electron.skills.delete(name),
 
   // ── Git ────────────────────────────────────────────
 

@@ -31,32 +31,41 @@ const electronAPI = {
 
   // ── Chat ──────────────────────────────────────────────
   chat: {
-    stream: (params: {
+    prompt: (params: {
       sessionId: string;
       prompt: string;
       providerId: string;
       modelId: string;
       projectDir?: string;
       images?: string[];
-    }) => ipcRenderer.invoke("chat:stream", params),
+    }) => ipcRenderer.invoke("chat:prompt", params),
     stop: (sessionId: string) =>
       ipcRenderer.invoke("chat:stop", sessionId),
+  },
+
+  // ── Opencode raw event stream ─────────────────────────
+  opencode: {
     onEvent: (
-      callback: (data: {
-        sessionId: string;
-        event: {
-          type: string;
-          [key: string]: unknown;
-        };
-      }) => void,
+      callback: (evt: { type: string; properties?: unknown }) => void,
     ) => {
       const handler = (_e: Electron.IpcRendererEvent, data: unknown) =>
         callback(data as Parameters<typeof callback>[0]);
-      ipcRenderer.on("chat:event", handler);
+      ipcRenderer.on("opencode:event", handler);
       return () => {
-        ipcRenderer.removeListener("chat:event", handler);
+        ipcRenderer.removeListener("opencode:event", handler);
       };
     },
+    onStatus: (
+      callback: (status: { connected: boolean }) => void,
+    ) => {
+      const handler = (_e: Electron.IpcRendererEvent, data: unknown) =>
+        callback(data as { connected: boolean });
+      ipcRenderer.on("opencode:status", handler);
+      return () => {
+        ipcRenderer.removeListener("opencode:status", handler);
+      };
+    },
+    reconnect: () => ipcRenderer.invoke("opencode:reconnect"),
   },
 
   // ── Filesystem ────────────────────────────────────────
@@ -143,17 +152,13 @@ const electronAPI = {
 
   // ── Providers ─────────────────────────────────────────
   providers: {
-    list: () => ipcRenderer.invoke("providers:list"),
-    models: (providerName: string) =>
-      ipcRenderer.invoke("providers:models", providerName),
     connectedModels: () =>
       ipcRenderer.invoke("providers:connectedModels"),
-    freeModels: () => ipcRenderer.invoke("providers:freeModels"),
-    config: () => ipcRenderer.invoke("providers:config"),
-    upsert: (id: string, data: { apiKey: string }) =>
-      ipcRenderer.invoke("providers:upsert", id, data),
-    delete: (id: string) =>
-      ipcRenderer.invoke("providers:delete", id),
+    hasKey: (id: string) => ipcRenderer.invoke("providers:hasKey", id),
+    setApiKey: (id: string, apiKey: string) =>
+      ipcRenderer.invoke("providers:setApiKey", id, apiKey),
+    deleteApiKey: (id: string) =>
+      ipcRenderer.invoke("providers:deleteApiKey", id),
   },
 
   // ── Config ────────────────────────────────────────────
@@ -197,16 +202,6 @@ const electronAPI = {
       ipcRenderer.send(`preview:action-result:${requestId}`, result),
   },
 
-  // ── Skills ────────────────────────────────────────────
-  skills: {
-    list: () => ipcRenderer.invoke("skills:list"),
-    create: (name: string, description: string, content: string) =>
-      ipcRenderer.invoke("skills:create", name, description, content),
-    createRaw: (slug: string, raw: string) =>
-      ipcRenderer.invoke("skills:createRaw", slug, raw),
-    delete: (name: string) =>
-      ipcRenderer.invoke("skills:delete", name),
-  },
 };
 
 contextBridge.exposeInMainWorld("electronAPI", electronAPI);

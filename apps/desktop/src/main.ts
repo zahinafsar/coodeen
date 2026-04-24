@@ -1,6 +1,5 @@
 import { app, BrowserWindow } from "electron";
 import { join } from "path";
-import { getDb } from "./db/client.js";
 import { registerSessionHandlers } from "./handlers/sessions.js";
 import { registerChatHandlers } from "./handlers/chat.js";
 import { registerFsHandlers } from "./handlers/fs.js";
@@ -10,7 +9,7 @@ import { registerProviderHandlers } from "./handlers/providers.js";
 import { registerConfigHandlers } from "./handlers/config.js";
 import { registerActionHandlers } from "./handlers/actions.js";
 import { ipcMain } from "electron";
-import { registerSkillHandlers } from "./handlers/skills.js";
+import { startOpencodeSidecar, stopOpencodeSidecar } from "./handlers/opencode.js";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -48,18 +47,21 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(() => {
-  getDb();
+app.whenReady().then(async () => {
+  try {
+    await startOpencodeSidecar();
+  } catch (err) {
+    console.error("[main] failed to start opencode sidecar:", err);
+  }
 
   registerSessionHandlers();
-  registerChatHandlers(getWindow);
+  registerChatHandlers();
   registerFsHandlers();
   registerGitHandlers();
   registerPtyHandlers(getWindow);
   registerProviderHandlers();
   registerConfigHandlers();
   registerActionHandlers();
-  registerSkillHandlers();
 
   ipcMain.handle(
     "capture:area",
@@ -88,4 +90,8 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
   }
+});
+
+app.on("before-quit", () => {
+  stopOpencodeSidecar();
 });
