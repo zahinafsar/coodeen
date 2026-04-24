@@ -7,8 +7,6 @@ import { createGrepTool } from "../tools/grep.js";
 import { createLsTool } from "../tools/ls.js";
 import { createWebFetchTool } from "../tools/webfetch.js";
 import { createImageFetchTool } from "../tools/imagefetch.js";
-import { createPlanWriteTool, createPlanExitTool } from "../tools/plan.js";
-import { createQuestionTool } from "../tools/question.js";
 import { createSkillTool } from "../tools/skill.js";
 import { createBashTool } from "../tools/bash.js";
 import { createTodoWriteTool, createTodoReadTool } from "../tools/todo.js";
@@ -20,13 +18,12 @@ import type { BrowserWindow } from "electron";
 
 export function createTools(
   projectDir: string,
-  mode: "agent" | "plan" = "agent",
-  planPath?: string,
   supportsVision = true,
   sessionId = "default",
   getWindow?: () => BrowserWindow | null,
 ) {
-  const base = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const agentTools: Record<string, any> = {
     read: createReadTool(projectDir),
     glob: createGlobTool(projectDir),
     grep: createGrepTool(projectDir),
@@ -36,20 +33,6 @@ export function createTools(
     imagefetch: createImageFetchTool(supportsVision),
     skill: createSkillTool(),
     browser: createBrowserTool(getWindow ?? (() => null), supportsVision),
-  };
-
-  if (mode === "plan" && planPath) {
-    return {
-      ...base,
-      question: createQuestionTool(),
-      plan_write: createPlanWriteTool(planPath),
-      plan_exit: createPlanExitTool(planPath),
-    };
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const agentTools: Record<string, any> = {
-    ...base,
     write: createWriteTool(projectDir),
     edit: createEditTool(projectDir),
     multiedit: createMultiEditTool(projectDir),

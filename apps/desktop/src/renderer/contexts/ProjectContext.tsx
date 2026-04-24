@@ -3,8 +3,6 @@ import { createContext, useContext, useState, useCallback, ReactNode } from "rea
 interface ProjectContextType {
   projectDir: string;
   setProjectDir: (dir: string) => void;
-  aiMode: string;
-  setAiMode: (mode: string) => void;
   modelId: string;
   setModelId: (id: string) => void;
   providerId: string;
@@ -15,16 +13,11 @@ const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
   const [projectDir, setProjectDir] = useState("");
-  const [aiMode, setAiMode] = useState("agent");
   const [modelId, setModelId] = useState("");
   const [providerId, setProviderId] = useState("");
 
   const handleSetProjectDir = useCallback((dir: string) => {
     setProjectDir(dir);
-  }, []);
-
-  const handleSetAiMode = useCallback((mode: string) => {
-    setAiMode(mode);
   }, []);
 
   const handleSetModelId = useCallback((id: string) => {
@@ -40,8 +33,6 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       value={{
         projectDir,
         setProjectDir: handleSetProjectDir,
-        aiMode,
-        setAiMode: handleSetAiMode,
         modelId,
         setModelId: handleSetModelId,
         providerId,

@@ -38,7 +38,6 @@ const electronAPI = {
       modelId: string;
       projectDir?: string;
       images?: string[];
-      mode?: string;
     }) => ipcRenderer.invoke("chat:stream", params),
     stop: (sessionId: string) =>
       ipcRenderer.invoke("chat:stop", sessionId),

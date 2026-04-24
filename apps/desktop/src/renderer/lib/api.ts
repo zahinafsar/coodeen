@@ -132,7 +132,6 @@ export const api = {
     modelId: string,
     projectDir?: string,
     images?: string[],
-    mode?: string,
     _signal?: AbortSignal,
   ) => {
     // Start the stream in main process
@@ -143,7 +142,6 @@ export const api = {
       modelId,
       projectDir,
       images,
-      mode,
     });
 
     // Set up event listener for streaming events

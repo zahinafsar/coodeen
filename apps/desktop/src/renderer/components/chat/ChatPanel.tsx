@@ -1,14 +1,13 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import type { ChatMessage, Message, Session, ToolCall, Mode, QuestionInfo, FileReference } from "../../lib/types";
+import type { ChatMessage, Message, Session, ToolCall, FileReference } from "../../lib/types";
 import { api } from "../../lib/api";
 import type { ConnectedModelsItem } from "../../lib/api";
 import { useProject } from "../../contexts/ProjectContext";
 import { MessageList } from "./MessageList";
 import { PromptInput, type ModelSelection } from "./PromptInput";
 import { SessionDrawer } from "./SessionDrawer";
-import { QuestionModal } from "./QuestionModal";
 import logoSvg from "../../assets/logo.svg";
 
 let _msgId = 0;
@@ -57,7 +56,7 @@ export function ChatPanel({
 }: ChatPanelProps) {
   const { sessionId: urlSessionId } = useParams<{ sessionId?: string }>();
   const navigate = useNavigate();
-  const { aiMode, setAiMode, projectDir, setProjectDir } = useProject();
+  const { projectDir, setProjectDir } = useProject();
 
   const [sessionId, setSessionId] = useState<string | null>(urlSessionId ?? null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -68,12 +67,6 @@ export function ChatPanel({
   // Model selection state
   const [connectedModels, setConnectedModels] = useState<ConnectedModelsItem[]>([]);
   const [selectedModel, setSelectedModel] = useState<ModelSelection | null>(null);
-
-  // Pending question state (for plan mode question tool)
-  const [pendingQuestion, setPendingQuestion] = useState<{
-    questionId: string;
-    questions: QuestionInfo[];
-  } | null>(null);
 
   // Track whether we've done the initial load for the URL session
   const initialLoadDone = useRef(false);
@@ -256,8 +249,6 @@ export function ChatPanel({
       setMessages((prev) => [...prev, userMsg, assistantMsg]);
       setStreaming(true);
 
-      let pendingModeSwitch = false;
-
       try {
         const stream = api.streamChat(
           sid,
@@ -266,7 +257,6 @@ export function ChatPanel({
           selectedModel.modelId,
           projectDir || undefined,
           screenshots,
-          aiMode,
         );
         abortRef.current = stream.abort;
 
@@ -287,18 +277,6 @@ export function ChatPanel({
                     : m,
                 ),
               );
-              // Show question modal when the question tool is called.
-              // The toolCallId is used as questionId — the same ID is available
-              // in the tool's execute() via SDK options, so no side-channel needed.
-              if (event.name === "question" && event.toolCallId) {
-                const input = event.input as { questions?: QuestionInfo[] };
-                if (input.questions) {
-                  setPendingQuestion({
-                    questionId: event.toolCallId,
-                    questions: input.questions,
-                  });
-                }
-              }
               break;
             case "tool_result":
               setMessages((prev) =>
@@ -314,11 +292,6 @@ export function ChatPanel({
                   return { ...m, toolCalls: calls };
                 }),
               );
-              break;
-            case "mode_switch":
-              // Auto-switch mode and flag for auto-execution after stream ends
-              setAiMode(event.mode as Mode);
-              pendingModeSwitch = true;
               break;
             case "done":
               setMessages((prev) =>
@@ -352,127 +325,14 @@ export function ChatPanel({
           api.updateSession(sid, { title }).catch(() => {});
         }
       }
-
-      // After plan_exit, auto-send a follow-up in agent mode to execute the plan
-      if (pendingModeSwitch && sid) {
-        // Small delay so UI updates before the next stream starts
-        await new Promise((r) => setTimeout(r, 100));
-        // Re-invoke sendMessage in agent mode — mode state is already "agent"
-        const execPrompt = "Execute the plan that was just created. Follow it step by step.";
-        const execUserMsg: ChatMessage = { id: nextId(), role: "user", content: execPrompt };
-        const execAssistantId = nextId();
-        const execAssistantMsg: ChatMessage = {
-          id: execAssistantId,
-          role: "assistant",
-          content: "",
-          toolCalls: [],
-          isStreaming: true,
-        };
-        setMessages((prev) => [...prev, execUserMsg, execAssistantMsg]);
-        setStreaming(true);
-
-        try {
-          const execStream = api.streamChat(
-            sid,
-            execPrompt,
-            selectedModel.providerId,
-            selectedModel.modelId,
-            projectDir || undefined,
-            undefined,
-            "agent",
-          );
-          abortRef.current = execStream.abort;
-
-          for await (const event of execStream) {
-            switch (event.type) {
-              case "token":
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === execAssistantId ? { ...m, content: m.content + event.content } : m,
-                  ),
-                );
-                break;
-              case "tool_call":
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === execAssistantId
-                      ? { ...m, toolCalls: [...(m.toolCalls ?? []), { name: event.name, input: event.input } as ToolCall] }
-                      : m,
-                  ),
-                );
-                break;
-              case "tool_result":
-                setMessages((prev) =>
-                  prev.map((m) => {
-                    if (m.id !== execAssistantId) return m;
-                    const calls = [...(m.toolCalls ?? [])];
-                    for (let i = calls.length - 1; i >= 0; i--) {
-                      if (calls[i].name === event.name && calls[i].output === undefined) {
-                        calls[i] = { ...calls[i], output: event.output };
-                        break;
-                      }
-                    }
-                    return { ...m, toolCalls: calls };
-                  }),
-                );
-                break;
-              case "done":
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === execAssistantId ? { ...m, isStreaming: false, id: event.messageId || m.id } : m,
-                  ),
-                );
-                break;
-              case "error":
-                toast.error(event.message);
-                setMessages((prev) =>
-                  prev.map((m) => (m.id === execAssistantId ? { ...m, isStreaming: false } : m)),
-                );
-                break;
-            }
-          }
-        } catch (err) {
-          if ((err as Error).name !== "AbortError") {
-            toast.error(err instanceof Error ? err.message : "Streaming failed");
-          }
-          setMessages((prev) =>
-            prev.map((m) => (m.id === execAssistantId ? { ...m, isStreaming: false } : m)),
-          );
-        } finally {
-          setStreaming(false);
-          abortRef.current = null;
-        }
-      }
     },
-    [sessionId, selectedModel, projectDir, previewUrl, aiMode],
+    [sessionId, selectedModel, projectDir, previewUrl],
   );
 
   const isEmpty = messages.length === 0;
 
-  const handleQuestionSubmit = useCallback(
-    async (answers: Array<{ question: string; answer: string | string[] }>) => {
-      if (!pendingQuestion) return;
-      setPendingQuestion(null);
-      // Format answers and send as a new user message
-      const formatted = answers
-        .map((a) => {
-          const val = Array.isArray(a.answer) ? a.answer.join(", ") : a.answer;
-          return `${a.question}: ${val}`;
-        })
-        .join("\n");
-      sendMessage(`Answers:\n${formatted}`);
-    },
-    [pendingQuestion, sendMessage],
-  );
-
   return (
     <>
-      <QuestionModal
-        open={pendingQuestion !== null}
-        questions={pendingQuestion?.questions ?? []}
-        onSubmit={handleQuestionSubmit}
-        onClose={() => setPendingQuestion(null)}
-      />
       <SessionDrawer
         currentSessionId={sessionId}
         onSelectSession={loadSession}

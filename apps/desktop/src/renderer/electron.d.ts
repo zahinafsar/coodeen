@@ -30,7 +30,6 @@ interface ElectronAPI {
       modelId: string;
       projectDir?: string;
       images?: string[];
-      mode?: string;
     }) => Promise<void>;
     stop: (sessionId: string) => Promise<{ ok: boolean }>;
     onEvent: (

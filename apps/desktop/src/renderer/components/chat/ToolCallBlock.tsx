@@ -15,15 +15,14 @@ import {
   Globe,
   Code,
   Link,
-  ClipboardList,
-  LogOut,
   Image,
+  ListChecks,
+  Circle,
+  CircleDot,
+  CheckCircle2,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import ReactMarkdown from "react-markdown";
-import rehypeHighlight from "rehype-highlight";
-import remarkGfm from "remark-gfm";
 
 // ── Tool metadata ────────────────────────────────────────
 
@@ -33,19 +32,36 @@ type ToolMeta = {
   color: string;
 };
 
+const ICON_COLOR = "text-muted-foreground";
+
 const TOOL_META: Record<string, ToolMeta> = {
-  read: { icon: FileText, label: "Read", color: "text-blue-400" },
-  glob: { icon: Search, label: "Glob", color: "text-violet-400" },
-  grep: { icon: Search, label: "Grep", color: "text-violet-400" },
-  edit: { icon: Pencil, label: "Edit", color: "text-amber-400" },
-  write: { icon: FilePlus, label: "Write", color: "text-emerald-400" },
-  webfetch: { icon: Link, label: "Fetch URL", color: "text-teal-400" },
-  websearch: { icon: Globe, label: "Web Search", color: "text-cyan-400" },
-  codesearch: { icon: Code, label: "Code Search", color: "text-orange-400" },
-  imagefetch: { icon: Image, label: "Fetch Image", color: "text-pink-400" },
-  plan_write: { icon: ClipboardList, label: "Write Plan", color: "text-indigo-400" },
-  plan_exit: { icon: LogOut, label: "Exit Plan Mode", color: "text-rose-400" },
+  read: { icon: FileText, label: "Read", color: ICON_COLOR },
+  glob: { icon: Search, label: "Glob", color: ICON_COLOR },
+  grep: { icon: Search, label: "Grep", color: ICON_COLOR },
+  edit: { icon: Pencil, label: "Edit", color: ICON_COLOR },
+  write: { icon: FilePlus, label: "Write", color: ICON_COLOR },
+  webfetch: { icon: Link, label: "Fetch URL", color: ICON_COLOR },
+  websearch: { icon: Globe, label: "Web Search", color: ICON_COLOR },
+  codesearch: { icon: Code, label: "Code Search", color: ICON_COLOR },
+  imagefetch: { icon: Image, label: "Fetch Image", color: ICON_COLOR },
+  todo_write: { icon: ListChecks, label: "Plan", color: ICON_COLOR },
+  todo_read: { icon: ListChecks, label: "Plan", color: ICON_COLOR },
 };
+
+type TodoItem = { content: string; status: "pending" | "in_progress" | "completed" };
+
+function extractTodos(tc: ToolCall): TodoItem[] | null {
+  if (tc.name !== "todo_write") return null;
+  const input = tc.input as { todos?: unknown };
+  if (!input || !Array.isArray(input.todos)) return null;
+  return input.todos.filter(
+    (t): t is TodoItem =>
+      !!t &&
+      typeof t === "object" &&
+      typeof (t as TodoItem).content === "string" &&
+      ["pending", "in_progress", "completed"].includes((t as TodoItem).status),
+  );
+}
 
 const DEFAULT_META: ToolMeta = {
   icon: Terminal,
@@ -88,10 +104,6 @@ function getSubtitle(tc: ToolCall): string {
       return String(input.query ?? "");
     case "imagefetch":
       return String(input.url ?? "");
-    case "plan_write":
-      return "Updating plan...";
-    case "plan_exit":
-      return "Switching to agent mode";
     default:
       return "";
   }
@@ -149,6 +161,53 @@ export function ToolCallBlock({ toolCall }: ToolCallBlockProps) {
   const tags = getTags(toolCall);
   const outputSummary = getOutputSummary(toolCall);
 
+  const todos = extractTodos(toolCall);
+  if (todos && todos.length > 0) {
+    const done = todos.filter((t) => t.status === "completed").length;
+    return (
+      <div>
+        <div className="flex items-center gap-2 py-1.5 text-xs">
+          <ListChecks className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+          <span className="font-medium text-foreground">Plan</span>
+          <span className="ml-auto text-muted-foreground">
+            {done} / {todos.length} done
+          </span>
+        </div>
+        <ul className="space-y-1.5 pb-1">
+          {todos.map((t, i) => {
+            const StatusIcon =
+              t.status === "completed"
+                ? CheckCircle2
+                : t.status === "in_progress"
+                  ? CircleDot
+                  : Circle;
+            const iconClass =
+              t.status === "completed"
+                ? "text-emerald-400"
+                : t.status === "in_progress"
+                  ? "text-amber-400"
+                  : "text-muted-foreground/50";
+            return (
+              <li key={i} className="flex items-start gap-2 text-xs">
+                <StatusIcon className={cn("w-3.5 h-3.5 mt-0.5 shrink-0", iconClass)} />
+                <span
+                  className={cn(
+                    "leading-relaxed",
+                    t.status === "completed" && "line-through text-muted-foreground",
+                    t.status === "in_progress" && "text-foreground font-medium",
+                    t.status === "pending" && "text-foreground/70",
+                  )}
+                >
+                  {t.content}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    );
+  }
+
   const outputStr =
     toolCall.output === undefined
       ? ""
@@ -165,19 +224,10 @@ export function ToolCallBlock({ toolCall }: ToolCallBlockProps) {
       ? `data:${imageOutput.mime};base64,${imageOutput.base64}`
       : null;
 
-  // Extract plan markdown content from plan_write input
-  const planContent =
-    toolCall.name === "plan_write"
-      ? String((getInput(toolCall) as { content?: string }).content ?? "")
-      : "";
-
-  const hasExpandableContent =
-    toolCall.name === "plan_write"
-      ? planContent.length > 0
-      : hasOutput && outputStr.length > 0;
+  const hasExpandableContent = hasOutput && outputStr.length > 0;
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="mb-1.5">
+    <Collapsible open={open} onOpenChange={setOpen}>
       <CollapsibleTrigger
         className={cn(
           "flex items-center gap-2 w-full py-1.5 rounded-md text-xs transition-colors text-left group",
@@ -237,18 +287,7 @@ export function ToolCallBlock({ toolCall }: ToolCallBlockProps) {
 
       {hasExpandableContent && (
         <CollapsibleContent>
-          {toolCall.name === "plan_write" && planContent ? (
-            <div className="mx-2 mb-1.5 bg-muted/50 rounded-md p-3 max-h-[400px] overflow-y-auto">
-              <div className="prose prose-invert prose-sm max-w-none prose-pre:bg-black/40 prose-pre:border prose-pre:border-border prose-pre:rounded-md prose-code:bg-black/30 prose-code:rounded prose-code:px-1.5 prose-code:py-0.5 prose-code:text-xs prose-code:before:content-none prose-code:after:content-none prose-a:text-blue-400 prose-headings:text-foreground/90">
-                <ReactMarkdown
-                  rehypePlugins={[rehypeHighlight]}
-                  remarkPlugins={[remarkGfm]}
-                >
-                  {planContent}
-                </ReactMarkdown>
-              </div>
-            </div>
-          ) : imageDataUrl ? (
+          {imageDataUrl ? (
             <div className="mx-2 mb-1.5">
               <img
                 src={imageDataUrl}

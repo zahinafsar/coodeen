@@ -3,18 +3,12 @@ import { Send, Square, X, Folder, Cpu, ImagePlus, FileCode } from "lucide-react"
 import { useElementSelection } from "../../contexts/ElementSelectionContext";
 import { useProject } from "../../contexts/ProjectContext";
 import type { ConnectedModelsItem } from "../../lib/api";
-import type { Mode, FileReference } from "../../lib/types";
+import type { FileReference } from "../../lib/types";
 import { FolderPickerDialog } from "./FolderPickerDialog";
 import { ModelPickerDialog } from "./ModelPickerDialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 /** Match any http(s) URL in text */
@@ -78,7 +72,7 @@ export function PromptInput({
   const [folderPickerOpen, setFolderPickerOpen] = useState(false);
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
-  const { aiMode, setAiMode, projectDir, setProjectDir } = useProject();
+  const { projectDir, setProjectDir } = useProject();
   const {
     selections,
     removeSelection,
@@ -427,24 +421,6 @@ export function PromptInput({
         )}
       </div>
       <div className="flex items-center gap-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="flex items-center gap-1.5 h-7 px-2 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-md border border-border hover:bg-accent"
-            >
-              {aiMode === "agent" ? "Agent" : "Plan"}
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuItem onClick={() => setAiMode("agent")}>
-              Agent
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setAiMode("plan")}>
-              Plan
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
         {hasModels && (
           <button
             type="button"

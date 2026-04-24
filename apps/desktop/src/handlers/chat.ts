@@ -3,7 +3,6 @@ import { streamText, stepCountIs } from "ai";
 import { messageDb } from "../db/messages.js";
 import { resolveProvider, isResolveError } from "./ai-providers.js";
 import { createTools } from "./ai-tools.js";
-import { getPlanPath, readPlan } from "./ai-plan.js";
 import { modelSupportsImage } from "./ai-models.js";
 import { discoverSkills } from "./skills-scanner.js";
 import { homedir } from "os";
@@ -12,7 +11,6 @@ export type AgentEvent =
   | { type: "token"; content: string }
   | { type: "tool_call"; name: string; input: unknown; toolCallId: string }
   | { type: "tool_result"; name: string; output: unknown }
-  | { type: "mode_switch"; mode: string; planPath: string; planContent: string }
   | { type: "done"; messageId: string }
   | { type: "error"; message: string };
 
@@ -31,7 +29,6 @@ export function registerChatHandlers(getWindow: () => BrowserWindow | null) {
         modelId: string;
         projectDir?: string;
         images?: string[];
-        mode?: string;
       },
     ) => {
       const {
@@ -42,7 +39,6 @@ export function registerChatHandlers(getWindow: () => BrowserWindow | null) {
         images,
       } = params;
       const projectDir = params.projectDir || process.cwd();
-      const mode = params.mode === "plan" ? ("plan" as const) : ("agent" as const);
 
       const controller = new AbortController();
       activeStreams.set(sessionId, controller);
@@ -104,26 +100,17 @@ export function registerChatHandlers(getWindow: () => BrowserWindow | null) {
 
         // System prompt
         const home = homedir();
-        const planPath = getPlanPath(projectDir, sessionId);
-
-        let systemPrompt: string;
-        if (mode === "plan") {
-          systemPrompt = buildPlanSystemPrompt(modelId, home, projectDir);
-        } else {
-          const existingPlan = await readPlan(planPath);
-          const skills = await discoverSkills();
-          systemPrompt = buildAgentSystemPrompt(
-            modelId,
-            home,
-            projectDir,
-            existingPlan,
-            skills,
-          );
-        }
+        const skills = await discoverSkills();
+        const systemPrompt = buildAgentSystemPrompt(
+          modelId,
+          home,
+          projectDir,
+          skills,
+        );
 
         // Create tools
         const supportsVision = await modelSupportsImage(providerId, modelId);
-        const tools = createTools(projectDir, mode, planPath, supportsVision, sessionId, getWindow);
+        const tools = createTools(projectDir, supportsVision, sessionId, getWindow);
 
         // Stream
         const result = streamText({
@@ -161,26 +148,6 @@ export function registerChatHandlers(getWindow: () => BrowserWindow | null) {
                 name: part.toolName,
                 output: part.output,
               };
-              // Detect plan_exit
-              if (
-                part.toolName === "plan_exit" &&
-                typeof part.output === "string"
-              ) {
-                try {
-                  const parsed = JSON.parse(part.output);
-                  if (parsed.__mode_switch) {
-                    win?.webContents.send("chat:event", {
-                      sessionId,
-                      event: {
-                        type: "mode_switch",
-                        mode: parsed.mode,
-                        planPath: parsed.planPath,
-                        planContent: parsed.planContent,
-                      },
-                    });
-                  }
-                } catch {}
-              }
               break;
             case "error": {
               const errMsg =
@@ -237,56 +204,12 @@ export function registerChatHandlers(getWindow: () => BrowserWindow | null) {
   });
 }
 
-function buildPlanSystemPrompt(
-  modelId: string,
-  home: string,
-  projectDir: string,
-): string {
-  return [
-    `You are Coodeen in Plan Mode — a coding assistant with READ-ONLY access.`,
-    `You are running on the ${modelId} model.`,
-    `The user's home directory is ${home}. The current project directory is ${projectDir}.`,
-    `Relative paths resolve against the project directory.`,
-    ``,
-    `## FIRST response: research thoroughly, then plan`,
-    `On the very first user message you MUST:`,
-    `1. Read the user's request carefully.`,
-    `2. Research the project extensively using read, glob, grep, ls, webfetch — understand the codebase, existing patterns, dependencies, and relevant files before making any plan.`,
-    `3. Based on your research, output the plan directly in chat as a concise bullet-point list.`,
-    `4. Also call plan_write with the same plan content. Do NOT skip plan_write.`,
-    `5. Only if something is genuinely unclear after your research, call the \`question\` tool with 1-3 focused questions. Do NOT ask questions you could have answered by reading the code.`,
-    `   - "text" type for open-ended questions (textarea).`,
-    `   - "single_select" with options for one-answer questions (radio buttons).`,
-    `   - "multi_select" with options for multi-answer questions (checkboxes).`,
-    ``,
-    `## When user answers arrive (follow-up message starting with "Answers:")`,
-    `1. Incorporate the answers into your plan.`,
-    `2. Output the revised plan and call plan_write with the updated content.`,
-    `3. Ask: "Would you like to modify this plan or execute it?"`,
-    ``,
-    `## On other follow-up messages`,
-    `- If the user wants to modify: revise the plan, call plan_write with updated plan, ask again.`,
-    `- If the user gives ANY green signal (e.g. "execute", "looks good", "go ahead", "start", "yes", "do it", "build it"), tell them to switch to Agent mode and send a message to start building. Do NOT call plan_exit.`,
-    ``,
-    `## Rules`,
-    `- You CANNOT write or edit project files. Only the plan file is writable via plan_write.`,
-    `- Do NOT generate README files or any other files. The plan lives in chat as bullet points.`,
-    `- Do NOT call plan_exit. The user will switch modes manually.`,
-    `- ALWAYS research first. Never ask questions that can be answered by reading the project.`,
-  ].join("\n");
-}
-
 function buildAgentSystemPrompt(
   modelId: string,
   home: string,
   projectDir: string,
-  existingPlan: string | null,
   skills: Array<{ name: string; description: string }>,
 ): string {
-  const planContext = existingPlan
-    ? `\n\n## Active Plan\nA plan was created in plan mode. Follow it closely:\n\n${existingPlan}`
-    : "";
-
   const skillContext =
     skills.length > 0
       ? `\n\nYou have access to specialized skills. When a task matches one of these skills, use the \`skill\` tool to load its instructions:\n${skills.map((s) => `- **${s.name}**: ${s.description}`).join("\n")}`
@@ -313,14 +236,20 @@ function buildAgentSystemPrompt(
       `# Professional objectivity`,
       `Prioritize technical accuracy and truthfulness over validating the user's beliefs. Focus on facts and problem-solving, providing direct, objective technical info without any unnecessary superlatives, praise, or emotional validation.`,
       ``,
-      `# Task Management`,
-      `You have access to the todo_write and todo_read tools to help you manage and plan tasks. Use these tools VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.`,
-      `These tools are also EXTREMELY helpful for planning tasks, and for breaking down larger complex tasks into smaller steps. If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.`,
-      `It is critical that you mark todos as completed as soon as you are done with a task. Do not batch up multiple tasks before marking them as completed.`,
+      `# Required workflow for every user request`,
+      `For ANY non-trivial user request (questions, changes, bugs, features), you MUST follow this order:`,
+      `0. **If the user attached images, analyze them FIRST.** Images are the primary source of truth for what the user wants. Describe what you see (layout, elements, colors, spacing, states, errors) silently in your reasoning, map each visual element to the likely code location, and let those observations drive the exploration and plan. Never skip, skim, or ignore an attached image — if an image is attached and your plan does not reference specific visual details from it, you have failed.`,
+      `1. **Explore.** Use \`glob\`, \`grep\`, \`ls\`, and \`read\` to understand the relevant parts of the project. Do not skip this step — even for simple-sounding asks, verify assumptions against the actual code. If an image was attached, target your search at the components visible in the image.`,
+      `2. **Plan with todo_write.** Immediately after exploring, call \`todo_write\` with a detailed checklist covering every step needed. Each item must be concrete and independently verifiable. Mark the first item \`in_progress\`, the rest \`pending\`. This list is rendered visually in the chat so the user sees progress live.`,
+      `3. **Execute.** Work the list top-to-bottom using the appropriate tools (edit, write, multiedit, apply_patch, bash, etc.).`,
+      `4. **Update todo_write after every completed step.** Re-call \`todo_write\` with the full updated list — flip the finished item to \`completed\` and the next to \`in_progress\`. Never batch multiple completions; update the list immediately when a step is done.`,
+      `5. **Finish.** When all items are \`completed\`, give a short final message summarizing the result.`,
+      ``,
+      `Skip ONLY for genuinely trivial single-step requests (e.g. "what is 2+2", a one-line conceptual answer). Anything touching code = full workflow.`,
+      `If you edit/write without first exploring and creating a todo_write, you have failed the workflow. Stop, explore, plan, then act.`,
       ``,
       `# Doing tasks`,
       `The user will primarily request you perform software engineering tasks. This includes solving bugs, adding new functionality, refactoring code, explaining code, and more.`,
-      `- Use the todo_write tool to plan the task if required`,
       ``,
       `# CRITICAL: Act, don't narrate`,
       `- When the user describes how something should look or behave ("it should be like that", "it will be like that", "it must be X", "I expect X", "make it Y", "the image should be on the right", etc.), this is an INSTRUCTION TO CODE. You must immediately use tools (read, edit, write, bash) to implement the change. NEVER just respond with "Done" or "Updated" without actually calling tools to make the change.`,
@@ -343,8 +272,6 @@ function buildAgentSystemPrompt(
       `- NEVER run destructive git commands (push --force, hard reset, etc) unless the user explicitly requests them.`,
       `- NEVER skip hooks (--no-verify) unless the user explicitly requests it.`,
       `- NEVER commit changes unless the user explicitly asks you to.`,
-    ].join("\n") +
-    planContext +
-    skillContext
+    ].join("\n") + skillContext
   );
 }

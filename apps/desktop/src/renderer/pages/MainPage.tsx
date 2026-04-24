@@ -66,20 +66,6 @@ function MainPageInner() {
 
   const handleElementSelected = useCallback(
     (info: ElementInfo) => {
-      // Add element HTML as a file reference
-      setFileReferences((prev) => {
-        const label = `[element] ${info.selector}`;
-        const exists = prev.some(
-          (r) => r.filePath === label && r.content === info.html,
-        );
-        if (exists) return prev;
-        return [
-          ...prev,
-          { filePath: label, startLine: 0, endLine: 0, content: info.html },
-        ];
-      });
-
-      // Add screenshot if captured
       if (info.screenshot) {
         addScreenshot(info.screenshot);
       }

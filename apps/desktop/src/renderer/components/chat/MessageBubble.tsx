@@ -12,56 +12,62 @@ interface MessageBubbleProps {
 export function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === "user";
 
+  if (isUser) {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[85%] rounded-2xl rounded-br-sm px-4 py-2.5 text-sm leading-relaxed break-words bg-primary text-primary-foreground">
+          {message.images?.map((img, i) => (
+            <img
+              key={i}
+              src={img}
+              alt={`Screenshot ${i + 1}`}
+              className="rounded-md max-w-full max-h-48 mb-2"
+            />
+          ))}
+          <div className="whitespace-pre-wrap">{message.content}</div>
+        </div>
+      </div>
+    );
+  }
+
+  const bubble =
+    "max-w-[85%] rounded-2xl rounded-bl-sm px-4 py-2 text-sm leading-relaxed break-words bg-muted text-foreground";
+
+  const hasAny =
+    !!message.toolCalls?.length || !!message.content || message.isStreaming;
+  if (!hasAny) return null;
+
   return (
-    <div className={cn("flex", isUser ? "justify-end" : "justify-start")}>
-      <div
-        className={cn(
-          "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed break-words",
-          isUser
-            ? "bg-primary text-primary-foreground rounded-br-sm"
-            : "bg-muted text-foreground rounded-bl-sm"
-        )}
-      >
-        {isUser ? (
-          <div>
-            {message.images?.map((img, i) => (
-              <img
-                key={i}
-                src={img}
-                alt={`Screenshot ${i + 1}`}
-                className="rounded-md max-w-full max-h-48 mb-2"
-              />
-            ))}
-            <div className="whitespace-pre-wrap">{message.content}</div>
-          </div>
-        ) : (
-          <>
-            {message.toolCalls?.map((tc, i) => (
-              <ToolCallBlock key={`${tc.name}-${i}`} toolCall={tc} />
-            ))}
-            {message.content && (
-              <div className="prose prose-invert prose-sm max-w-full prose-pre:bg-black/40 prose-pre:border prose-pre:border-border prose-pre:rounded-md prose-pre:overflow-x-auto prose-code:bg-black/30 prose-code:rounded prose-code:px-1.5 prose-code:py-0.5 prose-code:text-xs prose-code:before:content-none prose-code:after:content-none prose-code:break-words prose-a:text-blue-400 prose-a:break-words overflow-hidden">
-                <ReactMarkdown
-                  rehypePlugins={[rehypeHighlight]}
-                  remarkPlugins={[remarkGfm]}
-                >
-                  {message.content}
-                </ReactMarkdown>
-              </div>
-            )}
-            {message.isStreaming && !message.content && !message.toolCalls?.length && (
-              <span className="inline-flex items-center gap-1 py-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:0s]" />
-                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:0.15s]" />
-                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:0.3s]" />
-              </span>
-            )}
-            {message.isStreaming && message.content && (
+    <div className="flex flex-col items-start gap-2">
+      {message.toolCalls?.map((tc, i) => (
+        <div key={`${tc.name}-${i}`} className={bubble}>
+          <ToolCallBlock toolCall={tc} />
+        </div>
+      ))}
+      {message.content && (
+        <div className={bubble}>
+          <div className="prose prose-invert prose-sm max-w-full prose-pre:bg-black/40 prose-pre:border prose-pre:border-border prose-pre:rounded-md prose-pre:overflow-x-auto prose-code:bg-black/30 prose-code:rounded prose-code:px-1.5 prose-code:py-0.5 prose-code:text-xs prose-code:before:content-none prose-code:after:content-none prose-code:break-words prose-a:text-blue-400 prose-a:break-words overflow-hidden">
+            <ReactMarkdown
+              rehypePlugins={[rehypeHighlight]}
+              remarkPlugins={[remarkGfm]}
+            >
+              {message.content}
+            </ReactMarkdown>
+            {message.isStreaming && (
               <span className="inline-block w-2 h-4 bg-muted-foreground rounded-[1px] animate-pulse ml-0.5 align-text-bottom" />
             )}
-          </>
-        )}
-      </div>
+          </div>
+        </div>
+      )}
+      {message.isStreaming && !message.content && !message.toolCalls?.length && (
+        <div className={bubble}>
+          <span className="inline-flex items-center gap-1 py-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:0s]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:0.15s]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:0.3s]" />
+          </span>
+        </div>
+      )}
     </div>
   );
 }
