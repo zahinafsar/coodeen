@@ -5,7 +5,6 @@
   "main": "out/main/index.js",
   "scripts": {
     "fetch-opencode": "node ../../scripts/fetch-opencode.js",
-    "prebuild": "node ../../scripts/fetch-opencode.js",
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "build:prod": "electron-vite build && node ../../scripts/copy-modules.js && electron-builder",
