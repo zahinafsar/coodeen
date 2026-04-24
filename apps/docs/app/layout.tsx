@@ -12,21 +12,17 @@ export const metadata: Metadata = {
     template: '%s | Coodeen Docs',
   },
   description:
-    'AI coding assistant with a split-pane editor — chat on the left, live preview on the right. Supports OpenAI, Anthropic, and Google models. Fully local and private.',
+    'AI coding assistant with a split-pane editor — chat on the left, live preview on the right. Open source, fully local, powered by opencode.',
   keywords: [
     'coodeen',
     'ai coding assistant',
     'code editor',
     'live preview',
     'openai',
-    'anthropic',
-    'claude',
-    'gpt',
-    'gemini',
+    'opencode',
     'ai pair programming',
     'local ai tool',
     'developer tools',
-    'npx coodeen',
   ],
   authors: [{ name: 'Zahin Afsar', url: 'https://github.com/zahinafsar' }],
   creator: 'Zahin Afsar',
@@ -37,7 +33,7 @@ export const metadata: Metadata = {
     siteName: 'Coodeen',
     title: 'Coodeen - AI Coding Assistant with Live Preview',
     description:
-      'AI coding assistant with a split-pane editor — chat on the left, live preview on the right. Supports OpenAI, Anthropic, and Google models.',
+      'AI coding assistant with a split-pane editor — chat on the left, live preview on the right. Open source, fully local.',
     images: [
       {
         url: '/og-image.png',

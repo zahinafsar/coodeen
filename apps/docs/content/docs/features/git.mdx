@@ -1,21 +1,23 @@
 ---
-title: Git Integration
-description: View git status, branches, and commit history.
+title: Git
+description: Branches, status, diffs, commit, push, pull, merge — all inside the app.
 ---
 
 ## Overview
 
-Coodeen provides built-in git integration so you can monitor your repository state without leaving the editor.
+The **Git** tab drives the repo via the Electron main-process handlers in `handlers/git.ts`, which shell out to the `git` CLI in the project directory. If the directory isn't a git repo, the panel says so.
 
-## Features
+## What's Available
 
-- **Branch display** — See your current branch at a glance
-- **Status view** — Track modified, staged, and untracked files
-- **Commit history** — Browse recent commits
-- **Change tracking** — See what's changed since your last commit
+- **Branches tab** — List local branches, current HEAD, checkout, create, delete, merge.
+- **Changes tab** — Working-tree status grouped into staged / unstaged / untracked, per-file diffs, stage/unstage, commit.
+- **Push / pull / merge** — Buttons on the changes tab; errors (and merge conflicts) surface inline.
+- **Conflicts** — Files with merge conflicts are called out so you can resolve them in the file viewer or terminal.
 
-## Usage
+## Scope
 
-Switch to the **Git** tab in the right panel to see your repository status.
+All commands execute with `cwd` set to the session's project directory. There's no authentication UI — Coodeen relies on whatever credential helper your git install has configured.
 
-The AI agent can also perform git operations through the `bash` tool — committing changes, creating branches, viewing diffs, and more.
+## Via the Agent
+
+The agent's `bash` tool can also run git commands if you'd rather drive commits from chat; the built-in panel is the faster path for human-in-the-loop work.

@@ -1,27 +1,19 @@
 ---
 title: Terminal
-description: Run shell commands directly within Coodeen.
+description: Built-in shell under the preview panel.
 ---
 
 ## Overview
 
-Coodeen includes a built-in terminal emulator powered by [xterm.js](https://xtermjs.org/). It connects to a pseudo-terminal (PTY) on your machine via Electron IPC, giving you a full shell experience without leaving the editor.
+The terminal toggle in the preview toolbar opens a shell pane below the preview. It uses [`xterm.js`](https://xtermjs.org/) (with the fit and web-links addons) in the renderer, wired to a real PTY in the main process via [`@lydell/node-pty`](https://github.com/lydell/node-pty).
 
-## Features
+## Details
 
-- **Full terminal emulation** — Runs your default shell (bash, zsh, etc.)
-- **Native PTY** — Uses node-pty for real terminal behavior (colors, tab completion, etc.)
-- **Multiple sessions** — Open multiple terminal tabs for different tasks
-- **Integrated** — No need to switch to a separate terminal app
+- Shell is `$SHELL` or `/bin/sh`, spawned in the session's project directory.
+- Terminal is xterm-256color with fit-to-panel resizing.
+- Processes are tracked in a session map and killed cleanly on window close.
+- The IPC surface (`pty:spawn`, `pty:write`, `pty:resize`, `pty:kill`, `pty:list`) is exposed in `handlers/pty.ts`.
 
-## Usage
+## Agent Access
 
-Switch to the **Terminal** tab in the right panel. The terminal opens in your project directory and supports all standard shell commands.
-
-The AI agent also has access to a `bash` tool — it can run shell commands on your behalf during conversations. This is useful for:
-
-- Installing dependencies (`npm install`, `pip install`)
-- Running dev servers
-- Running tests
-- Git operations
-- Any other CLI commands
+Opencode's `bash` tool can run shell commands directly; the integrated terminal is for when you want to type them yourself.

@@ -339,9 +339,6 @@ function FloatingNav() {
           <Link href="https://github.com/zahinafsar/coodeen" className="text-sm text-white/50 transition-colors hover:text-white">
             GitHub
           </Link>
-          <Link href="https://www.npmjs.com/package/coodeen" className="text-sm text-white/50 transition-colors hover:text-white">
-            npm
-          </Link>
         </div>
 
         <Link
@@ -427,13 +424,13 @@ function HeroDownload() {
 
   return (
     <div className="animate-hero-fade mb-24 flex flex-col items-center gap-4">
-      <a
-        href={`${DOWNLOAD_BASE}/${primary.file}`}
+      <Link
+        href={`/thank-you?file=${encodeURIComponent(primary.file)}`}
         className="inline-flex h-12 items-center gap-3 rounded-lg bg-[#00363E] px-8 text-sm font-semibold text-white transition-all hover:bg-[#004a54] hover:shadow-lg hover:shadow-[#00363E]/40"
       >
         <PlatformIcon type={primary.icon} className="h-5 w-5" />
         Download for {primary.label}
-      </a>
+      </Link>
       <a
         href={`${REPO_BASE}/releases`}
         className="text-sm text-white/40 underline decoration-white/20 underline-offset-4 transition-colors hover:text-white/60"
@@ -475,7 +472,7 @@ export default function HomePage() {
         <p className="animate-hero-fade mb-10 max-w-xl text-base leading-relaxed text-white/50 sm:text-lg">
           Split-pane editor with chat on the left, live preview on the right.
           <br className="hidden sm:block" />
-          Supports OpenAI, Anthropic, and Google models.
+          Open source, fully local — powered by opencode.
         </p>
 
         {/* CTA */}

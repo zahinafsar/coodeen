@@ -5,17 +5,16 @@ description: Browse and manage files in your project directory.
 
 ## Overview
 
-The file explorer panel provides a tree view of your project directory. You can browse files, view their contents, and manage your project structure.
+The **Files** tab on the right panel shows the project directory as an expandable tree. It's backed by the Electron main-process handlers in `handlers/fs.ts` (`fs:listTree`, `fs:readFile`, `fs:createEntry`, `fs:deleteEntry`, `fs:writeFile`).
 
 ## Features
 
-- **Directory tree** — Navigate your project with an expandable folder structure
-- **File viewing** — Click any file to view its contents with syntax highlighting
-- **File creation** — Create new files and directories from the explorer
-- **File deletion** — Remove files you no longer need
+- **Tree view** — Expand folders inline.
+- **File viewer** — Click a file to open it with syntax highlighting (Prism).
+- **Create** — New file or folder from the toolbar.
+- **Delete** — Remove the selected entry.
+- **Reference into chat** — Add a file as a reference chip in the composer so the agent has it as explicit context.
 
-## Usage
+## Scope
 
-Switch to the file explorer tab in the right panel to see your project files. The tree automatically reflects the project directory configured in the top bar.
-
-The AI agent also has full access to your filesystem through its tools — you can ask it to read, create, edit, or delete files directly from the chat.
+Every filesystem read/write is scoped to the session's project directory, just like the agent's tools. Switch directories from the folder picker.

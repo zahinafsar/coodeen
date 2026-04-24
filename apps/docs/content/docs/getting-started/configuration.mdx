@@ -1,43 +1,49 @@
 ---
 title: Configuration
-description: Configure Coodeen's AI providers, models, and project settings.
+description: Where Coodeen stores state, how project scoping works, and what's tunable.
 ---
 
 ## Data Storage
 
-All data is stored locally in the platform-specific app data directory:
+State is split between Electron and the bundled opencode sidecar:
 
-| Platform | Database Path |
-|----------|---------------|
-| macOS | `~/Library/Application Support/coodeen/coodeen.db` |
-| Windows | `%APPDATA%/coodeen/coodeen.db` |
-| Linux | `~/.config/coodeen/coodeen.db` |
+| What | Location |
+|------|----------|
+| Sessions, messages, tool history | opencode — `~/.local/share/opencode/` |
+| Provider API keys | opencode — `~/.local/share/opencode/auth.json` |
+| Per-session preview URL | Electron userData — `session-prefs.json` |
+| Active provider selection | Electron userData — `app-config.json` |
 
-The SQLite database stores sessions, messages, provider API keys, and app configuration. No data is sent anywhere except to the AI provider you configure.
+Electron userData paths:
+
+| Platform | Path |
+|----------|------|
+| macOS | `~/Library/Application Support/coodeen/` |
+| Windows | `%APPDATA%/coodeen/` |
+| Linux | `~/.config/coodeen/` |
+
+Nothing leaves your machine except requests to the AI provider endpoint.
 
 ## Project Directory
 
-Select your project directory using the folder picker in the top bar. The AI agent operates within this directory — reading, writing, and editing files relative to it.
+Each session is scoped to a project directory. Opencode requests get an `x-opencode-directory` header (encoded) and a `directory` query param, so the agent's reads, writes, and shell commands stay inside that folder.
 
-You can change the project directory at any time. Each session remembers its own project directory.
+On first launch the app defaults to the process's cwd; switch it with the folder picker inside the app. Sessions remember their own project dir in opencode.
 
-## Model Selection
+## Preview URL
 
-Once a provider is configured, you can select which model to use from the dropdown in the chat panel. Available models depend on your configured provider:
+The preview panel defaults to `http://localhost:3000` and is editable inline. It's persisted per session in `session-prefs.json`.
 
-- **OpenAI**: GPT-4o, GPT-4.1, GPT-4.1-mini
-- **Anthropic**: Claude Sonnet 4, Claude Opus 4
-- **Google**: Gemini 2.5 Pro, Gemini 2.5 Flash
+## Custom Action Buttons (`coodeen.json`)
 
-### Vision Support
+Optional file at the project root. Buttons in the top bar run the listed scripts via `sh -c` in the project directory; a `.env` file alongside is loaded into the child's environment.
 
-Some models support image inputs (screenshots from the preview panel). Vision-capable models include GPT-4o, GPT-4.1, Claude Sonnet 4, and Gemini 2.5 Pro.
-
-## Agent Modes
-
-Coodeen supports two agent modes:
-
-- **Agent mode** — Full access to all tools: read, write, edit, bash, search, etc.
-- **Plan mode** — Read-only access. The AI can read your code and propose changes, but cannot modify files directly.
-
-Switch between modes from the chat panel controls.
+```json
+{
+  "name": "my-app",
+  "actions": [
+    { "label": "Dev", "script": "bun run dev" },
+    { "label": "Test", "script": "bun run test" }
+  ]
+}
+```

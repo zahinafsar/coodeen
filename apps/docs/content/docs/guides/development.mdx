@@ -1,12 +1,12 @@
 ---
 title: Development
-description: Set up the Coodeen development environment and contribute.
+description: Set up the Coodeen dev environment and contribute.
 ---
 
 ## Prerequisites
 
-- [Bun](https://bun.sh/)
-- [Node.js 18+](https://nodejs.org/)
+- [Bun](https://bun.sh/) — primary package manager and runtime for scripts
+- [Node.js 18+](https://nodejs.org/) — used by the build scripts
 - Git
 
 ## Setup
@@ -14,19 +14,23 @@ description: Set up the Coodeen development environment and contribute.
 ```bash
 git clone https://github.com/zahinafsar/coodeen.git
 cd coodeen
-bun install
+
+# Install + rebuild native modules for Electron
+bun run setup
 ```
+
+The first desktop build also downloads the matching `opencode` binary into `apps/desktop/resources/bin/` via `scripts/fetch-opencode.js` (hooked up as the `prebuild` script in `apps/desktop/package.json`).
 
 ## Running Locally
 
 ```bash
-# Start the desktop app in development mode
+# Electron dev mode (hot reload for renderer)
 bun run dev
 ```
 
-This launches the Electron app with hot reload — changes to the renderer update instantly.
+On startup the app spawns `opencode serve --hostname=127.0.0.1 --port=0` as a child and wires the renderer to it.
 
-## Type Checking
+## Type Check
 
 ```bash
 bun run --cwd apps/desktop typecheck
@@ -35,18 +39,55 @@ bun run --cwd apps/desktop typecheck
 ## Building
 
 ```bash
-# Build the app for production
+# Unpacked build
 bun run build
 
-# Build and package as an installer for your platform
-cd apps/desktop && bun run build:prod
+# Build + package installers for the current platform
+bun run --cwd apps/desktop build:prod
 ```
+
+`build:prod` runs `electron-vite build`, copies production deps (`scripts/copy-modules.js`), then invokes `electron-builder` with `apps/desktop/electron-builder.yml`. The opencode binary ships as `extraResources` so the packaged app can spawn it from `process.resourcesPath/bin`.
+
+## Pinning opencode
+
+```bash
+OPENCODE_VERSION=0.x.y bun run --cwd apps/desktop fetch-opencode
+```
+
+The downloaded version is tracked in `apps/desktop/resources/bin/.opencode-version`.
+
+## Docs Site
+
+```bash
+bun run dev:docs
+```
+
+Runs Next.js + Fumadocs from `apps/docs/`.
 
 ## Project Structure
 
-| Directory        | Purpose                                |
-| ---------------- | -------------------------------------- |
-| `apps/desktop`   | Electron desktop app (main + renderer) |
-| `apps/docs`      | Documentation site (Next.js + Fumadocs)|
-| `packages/cli`   | Legacy CLI package                     |
-| `scripts/`       | Build helper scripts                   |
+| Directory      | Purpose |
+| -------------- | ------- |
+| `apps/desktop` | Electron app — main, preload, IPC handlers, React renderer |
+| `apps/docs`    | Documentation site (Next.js + Fumadocs) |
+| `scripts/`     | `fetch-opencode.js`, `copy-modules.js`, `rebuild-native.js` |
+
+## Main-Process Handlers
+
+Registered in `apps/desktop/src/main.ts`:
+
+| File | What it does |
+|------|--------------|
+| `opencode.ts` | Spawn + supervise sidecar, event bus, auto-reconnect |
+| `sessions.ts` | CRUD over opencode sessions + local `session-prefs.json` |
+| `chat.ts` | `session.prompt` / `session.abort` forwarding |
+| `providers.ts` | List providers, set / delete API keys, cache invalidation |
+| `fs.ts` | Directory listing, file read/write, create/delete entries |
+| `git.ts` | Status, branches, diff, commit, push, pull, merge, conflicts |
+| `pty.ts` | node-pty terminal sessions |
+| `config.ts` | Active provider + cwd |
+| `actions.ts` | `coodeen.json` discovery + script runner |
+
+## Screen Capture IPC
+
+`capture:area` runs directly in `main.ts`: it calls `mainWindow.webContents.capturePage({x, y, width, height})` and returns a PNG data-URL. The preview's element picker uses this to crop the iframe's on-screen rect.

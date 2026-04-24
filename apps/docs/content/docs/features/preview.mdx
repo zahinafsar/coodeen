@@ -5,42 +5,33 @@ description: See your running application side-by-side with the AI chat.
 
 ## Overview
 
-The preview panel shows your running application in an iframe on the right side of the editor. Point it at any URL — typically your local dev server — and see changes in real-time as the AI edits your code.
+The Preview tab shows your app inside an `<iframe>` on the right panel. Point it at any URL — typically a local dev server — and use it as visual context while the agent edits code.
 
-## Features
+## URL Bar
 
-### Configurable URL
+Type any URL and press Enter. The field is persisted per session (`session-prefs.json`). If the iframe hasn't signalled `load` within 10 seconds, a retry panel appears with the failing URL.
 
-Enter any URL in the address bar at the top of the preview panel. Common setups:
+The default URL is `http://localhost:3000`.
 
-- `http://localhost:3000` — Next.js, Create React App
-- `http://localhost:5173` — Vite
-- `http://localhost:8080` — Vue CLI, Go servers
+## Viewport Modes
 
-### Viewport Modes
+Popover on the toolbar:
 
-Switch between responsive viewport sizes:
+- **Responsive** — Fills the panel.
+- **Mobile** — 390 × 844.
+- **Tablet** — 768 × 1024.
+- **Desktop** — 1440 × 900.
 
-- **Responsive** — Fills the available panel width
-- **Mobile** — Phone-width viewport
-- **Tablet** — Tablet-width viewport
-- **Desktop** — Fixed desktop width
+Non-responsive modes support a custom width × height input and a rotate button (swaps dimensions). When the fixed viewport is larger than the panel, the content is scaled down to fit and the current scale is shown in the dimension label at the bottom.
 
-### Zoom Controls
+## Reload
 
-Adjust the preview zoom level or use **scale-to-fit** to automatically fit the content within the panel dimensions.
+The refresh button clears and re-assigns `iframe.src` so the preview reloads cleanly after a code change the dev server didn't hot-swap.
 
-### Reload
+## Terminal Toggle
 
-Click the refresh button to reload the iframe. Useful after the AI makes changes that require a full page reload.
+The terminal icon on the right of the toolbar opens a node-pty terminal below the preview. See the [Terminal](/docs/features/terminal) page.
 
-## Screenshot Capture
+## Element Selection → Screenshot
 
-Capture any part of the preview to send as context to the AI:
-
-1. Click the **screenshot** button in the preview toolbar
-2. An overlay appears — click and drag to select an area
-3. The captured screenshot is attached to your next message
-4. The AI can see exactly what you're looking at and respond with visual awareness
-
-This is particularly powerful for UI bugs — show the AI what's wrong and it can fix the layout, styling, or component issues directly.
+See [Screenshots](/docs/features/screenshots) for the element picker.

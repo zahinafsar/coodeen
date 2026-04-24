@@ -1,44 +1,35 @@
 ---
-title: AI Tools
-description: What the AI can do in your project.
+title: Agent Tools
+description: The tool calls you'll see inline in the chat.
 ---
 
-## Overview
+## Where Tools Come From
 
-When you chat with the AI, it can take actions on your codebase automatically. You'll see each action displayed inline in the conversation so you always know what's happening.
+Coodeen doesn't define its own tools. The bundled [opencode](https://github.com/sst/opencode) sidecar owns the agent loop and the tool catalog; Coodeen just streams the events and renders them.
 
-## What the AI Can Do
+## What You'll See
 
-### Read and Search
+Each tool invocation renders as an expandable block in the chat with its arguments and result. The exact set depends on the opencode version shipped in `apps/desktop/resources/bin/`; at a high level expect:
 
-- Read files in your project
-- Search for files by name or pattern
-- Search inside files for specific text
-- List folder contents
-- Fetch content from URLs
+- **Read / write / edit** — File I/O in the project directory.
+- **Glob / grep** — Find files or search contents.
+- **List / stat** — Directory listings.
+- **Bash** — Shell commands scoped to the project directory.
+- **Web fetch** — Fetch a URL's content.
+- **Plan / todo** — Structured planning and task tracking.
 
-### Write and Edit
+Consult opencode's release notes for the authoritative list at a given version.
 
-- Create new files
-- Edit existing files
-- Apply changes across multiple files
-- Save images to disk
+## Scoping
 
-### Run Commands
+All tools run inside the session's project directory. The `x-opencode-directory` header + `directory` query param pin each request to the right instance, so tool calls can't escape the selected folder unless they themselves request an absolute path outside it.
 
-- Execute shell commands in your project directory (install packages, run tests, start servers, etc.)
+## Customizing
 
-### Plan
+The opencode binary is shipped as-is. To pin a version for reproducibility:
 
-- Write and manage plans before making changes
-- Create todo lists to track progress
-- Ask you questions to clarify requirements
+```bash
+OPENCODE_VERSION=0.x.y bun run --cwd apps/desktop fetch-opencode
+```
 
-### Other
-
-- Run registered skills
-- Fetch images from the web for reference
-
-## How It Works
-
-The AI decides which actions to take based on your request. Every action and its result is shown in the chat panel — you can expand each one to see the details. In **Plan mode**, the AI can only read your code and propose changes without modifying anything.
+See the [Development](/docs/guides/development) guide.

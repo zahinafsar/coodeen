@@ -1,24 +1,38 @@
 ---
 title: How Coodeen Works
-description: A high-level overview of how Coodeen is built.
+description: Processes, data flow, and where state lives.
 ---
 
 ## Overview
 
-Coodeen is a native desktop app built with Electron. Everything runs locally on your machine — there's no server to set up or manage.
+Coodeen is an Electron shell around the [opencode](https://github.com/sst/opencode) agent. On launch the main process spawns `opencode serve --hostname=127.0.0.1 --port=0` as a child and connects to it with `@opencode-ai/sdk`. The renderer (React + Tailwind + Radix) drives the split-pane UI.
 
-## What's Inside
+## Processes
 
-- **AI chat** — Powered by the Vercel AI SDK, supporting OpenAI, Anthropic, and Google models
-- **File access** — The AI can read, write, and search files in your project
-- **Terminal** — Built-in shell powered by node-pty
-- **Git** — View branches, status, and commit history
-- **Database** — SQLite stores your sessions, messages, and settings locally
-- **Preview** — Embedded browser frame showing your running app
+- **Electron main** — Supervises the opencode sidecar, registers IPC handlers for filesystem, git, terminal (node-pty), and opencode RPC.
+- **Electron renderer** — React UI: chat on the left; Preview / Files / Git tabs plus togglable terminal on the right.
+- **opencode sidecar** — Child process. Owns the agent, sessions, messages, tool execution, and provider auth.
 
-## Data Storage
+## Data Flow
 
-All your data stays on your machine:
+1. Renderer fires an IPC call (`chat:prompt`, `sessions:list`, `fs:readFile`, etc.).
+2. The matching handler in `apps/desktop/src/handlers/` either runs locally (fs, git, pty) or forwards through the opencode SDK.
+3. opencode streams events (`message.part.updated`, tool call lifecycle, status) over `/global/event` (SSE).
+4. `handlers/opencode.ts` rebroadcasts each event on the `opencode:event` IPC channel.
+5. The renderer's chat store reduces events into the view model.
+
+The event bus runs in a reconnect loop with a 15s heartbeat and exponential backoff (0.5s → 5s).
+
+## What's Stored Where
+
+| What | Location |
+|------|----------|
+| Sessions, messages, tool history | opencode — `~/.local/share/opencode/` |
+| Provider API keys | opencode — `~/.local/share/opencode/auth.json` |
+| Per-session preview URL | Electron userData — `session-prefs.json` |
+| Active provider selection | Electron userData — `app-config.json` |
+
+Electron userData paths:
 
 | Platform | Location |
 |----------|----------|
@@ -26,6 +40,10 @@ All your data stays on your machine:
 | Windows | `%APPDATA%/coodeen/` |
 | Linux | `~/.config/coodeen/` |
 
+## Directory Scoping
+
+Every opencode call is pinned to a specific project directory. Coodeen sets both `x-opencode-directory` (URL-encoded) as a header and `directory` as a query param, so POSTs and GETs both hit the right instance. Switching sessions switches the scope.
+
 ## Open Source
 
-Coodeen is fully open source. The code is on [GitHub](https://github.com/zahinafsar/coodeen) and contributions are welcome.
+Code on [GitHub](https://github.com/zahinafsar/coodeen). Contributions welcome.

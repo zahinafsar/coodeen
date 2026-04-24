@@ -1,39 +1,36 @@
 ---
 title: Chat Panel
-description: Interact with AI models to write, edit, and debug your code.
+description: The primary interface — drive the agent and watch tool calls stream.
 ---
 
 ## Overview
 
-The chat panel is the primary interface for interacting with the AI. It occupies the left side of the split-pane layout and supports full conversational coding with streaming responses.
+The chat panel occupies the left pane. It talks to the local opencode sidecar via `session.prompt` and renders events streamed from the sidecar's global event bus.
 
-## Capabilities
+## Composer
 
-### Streaming Responses
+- Multiline input with Enter to send.
+- Attach file references with the `@`-style file picker button — each reference carries a path and optional line range and is sent to the agent as context.
+- Attach element screenshots from the preview (see [Screenshots](/docs/features/screenshots)).
 
-Messages stream in real-time via Electron IPC. You can see the AI's response as it's being generated, including tool calls and their results.
+The composer's status row shows the agent mode ("Agent"), the active model, and the project directory.
 
-### Tool Call Visualization
+## Streaming
 
-When the AI uses tools (reading files, writing code, running commands), each tool call is displayed inline with expandable details showing inputs and outputs.
+The sidecar emits events (`message.part.updated`, tool call lifecycles, status changes) to `/global/event`. The Electron main process forwards them on the `opencode:event` IPC channel; a Zustand store in the renderer applies them so text, tool calls, and their outputs appear incrementally.
 
-### File References
+## Tool Calls
 
-You can attach file references to your messages to give the AI context about specific files. Click the file reference button in the prompt input to browse and select files from your project.
-
-### Image Inputs
-
-For vision-capable models, you can attach screenshots captured from the preview panel. This lets the AI see exactly what you're looking at and make precise visual fixes.
-
-### Model Selection
-
-Switch between configured models using the dropdown at the bottom of the chat panel. The available models depend on which providers you've configured.
+Every tool invocation renders inline with its arguments and result. Opencode's built-in tools include read / write / edit, glob and grep, bash, plan, and todo tracking. Expand any call to inspect inputs and outputs.
 
 ## Sessions
 
-Coodeen supports multiple chat sessions:
+- **New session** — session drawer (hamburger icon, top-left).
+- **Switch** — pick a session from the drawer; its project directory and preview URL are restored.
+- **Delete** — removes it from opencode's store.
 
-- **Create** new sessions for different tasks or projects
-- **Switch** between sessions using the session drawer
-- **Resume** previous conversations with full history
-- Each session remembers its model, project directory, and preview URL
+New chats receive an auto-generated title based on the first prompt (first ~60 chars).
+
+## Model
+
+Coodeen currently uses a fixed model per prompt — there's no model dropdown yet. The current model is shown in the composer's status row. Switching models requires editing the source (`apps/desktop/src/renderer/components/chat/ChatPanel.tsx`).

@@ -1,42 +1,59 @@
 ---
 title: Quick Start
-description: Get up and running with Coodeen in under a minute.
+description: Install Coodeen and send your first prompt.
 ---
 
 ## Download
 
-Download the latest version for your platform:
+The homepage currently serves the macOS (Apple Silicon) build:
 
 | Platform | Download |
 |----------|----------|
 | macOS (Apple Silicon) | [Coodeen-mac-arm64.dmg](https://github.com/zahinafsar/coodeen/releases/latest/download/Coodeen-mac-arm64.dmg) |
-| macOS (Intel) | [Coodeen-mac-x64.dmg](https://github.com/zahinafsar/coodeen/releases/latest/download/Coodeen-mac-x64.dmg) |
-| Windows | [Coodeen-Setup.exe](https://github.com/zahinafsar/coodeen/releases/latest/download/Coodeen-Setup.exe) |
-| Linux | [Coodeen-linux.AppImage](https://github.com/zahinafsar/coodeen/releases/latest/download/Coodeen-linux.AppImage) |
 
-Or browse [all releases](https://github.com/zahinafsar/coodeen/releases).
+Other artifacts (if any) are listed under [all releases](https://github.com/zahinafsar/coodeen/releases).
 
-## Install
+## Install (macOS)
 
-- **macOS** — Open the `.dmg` file and drag Coodeen to your Applications folder.
-- **Windows** — Run the `.exe` installer and follow the prompts.
-- **Linux** — Make the `.AppImage` executable (`chmod +x Coodeen-linux.AppImage`) and run it.
+1. Open the `.dmg` and drag **Coodeen** to Applications.
+2. Clear the Gatekeeper quarantine attribute so the unsigned app can launch:
 
-## Configure a Provider
+   ```bash
+   xattr -cr /Applications/Coodeen.app
+   ```
 
-Launch Coodeen and click the **gear icon** in the top bar to open Settings. Add an API key for at least one provider:
+3. Open Coodeen from Applications.
 
-| Provider  | Get API Key                                                       | Models                                  |
-| --------- | ----------------------------------------------------------------- | --------------------------------------- |
-| OpenAI    | [platform.openai.com](https://platform.openai.com/api-keys)      | GPT-4o, GPT-4.1, GPT-4.1-mini          |
-| Anthropic | [console.anthropic.com](https://console.anthropic.com/)           | Claude Sonnet 4, Claude Haiku           |
-| Google    | [aistudio.google.com](https://aistudio.google.com/apikey)        | Gemini 2.5 Pro, Gemini 2.5 Flash       |
+## Add Your OpenAI Key
 
-## Example Workflow
+1. Click the **key icon** in the top-right of the top bar.
+2. Paste an OpenAI key (`sk-...`) from [platform.openai.com/api-keys](https://platform.openai.com/api-keys).
+3. Save — the key is stored in opencode's auth store at `~/.local/share/opencode/auth.json`.
 
-1. Launch Coodeen
-2. Select your project directory using the folder picker in the top bar
-3. Add your API key in Settings
-4. Point the preview panel to your dev server (e.g. `http://localhost:3000`)
-5. Start chatting — ask the AI to build features, fix bugs, or explain code
-6. Capture screenshots from the preview to give the AI visual context
+The current UI only wires OpenAI through the dialog. To use other providers, edit opencode's auth file directly.
+
+## Pick a Project Folder
+
+Coodeen starts in the process's cwd. Use the project picker (folder UI inside the app) to point the agent at your repo. Every opencode request is scoped to that directory.
+
+## First Prompt
+
+1. Point the preview panel at your dev server (default `http://localhost:3000`).
+2. Type a request in the composer — "explain the router", "add dark mode", whatever.
+3. Watch tool calls render inline as the agent reads and edits files.
+4. Click an element in the preview to screenshot it and attach the image to the next message.
+
+## Optional: Custom Action Buttons
+
+Drop a `coodeen.json` in your project root:
+
+```json
+{
+  "actions": [
+    { "label": "Dev", "script": "bun run dev" },
+    { "label": "Test", "script": "bun run test" }
+  ]
+}
+```
+
+Each entry shows up in the top bar and runs `script` via `sh -c` in the project directory, with `.env` loaded.

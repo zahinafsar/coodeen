@@ -1,49 +1,58 @@
 ---
 title: Troubleshooting
-description: Common issues and solutions when using Coodeen.
+description: Common issues and fixes.
 ---
 
-## Database Issues
+## macOS "damaged app" / Gatekeeper Warning
 
-If something seems off or you want a fresh start, delete the database file and relaunch Coodeen:
+The current macOS builds aren't code-signed. After installing the DMG, clear the quarantine attribute:
 
-| Platform | Delete this file |
-|----------|------------------|
-| macOS | `~/Library/Application Support/coodeen/coodeen.db` |
-| Windows | `%APPDATA%/coodeen/coodeen.db` |
-| Linux | `~/.config/coodeen/coodeen.db` |
+```bash
+xattr -cr /Applications/Coodeen.app
+```
 
-A new database will be created automatically on the next launch.
+Then open the app again.
 
-## AI Can't See Screenshots
+## Sidecar Won't Start
 
-Make sure you're using a vision-capable model:
+Coodeen fails if it can't spawn the bundled `opencode` binary.
 
-- **OpenAI**: GPT-4o, GPT-4.1
-- **Anthropic**: Claude Sonnet 4, Claude Opus 4
-- **Google**: Gemini 2.5 Pro, Gemini 2.5 Flash
+- **Dev**: ensure `apps/desktop/resources/bin/opencode` exists. Re-run `bun run --cwd apps/desktop fetch-opencode`.
+- **Packaged app**: the binary ships under `<app>/Contents/Resources/bin/opencode` (macOS) or `resources/bin/opencode.exe` (Windows). If missing, reinstall.
 
-Models like GPT-4.1-nano don't support image inputs.
+Look for `[opencode] sidecar ready at http://127.0.0.1:<port>` in the console.
+
+## Fresh Start
+
+Wipe both stores:
+
+| Platform | Electron userData | opencode data |
+|----------|-------------------|---------------|
+| macOS | `~/Library/Application Support/coodeen/` | `~/.local/share/opencode/` |
+| Windows | `%APPDATA%/coodeen/` | `%APPDATA%/opencode/` |
+| Linux | `~/.config/coodeen/` | `~/.local/share/opencode/` |
 
 ## Preview Not Loading
 
-If the preview panel shows a blank page:
+- Check your dev server is actually up at the URL shown.
+- Some servers set `X-Frame-Options` / `Content-Security-Policy` that block iframe embedding.
+- Click the refresh icon in the preview toolbar.
+- If the 10s load timeout fires, the retry panel appears — click **Retry**.
 
-1. Make sure your dev server is actually running on the URL you entered
-2. Check for CORS issues — some frameworks block iframe embedding
-3. Try reloading the preview with the refresh button
+## Element Picker Doesn't Pick Anything
 
-## API Key Not Working
+The picker relies on `iframe.contentDocument`. Heavily cross-origin content (some third-party sites) hides that. Point the preview at your local dev server instead.
 
-1. Verify the key is correct in Settings
-2. Check that the key has the necessary permissions
-3. Ensure you have billing set up with the provider
-4. Try regenerating the key from the provider's dashboard
+## Screenshots Don't Reach the AI
 
-## Slow Responses
+The current app uses a fixed model. If that model doesn't accept images, the provider drops the image part. The agent still receives the selected element's DOM metadata (tag, id, classes, selector).
 
-Response speed depends on your chosen model and network connection. Smaller models (GPT-4.1-mini, Claude Haiku) are faster. Larger models (GPT-4.1, Claude Opus 4) are more capable but slower.
+## API Key Rejected
 
-## macOS Security Warning
+- Paste-check the key — no stray whitespace.
+- Provider dashboard — is the key live and billable?
+- opencode caches its provider list; Coodeen disposes the cache after an auth mutation, but if model calls still fail, restart the app.
 
-Since the app is not yet code-signed, macOS may show a warning when you first open it. Right-click the app and select "Open" to bypass Gatekeeper, or go to System Settings > Privacy & Security and click "Open Anyway".
+## Event Stream Reconnects in a Loop
+
+The sidecar's `/global/event` stream is monitored by a heartbeat. If 15s pass with no events, Coodeen aborts and reconnects with exponential backoff. Persistent reconnects usually mean the sidecar crashed — check the console for `opencode sidecar exited early` and share the stderr output in a bug report.

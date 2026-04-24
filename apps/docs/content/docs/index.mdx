@@ -1,28 +1,35 @@
 ---
 title: Introduction
-description: Coodeen is an AI coding assistant with a split-pane editor — chat on the left, live preview on the right.
+description: Coodeen is an AI coding assistant with a split-pane editor — chat on the left, preview / files / git / terminal on the right.
 ---
 
 ## What is Coodeen?
 
-Coodeen is an open-source AI coding assistant that runs as a native desktop application. It provides a split-pane editor interface with an AI chat panel on the left and a live preview of your running application on the right.
+Coodeen is an open-source AI coding assistant packaged as a native desktop app. It's a focused UI on top of the [opencode](https://github.com/sst/opencode) agent: the chat panel drives the agent, and the right panel rotates between live preview, file explorer, and git. A built-in terminal slides in under the preview.
 
-Download the latest version from the [releases page](https://github.com/zahinafsar/coodeen/releases/latest) or from the homepage.
+Download the latest build from the [releases page](https://github.com/zahinafsar/coodeen/releases/latest).
 
 ## Key Features
 
-- **Multi-model chat** — Talk to OpenAI, Anthropic, or Google models about your code
-- **Live preview** — See your running app side-by-side with the conversation
-- **Screenshot capture** — Select any area of the preview and send it to the AI
-- **Built-in terminal** — Full shell access via integrated terminal
-- **File explorer** — Browse and manage project files
-- **Git integration** — View branches, status, and commit history
-- **Session management** — Switch between projects and pick up where you left off
-- **Fully local** — Your API keys, conversations, and data never leave your machine
+- **Chat with your codebase** — Agent runs tool calls (read, write, grep, bash, plan) inline in the chat
+- **Live preview** — Embedded browser; default URL `http://localhost:3000`, editable per session
+- **Element selection → screenshot** — Click an element in the preview to capture it and attach to your next prompt
+- **File explorer** — Browse, view, create, and delete files
+- **Git** — Branches, status, diffs, conflicts, commit, push, pull, merge
+- **Terminal** — node-pty shell, togglable under the preview
+- **Sessions** — Persistent; drawer in the top-left toggles the list; each remembers its project dir and preview URL
+- **Custom action buttons** — `coodeen.json` in your project surfaces run-script buttons in the top bar
+- **Fully local** — API keys and session data stay on your machine
 
 ## How It Works
 
-Coodeen is a split-pane desktop app — **chat on the left**, **preview / files / git / terminal on the right**. Ask the AI to build features, fix bugs, or explain code. It can read, write, edit, search, and run commands in your project directory. Everything runs locally on your machine.
+Coodeen spawns a local `opencode serve` sidecar at launch and connects to it via `@opencode-ai/sdk`. The sidecar owns the agent, sessions, tool execution, and provider auth. The Electron main process brokers filesystem, git, and terminal IPC for the renderer; events from the sidecar stream over `/global/event` and fan out to the UI.
+
+## Current Limits
+
+- UI ships a single OpenAI key dialog; other providers require hand-editing opencode's auth store.
+- The model used for prompts is fixed in the app today — no dropdown yet.
+- The homepage download button serves the macOS (Apple Silicon) DMG; other artifacts appear in the releases feed as CI produces them.
 
 ## Next Steps
 

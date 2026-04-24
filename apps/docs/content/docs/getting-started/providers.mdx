@@ -1,46 +1,26 @@
 ---
 title: AI Providers
-description: Set up OpenAI, Anthropic, Google, or free models in Coodeen.
+description: How Coodeen talks to model providers.
 ---
 
-## Supported Providers
+## Today's UI
 
-Coodeen uses the [Vercel AI SDK](https://sdk.vercel.ai/) to support multiple AI providers through a unified interface.
+Coodeen's built-in settings dialog (the **key icon** in the top bar) configures one provider: **OpenAI**. Paste a key from [platform.openai.com/api-keys](https://platform.openai.com/api-keys) and save.
 
-### OpenAI
+## Under the Hood
 
-1. Get an API key from [platform.openai.com](https://platform.openai.com/api-keys)
-2. Open Settings in Coodeen (gear icon in the top bar)
-3. Select **OpenAI** and paste your key
+Keys are forwarded to the bundled [opencode](https://github.com/sst/opencode) sidecar via its `auth.set` endpoint and persisted to:
 
-**Available models**: GPT-4o, GPT-4.1, GPT-4.1-mini, GPT-4.1-nano
+```
+~/.local/share/opencode/auth.json
+```
 
-### Anthropic
+opencode itself supports many providers; the Coodeen UI just doesn't expose all of them yet. If you need to add another provider now, you can edit `auth.json` directly or use the opencode CLI against the same file — Coodeen will pick up the change after the sidecar's provider cache is disposed (happens automatically on any auth mutation through the UI; otherwise restart the app).
 
-1. Get an API key from [console.anthropic.com](https://console.anthropic.com/)
-2. Open Settings in Coodeen
-3. Select **Anthropic** and paste your key
+## Model Choice
 
-**Available models**: Claude Sonnet 4, Claude Opus 4
+There is no model dropdown in the UI yet. The chat uses a fixed model picked by the app for every prompt — the composer shows the active model in its status row.
 
-### Google
+## Where the Key Lives
 
-1. Get an API key from [aistudio.google.com](https://aistudio.google.com/apikey)
-2. Open Settings in Coodeen
-3. Select **Google** and paste your key
-
-**Available models**: Gemini 2.5 Pro, Gemini 2.5 Flash
-
-### Free Models
-
-Coodeen also includes free model options that don't require an API key. These are community-provided and may have rate limits or reduced capabilities.
-
-## API Key Storage
-
-API keys are stored locally in the SQLite database in your app data directory. They are never transmitted anywhere except directly to the provider's API endpoint during chat requests.
-
-| Platform | Database Location |
-|----------|-------------------|
-| macOS | `~/Library/Application Support/coodeen/coodeen.db` |
-| Windows | `%APPDATA%/coodeen/coodeen.db` |
-| Linux | `~/.config/coodeen/coodeen.db` |
+The key never leaves your machine except when sent directly to the provider endpoint during a chat request. It is stored on disk in plain JSON, readable only by your user account.

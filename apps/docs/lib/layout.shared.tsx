@@ -125,10 +125,6 @@ export function baseOptions(): BaseLayoutProps {
         text: 'GitHub',
         url: 'https://github.com/zahinafsar/coodeen',
       },
-      {
-        text: 'npm',
-        url: 'https://www.npmjs.com/package/coodeen',
-      },
     ],
   };
 }
