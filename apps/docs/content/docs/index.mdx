@@ -5,7 +5,7 @@ description: Coodeen is an AI coding assistant with a split-pane editor — chat
 
 ## What is Coodeen?
 
-Coodeen is an open-source AI coding assistant packaged as a native desktop app. It's a focused UI on top of the [opencode](https://github.com/sst/opencode) agent: the chat panel drives the agent, and the right panel rotates between live preview, file explorer, and git. A built-in terminal slides in under the preview.
+Coodeen is an open-source AI coding assistant packaged as a native desktop app. It's a focused UI on top of the [opencode](https://github.com/sst/opencode) agent: the chat panel drives the agent, and the right panel rotates between live preview, design canvas, file explorer, and git. A built-in terminal slides in under the preview.
 
 Download the latest build from the [releases page](https://github.com/zahinafsar/coodeen/releases/latest).
 
@@ -13,10 +13,11 @@ Download the latest build from the [releases page](https://github.com/zahinafsar
 
 - **Chat with your codebase** — Agent runs tool calls (read, write, grep, bash, plan) inline in the chat
 - **Live preview** — Embedded browser; default URL `http://localhost:3000`, editable per session
-- **Element selection → screenshot** — Click an element in the preview to capture it and attach to your next prompt
+- **Design canvas** — Every page of your app rendered side-by-side as live iframes on a pannable, zoomable canvas; click any element to attach a screenshot to your next prompt
+- **Element selection → screenshot** — Click an element in the preview or design canvas to capture it
 - **File explorer** — Browse, view, create, and delete files
 - **Git** — Branches, status, diffs, conflicts, commit, push, pull, merge
-- **Terminal** — node-pty shell, togglable under the preview
+- **Terminal** — node-pty shell with one tab per project, persists while collapsed
 - **Sessions** — Persistent; drawer in the top-left toggles the list; each remembers its project dir and preview URL
 - **Custom action buttons** — `coodeen.json` in your project surfaces run-script buttons in the top bar
 - **Fully local** — API keys and session data stay on your machine

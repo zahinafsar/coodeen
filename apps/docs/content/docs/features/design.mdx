@@ -1,0 +1,61 @@
+---
+title: Design Canvas
+description: Browse every page of your app side-by-side as live, interactive iframes on an infinite canvas.
+---
+
+## Overview
+
+The **Design** tab on the right panel renders every route of your app as a live iframe card on a pannable, zoomable canvas (powered by React Flow). It's intended for visual scanning — see all your pages at once, click any element to attach a screenshot to your next prompt.
+
+Cards measure their own height from the loaded page (`document.documentElement.scrollHeight`) so each card fills the page's natural extent rather than a fixed device viewport. Width is fixed at 1920px; cards stack horizontally with a 60px gap.
+
+## Generating `coodeen.json`
+
+The canvas is driven by the `design` block in the project's `coodeen.json` file. If the file isn't present when you open the Design tab, the canvas shows a **Generate design file** button.
+
+Clicking it sends a programmatic prompt into your current chat session (creating one if needed) asking the agent to scan the project, list user-facing routes, and write `coodeen.json`. The agent's reasoning streams in the chat as usual; meanwhile the canvas listens to a chokidar file watcher and refreshes itself the moment the file lands on disk.
+
+```json
+{
+  "design": {
+    "host": "http://localhost:3000",
+    "pages": [
+      { "route": "/" },
+      { "route": "/login" },
+      { "route": "/dashboard" }
+    ]
+  }
+}
+```
+
+You can hand-edit the file at any time — the watcher rebuilds the canvas live.
+
+## Modes
+
+A three-way toggle in the canvas top-left controls how mouse events are routed:
+
+| Mode | Behavior |
+|------|----------|
+| **Preview** (default) | Iframes are visual only; canvas owns pan / zoom / drag everywhere. |
+| **Interact** | Iframe pointer events re-enabled — click links, scroll inside a page, fill forms. Canvas pan still works on the empty background. |
+| **Select** | Hover highlights elements inside any iframe with a selector tooltip; click captures a screenshot of the element and attaches it to the chat composer. Mode auto-resets to **Preview** after a successful pick. |
+
+Cards themselves are not draggable — positions are derived from page order.
+
+## Performance
+
+The canvas uses `onlyRenderVisibleElements`, so off-screen iframes unmount and stop loading until you pan to them. Iframes also opt into `loading="lazy"` and a no-referrer policy. A render-time error inside the canvas is caught by an error boundary and surfaces a Retry button instead of blanking the panel.
+
+## Caveats
+
+- A page that responds with `X-Frame-Options: deny` won't load — the card stays at its default height.
+- Heights are capped at 10000px to prevent runaway layouts.
+- Pages with `100vh`-only content can report a viewport-sized height; if you need a card sized to actual content extent, give the page a real document height.
+
+## Underlying APIs
+
+The renderer talks to the main process via three IPC handlers (`apps/desktop/src/handlers/coodeen.ts`):
+
+- `coodeen:get(dir)` — read `coodeen.json`.
+- `coodeen:set(dir, data)` — atomic write.
+- `coodeen:watch(dir)` — start a chokidar watcher that broadcasts `coodeen:changed` to the renderer.

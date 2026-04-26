@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>AI coding assistant with a split-pane editor — chat on the left, preview / files / git / terminal on the right.</strong>
+  <strong>AI coding assistant with a split-pane editor — chat on the left, preview / design canvas / files / git / terminal on the right.</strong>
 </p>
 
 <p align="center">
@@ -33,11 +33,12 @@ xattr -cr /Applications/Coodeen.app
 
 - **Chat with your codebase** — Ask the AI to build, edit, explain, or debug. The agent runs tool calls (read, write, grep, bash, etc.) inline in the chat.
 - **Live preview** — Embedded browser pointed at your dev server. Default URL is `http://localhost:3000`; editable per session.
-- **Element selection → screenshot** — Click an element in the preview to capture it and attach it to your next prompt.
+- **Design canvas** — Every page of your app rendered as a live iframe on a pannable, zoomable React Flow canvas. Three-mode toggle (Preview / Interact / Select) lets you scan visually, click around inside a page, or pick an element to attach as a screenshot.
+- **Element selection → screenshot** — Click an element in the preview or design canvas to capture it and attach it to your next prompt.
 - **File explorer** — Browse, view, create, and delete files in the project directory.
 - **Git panel** — Branches, status, diffs, conflicts, commit, push, pull, merge.
-- **Built-in terminal** — node-pty shell, togglable under the preview.
-- **Sessions** — Persistent sessions, each with its own project directory and preview URL. Drawer in the top-left toggles the list.
+- **Built-in terminal** — node-pty shell with one tab per project directory. Persists while collapsed.
+- **Sessions** — Persistent sessions, each with its own project directory and preview URL. Drawer in the top-left toggles the list. Project folder is locked once the session has started.
 - **Custom action buttons** — Drop a `coodeen.json` in your project and buttons show up in the top bar to run shell scripts scoped to the project.
 - **Fully local** — API keys and sessions live on your machine.
 
@@ -66,8 +67,8 @@ coodeen/
 │   │   │   ├── main.ts       # Electron main process
 │   │   │   ├── preload.ts    # IPC bridge (context isolation)
 │   │   │   ├── handlers/     # opencode, sessions, chat, fs, git, pty,
-│   │   │   │                 # providers, config, actions
-│   │   │   └── renderer/     # React UI (chat, preview, files, git, terminal)
+│   │   │   │                 # providers, config, actions, coodeen
+│   │   │   └── renderer/     # React UI (chat, preview, design, files, git, terminal)
 │   │   ├── resources/bin/    # opencode binary (fetched at build time)
 │   │   └── electron-builder.yml
 │   └── docs/                 # Docs site (Next.js + Fumadocs)
@@ -128,7 +129,10 @@ No data is sent off-machine except requests to the provider endpoint.
 
 ## `coodeen.json`
 
-Optional per-project file read by the main process (`handlers/actions.ts`). Example:
+Optional per-project file at the project root. Two independent blocks:
+
+- `actions` — buttons in the top bar that run scripts via `sh -c` in the project directory. A `.env` next to it is loaded into the child's environment. Read by `handlers/actions.ts`.
+- `design` — page list rendered on the design canvas. Auto-generated the first time you open the Design tab (the agent scans your project and writes the file); also hand-editable. Read and watched by `handlers/coodeen.ts`.
 
 ```json
 {
@@ -136,11 +140,19 @@ Optional per-project file read by the main process (`handlers/actions.ts`). Exam
   "actions": [
     { "label": "Dev", "script": "bun run dev" },
     { "label": "Test", "script": "bun run test" }
-  ]
+  ],
+  "design": {
+    "host": "http://localhost:3000",
+    "pages": [
+      { "route": "/" },
+      { "route": "/login" },
+      { "route": "/dashboard" }
+    ]
+  }
 }
 ```
 
-Each `actions` entry renders as a button in the top bar and runs the `script` via `sh -c` in the project directory. A `.env` next to it is loaded into the child's environment.
+The main process watches the file via `chokidar` and broadcasts a `coodeen:changed` event so the design canvas refreshes live whenever the file is rewritten by you or the agent.
 
 ## Troubleshooting
 

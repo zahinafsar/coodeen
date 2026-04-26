@@ -27,11 +27,11 @@ const DEFAULT_PREVIEW_URL = "http://localhost:3000";
 
 type RightTab = "preview" | "design" | "files" | "git";
 
-const GENERATE_PROMPT = `Scan this project and detect every user-facing route (Next.js app/pages router, React Router, etc.). Then write a file named \`coodeen.json\` at the project root with exactly this JSON shape (no extra fields, no comments):
+const GENERATE_PROMPT = `Scan this project, infer how routing is organized, and determine the dev server's host (including the correct port). Then write a file named \`coodeen.json\` at the project root with exactly this JSON shape (no extra fields, no comments):
 
 {
   "design": {
-    "host": "http://localhost:3000",
+    "host": "<scheme>://<host>:<port>",
     "pages": [{ "route": "/" }, { "route": "/some-route" }]
   }
 }

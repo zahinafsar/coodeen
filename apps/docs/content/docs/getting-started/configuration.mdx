@@ -28,15 +28,20 @@ Nothing leaves your machine except requests to the AI provider endpoint.
 
 Each session is scoped to a project directory. Opencode requests get an `x-opencode-directory` header (encoded) and a `directory` query param, so the agent's reads, writes, and shell commands stay inside that folder.
 
-On first launch the app defaults to the process's cwd; switch it with the folder picker inside the app. Sessions remember their own project dir in opencode.
+You pick a folder via the folder button in the chat composer before sending the first message of a session. Once a session has been started, the folder is locked — opencode binds it to the session at create time and there's no in-place rename. Sessions remember their own project dir in opencode and surface it again when you reopen the session via URL or sidebar.
+
+The session list pulls every known project from opencode's global project table, then issues one `/session` request per project (header-only routing) and merges the results. So a session created against any directory shows up in the sidebar regardless of which folder is currently active.
 
 ## Preview URL
 
 The preview panel defaults to `http://localhost:3000` and is editable inline. It's persisted per session in `session-prefs.json`.
 
-## Custom Action Buttons (`coodeen.json`)
+## `coodeen.json`
 
-Optional file at the project root. Buttons in the top bar run the listed scripts via `sh -c` in the project directory; a `.env` file alongside is loaded into the child's environment.
+Optional file at the project root. Two independent blocks:
+
+- `actions` — buttons in the top bar that run scripts via `sh -c` in the project directory. A `.env` file alongside is loaded into the child's environment.
+- `design` — page list rendered on the [Design Canvas](/docs/features/design). Generated automatically the first time you open the Design tab; can also be hand-edited.
 
 ```json
 {
@@ -44,6 +49,16 @@ Optional file at the project root. Buttons in the top bar run the listed scripts
   "actions": [
     { "label": "Dev", "script": "bun run dev" },
     { "label": "Test", "script": "bun run test" }
-  ]
+  ],
+  "design": {
+    "host": "http://localhost:3000",
+    "pages": [
+      { "route": "/" },
+      { "route": "/login" },
+      { "route": "/dashboard" }
+    ]
+  }
 }
 ```
+
+The main process watches the file via chokidar and broadcasts a `coodeen:changed` event so the design canvas refreshes live whenever the file is rewritten by you or the agent.

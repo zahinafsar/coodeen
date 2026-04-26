@@ -1,22 +1,23 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ReactFlow,
   ReactFlowProvider,
   Background,
   Controls,
   MiniMap,
-  applyNodeChanges,
   type Node,
-  type NodeChange,
   type NodeTypes,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Loader2, Sparkles } from "lucide-react";
+import { Eye, Loader2, MousePointer2, MousePointerClick, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { api } from "../../lib/api";
 import type { CoodeenConfig } from "../../lib/types";
 import { PageNode, type PageNodeData } from "./PageNode";
 import { DesignErrorBoundary } from "./DesignErrorBoundary";
+import { DesignSelectContext, type DesignMode } from "./DesignSelectContext";
+import { useElementSelection } from "../../contexts/ElementSelectionContext";
+import { cn } from "@/lib/utils";
 
 interface DesignCanvasProps {
   projectDir: string;
@@ -25,42 +26,20 @@ interface DesignCanvasProps {
 }
 
 const NODE_GAP = 60;
-const NODE_W = 1280;
-const NODE_H = 800;
-const COLS = 3;
+const NODE_W = 1920;
 
-function makeNodes(cfg: CoodeenConfig): Node<PageNodeData>[] {
+function buildNodes(cfg: CoodeenConfig): Node<PageNodeData>[] {
   const { host, pages } = cfg.design;
   return pages.map((p, i) => {
-    const col = i % COLS;
-    const row = Math.floor(i / COLS);
+    const url = `${host.replace(/\/$/, "")}${p.route.startsWith("/") ? p.route : `/${p.route}`}`;
     return {
       id: p.route,
       type: "page",
-      position: {
-        x: typeof p.x === "number" ? p.x : col * (NODE_W + NODE_GAP),
-        y: typeof p.y === "number" ? p.y : row * (NODE_H + NODE_GAP),
-      },
-      data: {
-        route: p.route,
-        url: `${host.replace(/\/$/, "")}${p.route.startsWith("/") ? p.route : `/${p.route}`}`,
-      },
-      draggable: true,
+      position: { x: i * (NODE_W + NODE_GAP), y: 0 },
+      data: { route: p.route, url },
+      draggable: false,
     };
   });
-}
-
-function nodesToConfig(
-  cfg: CoodeenConfig,
-  nodes: Node<PageNodeData>[],
-): CoodeenConfig {
-  const byRoute = new Map(nodes.map((n) => [n.id, n]));
-  const updated = cfg.design.pages.map((p) => {
-    const n = byRoute.get(p.route);
-    if (!n) return p;
-    return { ...p, x: n.position.x, y: n.position.y };
-  });
-  return { ...cfg, design: { ...cfg.design, pages: updated } };
 }
 
 function DesignCanvasInner({
@@ -70,13 +49,25 @@ function DesignCanvasInner({
 }: DesignCanvasProps) {
   const [config, setConfig] = useState<CoodeenConfig | null>(null);
   const [loading, setLoading] = useState(true);
-  const [nodes, setNodes] = useState<Node<PageNodeData>[]>([]);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [mode, setMode] = useState<DesignMode>("preview");
+  const { addScreenshot } = useElementSelection();
+
+  const handleSelected = useCallback(
+    (info: { screenshot?: string }) => {
+      if (info.screenshot) addScreenshot(info.screenshot);
+      setMode("preview");
+    },
+    [addScreenshot],
+  );
+
+  const ctx = useMemo(
+    () => ({ mode, onSelected: handleSelected }),
+    [mode, handleSelected],
+  );
 
   const load = useCallback(async () => {
     if (!projectDir) {
       setConfig(null);
-      setNodes([]);
       setLoading(false);
       return;
     }
@@ -84,7 +75,6 @@ function DesignCanvasInner({
     try {
       const cfg = await api.getCoodeen(projectDir);
       setConfig(cfg);
-      setNodes(cfg ? makeNodes(cfg) : []);
     } finally {
       setLoading(false);
     }
@@ -103,33 +93,9 @@ function DesignCanvasInner({
     return () => off();
   }, [projectDir, load]);
 
-  const persist = useCallback(
-    (next: Node<PageNodeData>[]) => {
-      if (!config || !projectDir) return;
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => {
-        const updated = nodesToConfig(config, next);
-        api.setCoodeen(projectDir, updated).catch(() => {});
-      }, 300);
-    },
-    [config, projectDir],
-  );
-
-  const onNodesChange = useCallback(
-    (changes: NodeChange[]) => {
-      setNodes((curr) => {
-        const next = applyNodeChanges(changes, curr) as Node<PageNodeData>[];
-        const dragged = changes.some(
-          (c) => c.type === "position" && c.dragging === false,
-        );
-        if (dragged) persist(next);
-        return next;
-      });
-    },
-    [persist],
-  );
-
   const nodeTypes: NodeTypes = useMemo(() => ({ page: PageNode }), []);
+
+  const nodes = useMemo(() => (config ? buildNodes(config) : []), [config]);
 
   if (!projectDir) {
     return (
@@ -172,12 +138,17 @@ function DesignCanvasInner({
   }
 
   return (
-    <div className="relative h-full w-full bg-[#0a0a0a]">
+    <DesignSelectContext.Provider value={ctx}>
+    <div
+      className={cn(
+        "relative h-full w-full bg-[#0a0a0a]",
+        mode === "interact" && "canvas-interact",
+      )}
+    >
       <ReactFlow
         nodes={nodes}
         edges={[]}
         nodeTypes={nodeTypes}
-        onNodesChange={onNodesChange}
         proOptions={{ hideAttribution: true }}
         colorMode="dark"
         minZoom={0.05}
@@ -188,6 +159,7 @@ function DesignCanvasInner({
         zoomOnPinch
         zoomOnScroll
         panOnDrag
+        nodesDraggable={false}
         selectionOnDrag={false}
         onlyRenderVisibleElements
       >
@@ -195,7 +167,62 @@ function DesignCanvasInner({
         <Controls position="bottom-right" />
         <MiniMap pannable zoomable position="bottom-left" />
       </ReactFlow>
+      <div className="absolute top-3 left-3 flex items-center bg-card/80 border border-border rounded-md overflow-hidden text-[11px]">
+        <ModeButton
+          active={mode === "preview"}
+          onClick={() => setMode("preview")}
+          label="Preview"
+          icon={<Eye className="h-3 w-3" />}
+        />
+        <ModeButton
+          active={mode === "interact"}
+          onClick={() => setMode("interact")}
+          label="Interact"
+          icon={<MousePointer2 className="h-3 w-3" />}
+        />
+        <ModeButton
+          active={mode === "select"}
+          onClick={() => setMode("select")}
+          label="Select"
+          icon={<MousePointerClick className="h-3 w-3" />}
+          accent
+        />
+      </div>
     </div>
+    </DesignSelectContext.Provider>
+  );
+}
+
+function ModeButton({
+  active,
+  onClick,
+  label,
+  icon,
+  accent,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  icon: React.ReactNode;
+  accent?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-1.5 px-2 py-1 transition-colors",
+        active
+          ? accent
+            ? "bg-blue-500/20 text-blue-200"
+            : "bg-amber-500/15 text-amber-200"
+          : "text-muted-foreground hover:text-foreground",
+      )}
+      aria-pressed={active}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }
 

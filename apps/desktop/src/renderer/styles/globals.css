@@ -69,8 +69,14 @@
   }
 }
 
-/* Iframes inside design canvas are preview-only; canvas owns all events */
+/* Iframes inside design canvas are preview-only by default; canvas owns events */
 .page-node-iframe-host,
 .page-node-iframe-host iframe {
   pointer-events: none;
+}
+
+/* Caps Lock on → re-enable iframe interaction so the user can click/scroll */
+.canvas-interact .page-node-iframe-host,
+.canvas-interact .page-node-iframe-host iframe {
+  pointer-events: auto;
 }

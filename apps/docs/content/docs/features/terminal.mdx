@@ -5,14 +5,24 @@ description: Built-in shell under the preview panel.
 
 ## Overview
 
-The terminal toggle in the preview toolbar opens a shell pane below the preview. It uses [`xterm.js`](https://xtermjs.org/) (with the fit and web-links addons) in the renderer, wired to a real PTY in the main process via [`@lydell/node-pty`](https://github.com/lydell/node-pty).
+The terminal toggle in the preview toolbar opens a tabbed shell pane below the preview. It uses [`xterm.js`](https://xtermjs.org/) (with the fit and web-links addons) in the renderer, wired to a real PTY in the main process via [`@lydell/node-pty`](https://github.com/lydell/node-pty).
+
+## Tabs
+
+- One tab per project directory. Switching to a session whose directory already has a tab activates that tab; switching to a new directory spawns a new tab.
+- Each tab keeps its own xterm instance and PTY for its lifetime — buffer scrollback, running processes, and history persist across tab switches.
+- The tab strip has an X to close a tab and a `+` to spawn an extra tab in the current directory (e.g. for running multiple processes).
+
+## Persistence
+
+The terminal panel itself stays mounted at all times. Toggling the terminal button in the preview toolbar collapses the panel to 0px height instead of unmounting it, so PTYs keep running and their output keeps streaming.
 
 ## Details
 
-- Shell is `$SHELL` or `/bin/sh`, spawned in the session's project directory.
-- Terminal is xterm-256color with fit-to-panel resizing.
-- Processes are tracked in a session map and killed cleanly on window close.
-- The IPC surface (`pty:spawn`, `pty:write`, `pty:resize`, `pty:kill`, `pty:list`) is exposed in `handlers/pty.ts`.
+- Shell is `$SHELL` or `/bin/sh`, spawned in the tab's project directory.
+- Terminal is xterm-256color with fit-to-panel resizing — refits when a hidden tab becomes active so xterm picks up the new viewport.
+- Processes are tracked in a session map and killed cleanly on tab close or window close.
+- The IPC surface (`pty:create`, `pty:write`, `pty:resize`, `pty:kill`, `pty:list`) is exposed in `handlers/pty.ts`.
 
 ## Agent Access
 
