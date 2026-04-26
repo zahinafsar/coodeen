@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -8,7 +8,8 @@ import { ChatPanel, type ChatPanelHandle } from "../components/chat/ChatPanel";
 import { PreviewPanel } from "../components/preview/PreviewPanel";
 import { FileExplorerPanel } from "../components/files/FileExplorerPanel";
 import { GitManagerPanel } from "../components/git/GitManagerPanel";
-import { TerminalPanel } from "../components/terminal/TerminalPanel";
+import { TerminalTabs } from "../components/terminal/TerminalTabs";
+import type { PanelImperativeHandle } from "react-resizable-panels";
 import { DesignCanvas } from "../components/design/DesignCanvas";
 import { api } from "../lib/api";
 import { toast } from "sonner";
@@ -55,6 +56,14 @@ function MainPageInner() {
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
   const chatRef = useRef<ChatPanelHandle | null>(null);
+  const terminalPanelRef = useRef<PanelImperativeHandle>(null);
+
+  useLayoutEffect(() => {
+    const panel = terminalPanelRef.current;
+    if (!panel) return;
+    if (terminalOpen) panel.expand();
+    else panel.collapse();
+  }, [terminalOpen]);
 
   const handleGenerateCoodeen = useCallback(() => {
     if (!projectDir) {
@@ -190,7 +199,7 @@ function MainPageInner() {
           </div>
           <div className="flex-1 min-h-0">
             <ResizablePanelGroup orientation="vertical" className="h-full">
-              <ResizablePanel defaultSize={terminalOpen ? 60 : 100} minSize={20}>
+              <ResizablePanel defaultSize={60} minSize={20}>
                 {rightTab === "preview" ? (
                   <PreviewPanel
                     url={previewUrl}
@@ -214,18 +223,16 @@ function MainPageInner() {
                   <GitManagerPanel projectDir={projectDir} />
                 )}
               </ResizablePanel>
-              {terminalOpen && (
-                <>
-                  <ResizableHandle withHandle />
-                  <ResizablePanel defaultSize={40} minSize={10}>
-                    <div className="flex flex-col h-full bg-[#0a0a0a]">
-                      <div className="flex-1 min-h-0">
-                        <TerminalPanel projectDir={projectDir} />
-                      </div>
-                    </div>
-                  </ResizablePanel>
-                </>
-              )}
+              <ResizableHandle withHandle />
+              <ResizablePanel
+                panelRef={terminalPanelRef}
+                defaultSize={40}
+                minSize={10}
+                collapsible
+                collapsedSize={0}
+              >
+                <TerminalTabs projectDir={projectDir} />
+              </ResizablePanel>
             </ResizablePanelGroup>
           </div>
         </div>

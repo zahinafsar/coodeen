@@ -10,23 +10,22 @@ interface TerminalSession {
   title: string;
 }
 
-interface TerminalPanelProps {
-  projectDir: string;
+interface TerminalViewProps {
+  cwd: string;
+  active: boolean;
 }
 
-export function TerminalPanel({ projectDir }: TerminalPanelProps) {
+export function TerminalView({ cwd, active }: TerminalViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const sessionRef = useRef<TerminalSession | null>(null);
   const cleanupRef = useRef<Array<() => void>>([]);
-  const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const initTerminal = useCallback(async () => {
     if (!containerRef.current) return;
 
-    // Clean up existing
     terminalRef.current?.dispose();
     cleanupRef.current.forEach((fn) => fn());
     cleanupRef.current = [];
@@ -70,49 +69,39 @@ export function TerminalPanel({ projectDir }: TerminalPanelProps) {
     fitAddonRef.current = fitAddon;
 
     terminal.open(containerRef.current);
-    fitAddon.fit();
-
-    // Create PTY session via IPC
     try {
-      const session = await api.createTerminal({ cwd: projectDir });
+      fitAddon.fit();
+    } catch {}
+
+    try {
+      const session = await api.createTerminal({ cwd });
       sessionRef.current = session;
 
-      // Resize the PTY to match terminal dimensions
       const { cols, rows } = terminal;
       await api.resizeTerminal(session.id, cols, rows);
 
-      // Listen for PTY data via IPC
       const removeDataListener = window.electronAPI.pty.onData((msg) => {
-        if (msg.id === session.id) {
-          terminal.write(msg.data);
-        }
+        if (msg.id === session.id) terminal.write(msg.data);
       });
       cleanupRef.current.push(removeDataListener);
 
-      const removeExitListener = window.electronAPI.pty.onExit((msg) => {
-        if (msg.id === session.id) {
-          setIsConnected(false);
-        }
-      });
+      const removeExitListener = window.electronAPI.pty.onExit(() => {});
       cleanupRef.current.push(removeExitListener);
 
-      // Forward user input to PTY via IPC
       const disposeOnData = terminal.onData((data) => {
         window.electronAPI.pty.write(session.id, data);
       });
       cleanupRef.current.push(() => disposeOnData.dispose());
 
-      setIsConnected(true);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create terminal");
     }
-  }, [projectDir]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Initialize on mount
   useEffect(() => {
     initTerminal();
-
     return () => {
       cleanupRef.current.forEach((fn) => fn());
       cleanupRef.current = [];
@@ -123,10 +112,8 @@ export function TerminalPanel({ projectDir }: TerminalPanelProps) {
     };
   }, [initTerminal]);
 
-  // Handle resize
   useEffect(() => {
     if (!containerRef.current) return;
-
     const observer = new ResizeObserver(() => {
       if (fitAddonRef.current && terminalRef.current) {
         try {
@@ -138,10 +125,26 @@ export function TerminalPanel({ projectDir }: TerminalPanelProps) {
         } catch {}
       }
     });
-
     observer.observe(containerRef.current);
     return () => observer.disconnect();
   }, []);
+
+  // Refit when this view becomes active (size may have been 0 while hidden).
+  useEffect(() => {
+    if (!active) return;
+    requestAnimationFrame(() => {
+      try {
+        fitAddonRef.current?.fit();
+        const t = terminalRef.current;
+        if (t && sessionRef.current) {
+          api
+            .resizeTerminal(sessionRef.current.id, t.cols, t.rows)
+            .catch(() => {});
+        }
+        t?.focus();
+      } catch {}
+    });
+  }, [active]);
 
   return (
     <div className="flex flex-col h-full bg-[#0a0a0a]">
