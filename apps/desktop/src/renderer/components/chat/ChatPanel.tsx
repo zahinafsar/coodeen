@@ -104,8 +104,9 @@ export function ChatPanel({
 
   const createSession = useCallback(() => {
     setSessionId(null);
+    setProjectDir("");
     navigate("/");
-  }, [navigate]);
+  }, [navigate, setProjectDir]);
 
   const deleteSession = useCallback(() => {
     if (sessionId) clearSession(sessionId);
@@ -123,27 +124,20 @@ export function ChatPanel({
     }
   }, [previewUrl, sessionId]);
 
-  const prevProjectDir = useRef(projectDir);
-  useEffect(() => {
-    if (projectDir !== prevProjectDir.current) {
-      const previous = prevProjectDir.current;
-      prevProjectDir.current = projectDir;
-      if (sessionId && previous && previous !== projectDir) {
-        setSessionId(null);
-        navigate("/");
-      }
-    }
-  }, [projectDir, sessionId, navigate]);
-
   const sendMessage = useCallback(
     async (prompt: string, screenshots?: string[]) => {
+      let sid = sessionId;
+      if (!sid && !projectDir) {
+        toast.error("Select a project folder first");
+        return;
+      }
+
       const hasKey = await api.providerHasKey(MODEL.providerId).catch(() => false);
       if (!hasKey) {
         toast.error("Add your OpenAI API key");
         return;
       }
 
-      let sid = sessionId;
       const isFirstMessage = !sid;
       if (!sid) {
         try {

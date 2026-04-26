@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -14,7 +14,6 @@ import {
   useElementSelection,
 } from "../contexts/ElementSelectionContext";
 import { useProject } from "../contexts/ProjectContext";
-import { api } from "../lib/api";
 import { cn } from "@/lib/utils";
 import type { FileReference } from "../lib/types";
 import type { ElementInfo } from "../components/preview/SelectionOverlay";
@@ -32,7 +31,7 @@ export function MainPage() {
 }
 
 function MainPageInner() {
-  const { projectDir, setProjectDir } = useProject();
+  const { projectDir } = useProject();
   const { addScreenshot } = useElementSelection();
   const [previewUrl, setPreviewUrl] = useState(DEFAULT_PREVIEW_URL);
   const [rightTab, setRightTab] = useState<RightTab>("preview");
@@ -72,17 +71,6 @@ function MainPageInner() {
     },
     [addScreenshot],
   );
-
-  useEffect(() => {
-    api
-      .getCwd()
-      .then(({ cwd }) => {
-        if (cwd && !projectDir) {
-          setProjectDir(cwd);
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   return (
     <ResizablePanelGroup orientation="horizontal" className="h-full">

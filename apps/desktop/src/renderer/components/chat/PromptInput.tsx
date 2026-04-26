@@ -407,7 +407,13 @@ export function PromptInput({
         <button
           type="button"
           onClick={() => setFolderPickerOpen(true)}
-          className="flex items-center gap-1.5 h-7 px-2 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-md border border-border hover:bg-accent"
+          disabled={variant !== "landing"}
+          title={
+            variant !== "landing"
+              ? "Project folder is locked once the session has started"
+              : undefined
+          }
+          className="flex items-center gap-1.5 h-7 px-2 text-xs text-muted-foreground hover:text-foreground transition-colors rounded-md border border-border hover:bg-accent disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
         >
           <Folder className="h-3 w-3 shrink-0" />
           <span className="truncate max-w-[200px]">
@@ -415,12 +421,14 @@ export function PromptInput({
           </span>
         </button>
       </div>
-      <FolderPickerDialog
-        open={folderPickerOpen}
-        onOpenChange={setFolderPickerOpen}
-        onSelect={(path) => setProjectDir(path)}
-        initialPath={projectDir || undefined}
-      />
+      {variant === "landing" && (
+        <FolderPickerDialog
+          open={folderPickerOpen}
+          onOpenChange={setFolderPickerOpen}
+          onSelect={(path) => setProjectDir(path)}
+          initialPath={projectDir || undefined}
+        />
+      )}
     </form>
   );
 }

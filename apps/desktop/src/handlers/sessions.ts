@@ -1,5 +1,5 @@
 import { ipcMain } from "electron";
-import { getClient, dirOptions } from "./opencode.js";
+import { getClient, getBaseUrl, dirOptions } from "./opencode.js";
 import { getPrefs, setPrefs, deletePrefs, allPrefs } from "./session-prefs.js";
 
 function mergeSession(s: {
@@ -24,16 +24,63 @@ function mergeSession(s: {
 export function registerSessionHandlers() {
   ipcMain.handle("sessions:list", async () => {
     const client = getClient();
-    const res = await client.session.list();
-    const list = (res.data ?? []) as Array<{
+    const base = getBaseUrl();
+    // /session is per-Instance and filters by Instance.project.id.
+    // Iterate every known project (Project.list is global) and route
+    // per-project via the x-opencode-directory header ONLY — passing
+    // ?directory= would also filter SessionTable.directory, which equals
+    // Instance.directory (the picked dir) and can differ from
+    // Project.worktree when the user picked a subdir of a git root.
+    const projRes = await client.project.list();
+    const projects = (projRes.data ?? []) as Array<{
+      id: string;
+      worktree: string;
+    }>;
+
+    type Row = {
       id: string;
       title: string;
       directory?: string;
       time?: { created: number; updated: number };
-    }>;
-    return list
-      .map(mergeSession)
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    };
+
+    const fetchProjectSessions = async (worktree: string): Promise<Row[]> => {
+      if (!base) return [];
+      const r = await fetch(`${base}/session`, {
+        headers: {
+          "x-opencode-directory": encodeURIComponent(worktree),
+        },
+      });
+      if (!r.ok) {
+        console.warn(
+          `[sessions:list] ${worktree} → ${r.status} ${r.statusText}`,
+        );
+        return [];
+      }
+      return (await r.json()) as Row[];
+    };
+
+    const lists = await Promise.all(
+      projects.map(async (p) => {
+        try {
+          const rows = await fetchProjectSessions(p.worktree);
+          return rows.map(mergeSession);
+        } catch (err) {
+          console.warn(
+            `[sessions:list] failed for ${p.worktree}:`,
+            err instanceof Error ? err.message : err,
+          );
+          return [];
+        }
+      }),
+    );
+
+    const byId = new Map<string, ReturnType<typeof mergeSession>>();
+    for (const s of lists.flat()) byId.set(s.id, s);
+
+    return [...byId.values()].sort((a, b) =>
+      b.updatedAt.localeCompare(a.updatedAt),
+    );
   });
 
   ipcMain.handle("sessions:get", async (_e, id: string) => {
@@ -101,11 +148,22 @@ export function registerSessionHandlers() {
     }) => {
       const client = getClient();
       if (data.title !== undefined) {
+        // Title write goes through Instance, so route must hit the
+        // session's home project — fall back to fetching the session
+        // (ID-scoped, instance-agnostic) to discover its directory.
+        let dir = data.projectDir;
+        if (!dir) {
+          try {
+            const cur = await client.session.get({ path: { id } });
+            dir = (cur.data as { directory?: string } | undefined)?.directory;
+          } catch {}
+        }
         await client.session.update({
           path: { id },
           body: { title: data.title },
-          query: data.projectDir ? { directory: data.projectDir } : undefined,
-        });
+          ...dirOptions(dir),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any);
       }
       if (
         data.providerId !== undefined ||

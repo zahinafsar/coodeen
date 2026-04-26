@@ -2323,9 +2323,43 @@ function mergeSession(s) {
 function registerSessionHandlers() {
   electron.ipcMain.handle("sessions:list", async () => {
     const client2 = getClient();
-    const res = await client2.session.list();
-    const list = res.data ?? [];
-    return list.map(mergeSession).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    const base = getBaseUrl();
+    const projRes = await client2.project.list();
+    const projects = projRes.data ?? [];
+    const fetchProjectSessions = async (worktree) => {
+      if (!base) return [];
+      const r = await fetch(`${base}/session`, {
+        headers: {
+          "x-opencode-directory": encodeURIComponent(worktree)
+        }
+      });
+      if (!r.ok) {
+        console.warn(
+          `[sessions:list] ${worktree} → ${r.status} ${r.statusText}`
+        );
+        return [];
+      }
+      return await r.json();
+    };
+    const lists = await Promise.all(
+      projects.map(async (p) => {
+        try {
+          const rows = await fetchProjectSessions(p.worktree);
+          return rows.map(mergeSession);
+        } catch (err) {
+          console.warn(
+            `[sessions:list] failed for ${p.worktree}:`,
+            err instanceof Error ? err.message : err
+          );
+          return [];
+        }
+      })
+    );
+    const byId = /* @__PURE__ */ new Map();
+    for (const s of lists.flat()) byId.set(s.id, s);
+    return [...byId.values()].sort(
+      (a, b) => b.updatedAt.localeCompare(a.updatedAt)
+    );
   });
   electron.ipcMain.handle("sessions:get", async (_e, id) => {
     const client2 = getClient();
@@ -2364,10 +2398,19 @@ function registerSessionHandlers() {
     async (_e, id, data) => {
       const client2 = getClient();
       if (data.title !== void 0) {
+        let dir = data.projectDir;
+        if (!dir) {
+          try {
+            const cur = await client2.session.get({ path: { id } });
+            dir = cur.data?.directory;
+          } catch {
+          }
+        }
         await client2.session.update({
           path: { id },
           body: { title: data.title },
-          query: data.projectDir ? { directory: data.projectDir } : void 0
+          ...dirOptions(dir)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         });
       }
       if (data.providerId !== void 0 || data.modelId !== void 0 || data.previewUrl !== void 0) {
