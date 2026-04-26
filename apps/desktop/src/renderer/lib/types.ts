@@ -11,12 +11,11 @@ export interface Session {
 
 export interface CoodeenPage {
   route: string;
-  x?: number;
-  y?: number;
+  compact?: boolean;
 }
 
 export interface CoodeenConfig {
-  design: {
+  design?: {
     host: string;
     pages: CoodeenPage[];
   };

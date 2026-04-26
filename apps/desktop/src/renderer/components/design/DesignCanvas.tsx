@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -16,6 +16,7 @@ import type { CoodeenConfig } from "../../lib/types";
 import { PageNode, type PageNodeData } from "./PageNode";
 import { DesignErrorBoundary } from "./DesignErrorBoundary";
 import { DesignSelectContext, type DesignMode } from "./DesignSelectContext";
+import { DesignPrefsProvider } from "./DesignPrefsContext";
 import { useElementSelection } from "../../contexts/ElementSelectionContext";
 import { cn } from "@/lib/utils";
 
@@ -29,7 +30,9 @@ const NODE_GAP = 60;
 const NODE_W = 1920;
 
 function buildNodes(cfg: CoodeenConfig): Node<PageNodeData>[] {
-  const { host, pages } = cfg.design;
+  if (!cfg.design) return [];
+  const host = cfg.design.host;
+  const pages = cfg.design.pages ?? [];
   return pages.map((p, i) => {
     const url = `${host.replace(/\/$/, "")}${p.route.startsWith("/") ? p.route : `/${p.route}`}`;
     return {
@@ -50,6 +53,9 @@ function DesignCanvasInner({
   const [config, setConfig] = useState<CoodeenConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<DesignMode>("preview");
+  const lastPersistedRef = useRef<string>("");
+  const configRef = useRef<CoodeenConfig | null>(null);
+  configRef.current = config;
   const { addScreenshot } = useElementSelection();
 
   const handleSelected = useCallback(
@@ -65,37 +71,60 @@ function DesignCanvasInner({
     [mode, handleSelected],
   );
 
-  const load = useCallback(async () => {
-    if (!projectDir) {
-      setConfig(null);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    try {
-      const cfg = await api.getCoodeen(projectDir);
-      setConfig(cfg);
-    } finally {
-      setLoading(false);
-    }
-  }, [projectDir]);
+  const load = useCallback(
+    async (initial: boolean) => {
+      if (!projectDir) {
+        setConfig(null);
+        lastPersistedRef.current = "";
+        if (initial) setLoading(false);
+        return;
+      }
+      if (initial) setLoading(true);
+      try {
+        const cfg = await api.getCoodeen(projectDir);
+        const json = JSON.stringify(cfg);
+        // Skip setConfig if the on-disk content matches what we just
+        // wrote ourselves — keeps React Flow + iframes from re-rendering.
+        if (json === lastPersistedRef.current) return;
+        lastPersistedRef.current = json;
+        setConfig(cfg);
+      } finally {
+        if (initial) setLoading(false);
+      }
+    },
+    [projectDir],
+  );
 
   useEffect(() => {
-    load();
+    load(true);
   }, [load]);
 
   useEffect(() => {
     if (!projectDir) return;
     api.watchCoodeen(projectDir).catch(() => {});
     const off = api.onCoodeenChanged(({ dir }) => {
-      if (dir === projectDir) load();
+      if (dir === projectDir) load(false);
     });
     return () => off();
   }, [projectDir, load]);
 
+  const handleFlush = useCallback(
+    (next: NonNullable<CoodeenConfig["design"]>) => {
+      const cur = configRef.current;
+      if (!cur || !projectDir) return;
+      const merged: CoodeenConfig = { ...cur, design: next };
+      lastPersistedRef.current = JSON.stringify(merged);
+      api.setCoodeen(projectDir, merged).catch(() => {});
+    },
+    [projectDir],
+  );
+
   const nodeTypes: NodeTypes = useMemo(() => ({ page: PageNode }), []);
 
-  const nodes = useMemo(() => (config ? buildNodes(config) : []), [config]);
+  const nodes = useMemo(
+    () => (config ? buildNodes(config) : []),
+    [config],
+  );
 
   if (!projectDir) {
     return (
@@ -122,7 +151,7 @@ function DesignCanvasInner({
     );
   }
 
-  if (!config) {
+  if (!config || !config.design) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4 px-6">
         <p className="text-sm text-muted-foreground text-center max-w-sm">
@@ -139,56 +168,58 @@ function DesignCanvasInner({
 
   return (
     <DesignSelectContext.Provider value={ctx}>
-    <div
-      className={cn(
-        "relative h-full w-full bg-[#0a0a0a]",
-        mode === "interact" && "canvas-interact",
-      )}
-    >
-      <ReactFlow
-        nodes={nodes}
-        edges={[]}
-        nodeTypes={nodeTypes}
-        proOptions={{ hideAttribution: true }}
-        colorMode="dark"
-        minZoom={0.05}
-        maxZoom={2}
-        fitView
-        fitViewOptions={{ padding: 0.2 }}
-        panOnScroll
-        zoomOnPinch
-        zoomOnScroll
-        panOnDrag
-        nodesDraggable={false}
-        selectionOnDrag={false}
-        onlyRenderVisibleElements
-      >
-        <Background gap={24} size={1} />
-        <Controls position="bottom-right" />
-        <MiniMap pannable zoomable position="bottom-left" />
-      </ReactFlow>
-      <div className="absolute top-3 left-3 flex items-center bg-card/80 border border-border rounded-md overflow-hidden text-[11px]">
-        <ModeButton
-          active={mode === "preview"}
-          onClick={() => setMode("preview")}
-          label="Preview"
-          icon={<Eye className="h-3 w-3" />}
-        />
-        <ModeButton
-          active={mode === "interact"}
-          onClick={() => setMode("interact")}
-          label="Interact"
-          icon={<MousePointer2 className="h-3 w-3" />}
-        />
-        <ModeButton
-          active={mode === "select"}
-          onClick={() => setMode("select")}
-          label="Select"
-          icon={<MousePointerClick className="h-3 w-3" />}
-          accent
-        />
-      </div>
-    </div>
+      <DesignPrefsProvider initial={config.design} onFlush={handleFlush}>
+        <div
+          className={cn(
+            "relative h-full w-full bg-[#0a0a0a]",
+            mode === "interact" && "canvas-interact",
+          )}
+        >
+          <ReactFlow
+            nodes={nodes}
+            edges={[]}
+            nodeTypes={nodeTypes}
+            proOptions={{ hideAttribution: true }}
+            colorMode="dark"
+            minZoom={0.05}
+            maxZoom={2}
+            fitView
+            fitViewOptions={{ padding: 0.2 }}
+            panOnScroll
+            zoomOnPinch
+            zoomOnScroll
+            panOnDrag
+            nodesDraggable={false}
+            selectionOnDrag={false}
+            onlyRenderVisibleElements
+          >
+            <Background gap={24} size={1} />
+            <Controls position="bottom-right" />
+            <MiniMap pannable zoomable position="bottom-left" />
+          </ReactFlow>
+          <div className="absolute top-3 left-3 flex items-center bg-card/80 border border-border rounded-md overflow-hidden text-[11px]">
+            <ModeButton
+              active={mode === "preview"}
+              onClick={() => setMode("preview")}
+              label="Preview"
+              icon={<Eye className="h-3 w-3" />}
+            />
+            <ModeButton
+              active={mode === "interact"}
+              onClick={() => setMode("interact")}
+              label="Interact"
+              icon={<MousePointer2 className="h-3 w-3" />}
+            />
+            <ModeButton
+              active={mode === "select"}
+              onClick={() => setMode("select")}
+              label="Select"
+              icon={<MousePointerClick className="h-3 w-3" />}
+              accent
+            />
+          </div>
+        </div>
+      </DesignPrefsProvider>
     </DesignSelectContext.Provider>
   );
 }

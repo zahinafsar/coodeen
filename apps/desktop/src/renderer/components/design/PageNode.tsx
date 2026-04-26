@@ -1,13 +1,13 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { RotateCw } from "lucide-react";
+import { Maximize2, Minimize2, RotateCw } from "lucide-react";
 import { useDesignSelect } from "./DesignSelectContext";
+import { useDesignPage, useDesignPrefs } from "./DesignPrefsContext";
 import type { ElementInfo } from "../preview/SelectionOverlay";
 
 export interface PageNodeData {
   route: string;
   url: string;
-  onHeight?: (route: string, height: number) => void;
   [key: string]: unknown;
 }
 
@@ -45,10 +45,14 @@ function buildSelector(el: Element): string {
 }
 
 export const PageNode = memo(function PageNode({ data }: NodeProps) {
-  const { route, url, onHeight } = data as PageNodeData;
+  const { route, url } = data as PageNodeData;
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
-  const [bodyHeight, setBodyHeight] = useState(DEFAULT_HEIGHT);
+  const [measuredHeight, setMeasuredHeight] = useState(DEFAULT_HEIGHT);
+  const page = useDesignPage(route);
+  const prefs = useDesignPrefs();
+  const compact = !!page?.compact;
+  const bodyHeight = compact ? DEFAULT_HEIGHT : measuredHeight;
   const lastEl = useRef<Element | null>(null);
   const { mode, onSelected } = useDesignSelect();
 
@@ -68,8 +72,7 @@ export const PageNode = memo(function PageNode({ data }: NodeProps) {
       );
       if (h <= 0) return;
       const clamped = Math.min(h, MAX_HEIGHT);
-      setBodyHeight(clamped);
-      onHeight?.(route, clamped + HEADER_HEIGHT);
+      setMeasuredHeight(clamped);
     };
 
     const onLoad = () => {
@@ -82,7 +85,7 @@ export const PageNode = memo(function PageNode({ data }: NodeProps) {
       if (timer) clearTimeout(timer);
       el.removeEventListener("load", onLoad);
     };
-  }, [route, onHeight]);
+  }, []);
 
   // Inject / remove highlight scaffolding inside iframe based on mode.
   useEffect(() => {
@@ -197,23 +200,41 @@ export const PageNode = memo(function PageNode({ data }: NodeProps) {
         <span className="text-xs font-mono text-muted-foreground truncate">
           {route}
         </span>
-        <button
-          type="button"
-          className="nodrag p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
-          onClick={(e) => {
-            e.stopPropagation();
-            const el = iframeRef.current;
-            if (!el) return;
-            const src = el.src;
-            el.src = "";
-            requestAnimationFrame(() => {
-              if (iframeRef.current) iframeRef.current.src = src;
-            });
-          }}
-          aria-label="Reload"
-        >
-          <RotateCw className="h-3 w-3" />
-        </button>
+        <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            className="nodrag p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+            onClick={(e) => {
+              e.stopPropagation();
+              prefs.updatePage(route, { compact: !compact });
+            }}
+            aria-label={compact ? "Auto height" : "Lock to desktop height"}
+            title={compact ? "Auto height" : "Lock to desktop height"}
+          >
+            {compact ? (
+              <Maximize2 className="h-3 w-3" />
+            ) : (
+              <Minimize2 className="h-3 w-3" />
+            )}
+          </button>
+          <button
+            type="button"
+            className="nodrag p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+            onClick={(e) => {
+              e.stopPropagation();
+              const el = iframeRef.current;
+              if (!el) return;
+              const src = el.src;
+              el.src = "";
+              requestAnimationFrame(() => {
+                if (iframeRef.current) iframeRef.current.src = src;
+              });
+            }}
+            aria-label="Reload"
+          >
+            <RotateCw className="h-3 w-3" />
+          </button>
+        </div>
       </div>
       <div
         className="page-node-iframe-host bg-background relative"

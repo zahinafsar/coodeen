@@ -5,12 +5,11 @@ import chokidar, { type FSWatcher } from "chokidar";
 
 export interface CoodeenPage {
   route: string;
-  x?: number;
-  y?: number;
+  compact?: boolean;
 }
 
 export interface CoodeenConfig {
-  design: {
+  design?: {
     host: string;
     pages: CoodeenPage[];
   };
