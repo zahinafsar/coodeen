@@ -128,7 +128,7 @@ export function SessionDrawer({
           </div>
         </SheetHeader>
         <ScrollArea className="flex-1">
-          <div className="p-2">
+          <div className="px-2 pb-2">
             {sessions.length === 0 ? (
               <p className="text-center text-muted-foreground text-sm py-8">
                 No sessions yet.

@@ -14,6 +14,7 @@ import {
   useElementSelection,
 } from "../contexts/ElementSelectionContext";
 import { useProject } from "../contexts/ProjectContext";
+import { useRightPanel } from "../contexts/RightPanelContext";
 import { cn } from "@/lib/utils";
 import type { FileReference } from "../lib/types";
 import type { ElementInfo } from "../components/preview/SelectionOverlay";
@@ -32,6 +33,7 @@ export function MainPage() {
 
 function MainPageInner() {
   const { projectDir } = useProject();
+  const { open: rightOpen } = useRightPanel();
   const { addScreenshot } = useElementSelection();
   const [previewUrl, setPreviewUrl] = useState(DEFAULT_PREVIEW_URL);
   const [rightTab, setRightTab] = useState<RightTab>("preview");
@@ -71,6 +73,19 @@ function MainPageInner() {
     },
     [addScreenshot],
   );
+
+  if (!rightOpen) {
+    return (
+      <ChatPanel
+        previewUrl={previewUrl}
+        onPreviewUrlChange={handlePreviewUrlChange}
+        fileReferences={fileReferences}
+        onAddFileReference={handleFileReference}
+        onRemoveFileReference={handleRemoveFileReference}
+        onClearFileReferences={handleClearFileReferences}
+      />
+    );
+  }
 
   return (
     <ResizablePanelGroup orientation="horizontal" className="h-full">

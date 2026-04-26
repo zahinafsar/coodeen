@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Menu, Loader2, KeyRound } from "lucide-react";
+import { Menu, Loader2, KeyRound, PanelRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDrawer } from "../contexts/DrawerContext";
 import { useProject } from "../contexts/ProjectContext";
+import { useRightPanel } from "../contexts/RightPanelContext";
 import { api } from "../lib/api";
 import { toast } from "sonner";
 import iconSvg from "../assets/icon.svg";
@@ -17,6 +18,7 @@ interface CustomAction {
 export function TopBar() {
   const { toggle } = useDrawer();
   const { projectDir } = useProject();
+  const { open: rightOpen, toggle: toggleRight } = useRightPanel();
   const [actions, setActions] = useState<CustomAction[]>([]);
   const [runningAction, setRunningAction] = useState<string | null>(null);
   const [apiKeyOpen, setApiKeyOpen] = useState(false);
@@ -112,6 +114,21 @@ export function TopBar() {
             </Button>
           </TooltipTrigger>
           <TooltipContent>Set OpenAI API key</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={toggleRight}
+              aria-pressed={rightOpen}
+            >
+              <PanelRight className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{rightOpen ? "Hide preview" : "Show preview"}</TooltipContent>
         </Tooltip>
       </div>
       <ApiKeyDialog open={apiKeyOpen} onOpenChange={setApiKeyOpen} />
