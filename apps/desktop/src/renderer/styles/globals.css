@@ -68,3 +68,9 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
 }
+
+/* Iframes inside design canvas are preview-only; canvas owns all events */
+.page-node-iframe-host,
+.page-node-iframe-host iframe {
+  pointer-events: none;
+}

@@ -9,6 +9,19 @@ export interface Session {
   updatedAt: string;
 }
 
+export interface CoodeenPage {
+  route: string;
+  x?: number;
+  y?: number;
+}
+
+export interface CoodeenConfig {
+  design: {
+    host: string;
+    pages: CoodeenPage[];
+  };
+}
+
 export interface FileReference {
   filePath: string;
   startLine: number;

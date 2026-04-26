@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import type { FileReference, Session } from "../../lib/types";
@@ -35,14 +35,19 @@ interface ChatPanelProps {
   onClearFileReferences?: () => void;
 }
 
-export function ChatPanel({
+export interface ChatPanelHandle {
+  sendMessage: (prompt: string) => void;
+  hasSession: () => boolean;
+}
+
+export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function ChatPanel({
   previewUrl,
   onPreviewUrlChange,
   fileReferences = [],
   onAddFileReference,
   onRemoveFileReference,
   onClearFileReferences,
-}: ChatPanelProps) {
+}, forwardedRef) {
   const { sessionId: urlSessionId } = useParams<{ sessionId?: string }>();
   const navigate = useNavigate();
   const { projectDir, setProjectDir } = useProject();
@@ -188,6 +193,17 @@ export function ChatPanel({
     }
   }, [sessionId]);
 
+  useImperativeHandle(
+    forwardedRef,
+    () => ({
+      sendMessage: (prompt: string) => {
+        sendMessage(prompt);
+      },
+      hasSession: () => !!sessionId,
+    }),
+    [sendMessage, sessionId],
+  );
+
   const isEmpty = messages.length === 0;
 
   return (
@@ -237,4 +253,4 @@ export function ChatPanel({
       </div>
     </>
   );
-}
+});

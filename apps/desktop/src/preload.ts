@@ -178,6 +178,22 @@ const electronAPI = {
       ipcRenderer.invoke("actions:run", dir, script),
   },
 
+  // ── Coodeen design config ──────────────────────────────
+  coodeen: {
+    get: (dir: string) => ipcRenderer.invoke("coodeen:get", dir),
+    set: (dir: string, data: unknown) =>
+      ipcRenderer.invoke("coodeen:set", dir, data),
+    watch: (dir: string) => ipcRenderer.invoke("coodeen:watch", dir),
+    onChanged: (callback: (data: { dir: string }) => void) => {
+      const handler = (_e: Electron.IpcRendererEvent, data: unknown) =>
+        callback(data as { dir: string });
+      ipcRenderer.on("coodeen:changed", handler);
+      return () => {
+        ipcRenderer.removeListener("coodeen:changed", handler);
+      };
+    },
+  },
+
   // ── Capture ────────────────────────────────────────────
   captureArea: (x: number, y: number, width: number, height: number) =>
     ipcRenderer.invoke("capture:area", x, y, width, height),

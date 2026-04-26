@@ -1,4 +1,4 @@
-import type { Session } from "./types";
+import type { CoodeenConfig, Session } from "./types";
 
 const electron = window.electronAPI;
 
@@ -144,4 +144,12 @@ export const api = {
 
   runAction: (dir: string, script: string) =>
     electron.actions.run(dir, script),
+
+  // ── Coodeen design config ──────────────────────────
+  getCoodeen: (dir: string) => electron.coodeen.get(dir),
+  setCoodeen: (dir: string, data: CoodeenConfig) =>
+    electron.coodeen.set(dir, data),
+  watchCoodeen: (dir: string) => electron.coodeen.watch(dir),
+  onCoodeenChanged: (cb: (data: { dir: string }) => void) =>
+    electron.coodeen.onChanged(cb),
 };

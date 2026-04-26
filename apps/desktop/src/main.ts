@@ -10,6 +10,7 @@ import { registerConfigHandlers } from "./handlers/config.js";
 import { registerActionHandlers } from "./handlers/actions.js";
 import { ipcMain } from "electron";
 import { startOpencodeSidecar, stopOpencodeSidecar } from "./handlers/opencode.js";
+import { registerCoodeenHandlers, stopCoodeenWatchers } from "./handlers/coodeen.js";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -62,6 +63,7 @@ app.whenReady().then(async () => {
   registerProviderHandlers();
   registerConfigHandlers();
   registerActionHandlers();
+  registerCoodeenHandlers();
 
   ipcMain.handle(
     "capture:area",
@@ -94,4 +96,5 @@ app.on("window-all-closed", () => {
 
 app.on("before-quit", () => {
   stopOpencodeSidecar();
+  stopCoodeenWatchers();
 });

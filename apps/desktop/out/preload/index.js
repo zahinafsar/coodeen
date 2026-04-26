@@ -100,6 +100,19 @@ const electronAPI = {
     getConfig: (dir) => electron.ipcRenderer.invoke("actions:getConfig", dir),
     run: (dir, script) => electron.ipcRenderer.invoke("actions:run", dir, script)
   },
+  // ── Coodeen design config ──────────────────────────────
+  coodeen: {
+    get: (dir) => electron.ipcRenderer.invoke("coodeen:get", dir),
+    set: (dir, data) => electron.ipcRenderer.invoke("coodeen:set", dir, data),
+    watch: (dir) => electron.ipcRenderer.invoke("coodeen:watch", dir),
+    onChanged: (callback) => {
+      const handler = (_e, data) => callback(data);
+      electron.ipcRenderer.on("coodeen:changed", handler);
+      return () => {
+        electron.ipcRenderer.removeListener("coodeen:changed", handler);
+      };
+    }
+  },
   // ── Capture ────────────────────────────────────────────
   captureArea: (x, y, width, height) => electron.ipcRenderer.invoke("capture:area", x, y, width, height),
   // ── Preview (browser tool) ───────────────────────────

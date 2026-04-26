@@ -160,6 +160,15 @@ interface ElectronAPI {
       error?: string;
     }>;
   };
+  coodeen: {
+    get: (dir: string) => Promise<import("./lib/types").CoodeenConfig | null>;
+    set: (
+      dir: string,
+      data: import("./lib/types").CoodeenConfig,
+    ) => Promise<{ ok: boolean; error?: string }>;
+    watch: (dir: string) => Promise<{ ok: boolean }>;
+    onChanged: (callback: (data: { dir: string }) => void) => () => void;
+  };
   captureArea: (
     x: number,
     y: number,

@@ -30,6 +30,7 @@ const require$$0$2 = require("child_process");
 const require$$0 = require("fs");
 const promises = require("node:fs/promises");
 const node_os = require("node:os");
+const chokidar = require("chokidar");
 const createSseClient = ({ onSseError, onSseEvent, responseTransformer, responseValidator, sseDefaultRetryDelay, sseMaxRetryAttempts, sseMaxRetryDelay, sseSleepFn, url, ...options }) => {
   let lastEventId;
   const sleep = sseSleepFn ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
@@ -2183,7 +2184,7 @@ function dirOptions(dir) {
     query: { directory: dir }
   };
 }
-function broadcast(channel, payload) {
+function broadcast$1(channel, payload) {
   for (const win of electron.BrowserWindow.getAllWindows()) {
     if (!win.isDestroyed()) {
       win.webContents.send(channel, payload);
@@ -2206,7 +2207,7 @@ async function runSubscription(c, signal) {
       resetHeartbeat();
       const evt = raw?.payload ?? raw;
       console.log("[opencode] event:", evt?.type);
-      broadcast("opencode:event", evt);
+      broadcast$1("opencode:event", evt);
     }
   } finally {
     if (heartbeat) clearTimeout(heartbeat);
@@ -2219,7 +2220,7 @@ async function startEventBus(c) {
   while (!stopped) {
     subscriptionAbort = new AbortController();
     try {
-      broadcast("opencode:status", { connected: true });
+      broadcast$1("opencode:status", { connected: true });
       await runSubscription(c, subscriptionAbort.signal);
       attempt = 0;
     } catch (err) {
@@ -2227,7 +2228,7 @@ async function startEventBus(c) {
       const msg = err instanceof Error ? err.message : String(err);
       console.warn("[opencode] event bus error:", msg);
     } finally {
-      broadcast("opencode:status", { connected: false });
+      broadcast$1("opencode:status", { connected: false });
     }
     if (stopped) break;
     const delay = Math.min(
@@ -3169,11 +3170,11 @@ async function disposeOpencodeCache() {
     console.warn("[providers] failed to dispose opencode cache:", err);
   }
 }
-function configPath() {
+function configPath$1() {
   return node_path.join(electron.app.getPath("userData"), "app-config.json");
 }
 function loadConfig() {
-  const p = configPath();
+  const p = configPath$1();
   if (!node_fs.existsSync(p)) return {};
   try {
     return JSON.parse(node_fs.readFileSync(p, "utf-8"));
@@ -3182,7 +3183,7 @@ function loadConfig() {
   }
 }
 function saveConfig(data) {
-  const p = configPath();
+  const p = configPath$1();
   node_fs.mkdirSync(node_path.dirname(p), { recursive: true });
   node_fs.writeFileSync(p, JSON.stringify(data, null, 2), "utf-8");
 }
@@ -3250,6 +3251,71 @@ function registerActionHandlers() {
     return { ok: true, pid: child2.pid };
   });
 }
+function configPath(dir) {
+  return node_path.join(dir, "coodeen.json");
+}
+function readConfig(dir) {
+  const p = configPath(dir);
+  if (!node_fs.existsSync(p)) return null;
+  try {
+    return JSON.parse(node_fs.readFileSync(p, "utf-8"));
+  } catch {
+    return null;
+  }
+}
+function writeConfig(dir, data) {
+  const p = configPath(dir);
+  node_fs.mkdirSync(node_path.dirname(p), { recursive: true });
+  node_fs.writeFileSync(p, JSON.stringify(data, null, 2), "utf-8");
+}
+function broadcast(channel, payload) {
+  for (const win of electron.BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed()) win.webContents.send(channel, payload);
+  }
+}
+const watchers = /* @__PURE__ */ new Map();
+function ensureWatcher(dir) {
+  if (watchers.has(dir)) return;
+  const w = chokidar.watch(configPath(dir), {
+    ignoreInitial: true,
+    persistent: true
+  });
+  const fire = () => broadcast("coodeen:changed", { dir });
+  w.on("add", fire);
+  w.on("change", fire);
+  w.on("unlink", fire);
+  watchers.set(dir, w);
+}
+function disposeWatchers() {
+  for (const w of watchers.values()) w.close().catch(() => {
+  });
+  watchers.clear();
+}
+function registerCoodeenHandlers() {
+  electron.ipcMain.handle("coodeen:get", (_e, dir) => {
+    if (!dir) return null;
+    ensureWatcher(dir);
+    return readConfig(dir);
+  });
+  electron.ipcMain.handle("coodeen:set", (_e, dir, data) => {
+    if (!dir) return { ok: false, error: "no dir" };
+    try {
+      writeConfig(dir, data);
+      ensureWatcher(dir);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  });
+  electron.ipcMain.handle("coodeen:watch", (_e, dir) => {
+    if (!dir) return { ok: false };
+    ensureWatcher(dir);
+    return { ok: true };
+  });
+}
+function stopCoodeenWatchers() {
+  disposeWatchers();
+}
 let mainWindow = null;
 function getWindow() {
   return mainWindow;
@@ -3294,6 +3360,7 @@ electron.app.whenReady().then(async () => {
   registerProviderHandlers();
   registerConfigHandlers();
   registerActionHandlers();
+  registerCoodeenHandlers();
   electron.ipcMain.handle(
     "capture:area",
     async (_e, x, y, width, height) => {
@@ -3321,4 +3388,5 @@ electron.app.on("window-all-closed", () => {
 });
 electron.app.on("before-quit", () => {
   stopOpencodeSidecar();
+  stopCoodeenWatchers();
 });

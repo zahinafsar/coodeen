@@ -1,14 +1,17 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   ResizablePanelGroup,
   ResizablePanel,
   ResizableHandle,
 } from "@/components/ui/resizable";
-import { ChatPanel } from "../components/chat/ChatPanel";
+import { ChatPanel, type ChatPanelHandle } from "../components/chat/ChatPanel";
 import { PreviewPanel } from "../components/preview/PreviewPanel";
 import { FileExplorerPanel } from "../components/files/FileExplorerPanel";
 import { GitManagerPanel } from "../components/git/GitManagerPanel";
 import { TerminalPanel } from "../components/terminal/TerminalPanel";
+import { DesignCanvas } from "../components/design/DesignCanvas";
+import { api } from "../lib/api";
+import { toast } from "sonner";
 import {
   ElementSelectionProvider,
   useElementSelection,
@@ -21,7 +24,18 @@ import type { ElementInfo } from "../components/preview/SelectionOverlay";
 
 const DEFAULT_PREVIEW_URL = "http://localhost:3000";
 
-type RightTab = "preview" | "files" | "git";
+type RightTab = "preview" | "design" | "files" | "git";
+
+const GENERATE_PROMPT = `Scan this project and detect every user-facing route (Next.js app/pages router, React Router, etc.). Then write a file named \`coodeen.json\` at the project root with exactly this JSON shape (no extra fields, no comments):
+
+{
+  "design": {
+    "host": "http://localhost:3000",
+    "pages": [{ "route": "/" }, { "route": "/some-route" }]
+  }
+}
+
+Include only unique top-level routes the user can visit. Use \`/\` for the home route. Use the \`write\` tool to create the file. Do not run any other commands.`;
 
 export function MainPage() {
   return (
@@ -39,6 +53,26 @@ function MainPageInner() {
   const [rightTab, setRightTab] = useState<RightTab>("preview");
   const [fileReferences, setFileReferences] = useState<FileReference[]>([]);
   const [terminalOpen, setTerminalOpen] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const chatRef = useRef<ChatPanelHandle | null>(null);
+
+  const handleGenerateCoodeen = useCallback(() => {
+    if (!projectDir) {
+      toast.error("Select a project folder first");
+      return;
+    }
+    if (!chatRef.current) return;
+    setGenerating(true);
+    chatRef.current.sendMessage(GENERATE_PROMPT);
+  }, [projectDir]);
+
+  useEffect(() => {
+    if (!generating || !projectDir) return;
+    const off = api.onCoodeenChanged(({ dir }) => {
+      if (dir === projectDir) setGenerating(false);
+    });
+    return () => off();
+  }, [generating, projectDir]);
 
   const handlePreviewUrlChange = useCallback((url: string) => {
     setPreviewUrl(url);
@@ -77,6 +111,7 @@ function MainPageInner() {
   if (!rightOpen) {
     return (
       <ChatPanel
+        ref={chatRef}
         previewUrl={previewUrl}
         onPreviewUrlChange={handlePreviewUrlChange}
         fileReferences={fileReferences}
@@ -91,6 +126,7 @@ function MainPageInner() {
     <ResizablePanelGroup orientation="horizontal" className="h-full">
       <ResizablePanel defaultSize={50} minSize={25}>
         <ChatPanel
+          ref={chatRef}
           previewUrl={previewUrl}
           onPreviewUrlChange={handlePreviewUrlChange}
           fileReferences={fileReferences}
@@ -114,6 +150,18 @@ function MainPageInner() {
               )}
             >
               Preview
+            </button>
+            <button
+              type="button"
+              onClick={() => setRightTab("design")}
+              className={cn(
+                "px-4 py-2 text-sm font-medium transition-colors border-b-2",
+                rightTab === "design"
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+            >
+              Design
             </button>
             <button
               type="button"
@@ -150,6 +198,12 @@ function MainPageInner() {
                     terminalOpen={terminalOpen}
                     onToggleTerminal={() => setTerminalOpen((v) => !v)}
                     onElementSelected={handleElementSelected}
+                  />
+                ) : rightTab === "design" ? (
+                  <DesignCanvas
+                    projectDir={projectDir}
+                    onGenerate={handleGenerateCoodeen}
+                    generating={generating}
                   />
                 ) : rightTab === "files" ? (
                   <FileExplorerPanel
