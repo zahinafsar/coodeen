@@ -11,6 +11,7 @@ export interface ElementInfo {
   html: string;
   selector: string;
   screenshot?: string;
+  route?: string;
 }
 
 interface SelectionOverlayProps {

@@ -56,14 +56,15 @@ function DesignCanvasInner({
   const lastPersistedRef = useRef<string>("");
   const configRef = useRef<CoodeenConfig | null>(null);
   configRef.current = config;
-  const { addScreenshot } = useElementSelection();
+  const { addScreenshot, setPendingPrefix } = useElementSelection();
 
   const handleSelected = useCallback(
-    (info: { screenshot?: string }) => {
+    (info: { screenshot?: string; route?: string }) => {
       if (info.screenshot) addScreenshot(info.screenshot);
+      if (info.route) setPendingPrefix(`[route: ${info.route}] `);
       setMode("preview");
     },
-    [addScreenshot],
+    [addScreenshot, setPendingPrefix],
   );
 
   const ctx = useMemo(
@@ -181,8 +182,8 @@ function DesignCanvasInner({
             nodeTypes={nodeTypes}
             proOptions={{ hideAttribution: true }}
             colorMode="dark"
-            minZoom={0.05}
-            maxZoom={2}
+            minZoom={0.01}
+            maxZoom={5}
             fitView
             fitViewOptions={{ padding: 0.2 }}
             panOnScroll

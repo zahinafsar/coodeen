@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, type KeyboardEvent, type FormEvent, type ClipboardEvent, type ChangeEvent, type DragEvent } from "react";
+import { useState, useRef, useCallback, useEffect, type KeyboardEvent, type FormEvent, type ClipboardEvent, type ChangeEvent, type DragEvent } from "react";
 import { Send, Square, X, Folder, ImagePlus, FileCode } from "lucide-react";
 import { useElementSelection } from "../../contexts/ElementSelectionContext";
 import { useProject } from "../../contexts/ProjectContext";
@@ -67,6 +67,8 @@ export function PromptInput({
     addScreenshot,
     removeScreenshot,
     clearScreenshots,
+    pendingPrefix,
+    setPendingPrefix,
   } = useElementSelection();
 
   const handleSubmit = useCallback(
@@ -150,6 +152,16 @@ export function PromptInput({
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
   }, []);
+
+  useEffect(() => {
+    if (!pendingPrefix) return;
+    const el = textareaRef.current;
+    if (!el) return;
+    el.value = pendingPrefix + el.value;
+    handleInput();
+    el.focus();
+    setPendingPrefix("");
+  }, [pendingPrefix, setPendingPrefix, handleInput]);
 
   // Paste image from clipboard
   const handlePaste = useCallback(

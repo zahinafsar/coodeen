@@ -184,10 +184,11 @@ export const PageNode = memo(function PageNode({ data }: NodeProps) {
         html: el.outerHTML.slice(0, 500),
         selector: buildSelector(el),
         screenshot,
+        route,
       };
       onSelected(info);
     },
-    [onSelected],
+    [onSelected, route],
   );
 
   return (

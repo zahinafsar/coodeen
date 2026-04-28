@@ -26,6 +26,8 @@ interface ElementSelectionContextValue {
   addScreenshot: (dataUrl: string) => void;
   removeScreenshot: (id: string) => void;
   clearScreenshots: () => void;
+  pendingPrefix: string;
+  setPendingPrefix: (s: string) => void;
 }
 
 const ElementSelectionContext =
@@ -38,6 +40,7 @@ export function ElementSelectionProvider({
 }) {
   const [selections, setSelections] = useState<ElementSelection[]>([]);
   const [screenshots, setScreenshots] = useState<ScreenshotAttachment[]>([]);
+  const [pendingPrefix, setPendingPrefix] = useState("");
 
   const addSelection = useCallback((selection: ElementSelection) => {
     setSelections((prev) => {
@@ -86,6 +89,8 @@ export function ElementSelectionProvider({
         addScreenshot,
         removeScreenshot,
         clearScreenshots,
+        pendingPrefix,
+        setPendingPrefix,
       }}
     >
       {children}
