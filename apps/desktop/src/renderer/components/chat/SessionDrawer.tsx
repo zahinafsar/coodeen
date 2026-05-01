@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { Plus, Trash2, Pencil } from "lucide-react";
+import { Plus, Trash2, Pencil, Loader2 } from "lucide-react";
 import type { Session } from "../../lib/types";
 import { api } from "../../lib/api";
 import { useDrawer } from "../../contexts/DrawerContext";
@@ -30,15 +30,19 @@ export function SessionDrawer({
 }: SessionDrawerProps) {
   const { open, close } = useDrawer();
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
 
   const fetchSessions = useCallback(async () => {
+    setLoading(true);
     try {
       const list = await api.getSessions();
       setSessions(list);
-    } catch {
-      // silent
+    } catch (err) {
+      console.error("[SessionDrawer] fetchSessions failed:", err);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -129,7 +133,12 @@ export function SessionDrawer({
         </SheetHeader>
         <ScrollArea className="flex-1">
           <div className="px-2 pb-2">
-            {sessions.length === 0 ? (
+            {loading && sessions.length === 0 ? (
+              <div className="flex items-center justify-center gap-2 py-8 text-muted-foreground text-sm">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading sessions…
+              </div>
+            ) : sessions.length === 0 ? (
               <p className="text-center text-muted-foreground text-sm py-8">
                 No sessions yet.
               </p>
