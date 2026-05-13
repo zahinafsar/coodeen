@@ -2,11 +2,12 @@ import { useState, useCallback, useEffect, useRef, forwardRef, useImperativeHand
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import type { FileReference, Session } from "../../lib/types";
-import { api } from "../../lib/api";
+import { api, type SessionModel } from "../../lib/api";
 import { useProject } from "../../contexts/ProjectContext";
 import { MessageList } from "./MessageList";
 import { PromptInput } from "./PromptInput";
 import { SessionDrawer } from "./SessionDrawer";
+import { ModelPicker } from "./ModelPicker";
 import logoSvg from "../../assets/logo.svg";
 import {
   useChatSession,
@@ -15,9 +16,15 @@ import {
   type Message,
   type Part,
 } from "../../stores/chat-store";
-
-// Hardcoded — user can't pick model.
-const MODEL = { providerId: "openai", modelId: "gpt-5.1-codex-max" };
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 function generateSessionTitle(text: string): string {
   const trimmed = text.trim().replace(/\s+/g, " ");
@@ -54,9 +61,50 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
 
   const [sessionId, setSessionId] = useState<string | null>(urlSessionId ?? null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [model, setModel] = useState<SessionModel | null>(null);
+  const [needsModelAlert, setNeedsModelAlert] = useState(false);
 
-  const { messages, working } = useChatSession(sessionId);
+  const { messages, working, error } = useChatSession(sessionId);
   const initialLoadDone = useRef(false);
+  const lastErrorRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (error && error !== lastErrorRef.current) {
+      lastErrorRef.current = error;
+      toast.error(error);
+    }
+    if (!error) lastErrorRef.current = null;
+  }, [error]);
+
+  // Hydrate per-session model when session id changes.
+  useEffect(() => {
+    if (!sessionId) {
+      setModel(null);
+      return;
+    }
+    let cancelled = false;
+    api
+      .getSessionModel(sessionId)
+      .then((m) => {
+        if (!cancelled) setModel(m);
+      })
+      .catch(() => {
+        if (!cancelled) setModel(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId]);
+
+  const handleModelChange = useCallback(
+    (next: SessionModel) => {
+      setModel(next);
+      if (sessionId) {
+        api.setSessionModel(sessionId, next).catch(() => {});
+      }
+    },
+    [sessionId],
+  );
 
   // Load session from URL on mount
   useEffect(() => {
@@ -137,9 +185,8 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
         return;
       }
 
-      const hasKey = await api.providerHasKey(MODEL.providerId).catch(() => false);
-      if (!hasKey) {
-        toast.error("Add your OpenAI API key");
+      if (!model) {
+        setNeedsModelAlert(true);
         return;
       }
 
@@ -147,8 +194,8 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
       if (!sid) {
         try {
           const session = await api.createSession({
-            providerId: MODEL.providerId,
-            modelId: MODEL.modelId,
+            providerId: model.providerId,
+            modelId: model.modelId,
             projectDir: projectDir || undefined,
             previewUrl,
           });
@@ -157,6 +204,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
           hydrateSession(sid, []);
           setRefreshKey((k) => k + 1);
           window.history.replaceState(null, "", `#/session/${sid}`);
+          api.setSessionModel(sid, model).catch(() => {});
         } catch (err) {
           toast.error(err instanceof Error ? err.message : "Failed to create session");
           return;
@@ -167,8 +215,8 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
         const res = await window.electronAPI.chat.prompt({
           sessionId: sid!,
           prompt,
-          providerId: MODEL.providerId,
-          modelId: MODEL.modelId,
+          providerId: model.providerId,
+          modelId: model.modelId,
           projectDir: projectDir || undefined,
           images: screenshots,
         });
@@ -184,7 +232,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
         }
       }
     },
-    [sessionId, projectDir, previewUrl],
+    [sessionId, projectDir, previewUrl, model],
   );
 
   const handleStop = useCallback(() => {
@@ -233,6 +281,9 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
               onAddFileReference={onAddFileReference}
               onRemoveFileReference={onRemoveFileReference}
               onClearFileReferences={onClearFileReferences}
+              toolbarSlot={
+                <ModelPicker value={model} onChange={handleModelChange} />
+              }
             />
           </div>
         ) : (
@@ -247,10 +298,39 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
               onAddFileReference={onAddFileReference}
               onRemoveFileReference={onRemoveFileReference}
               onClearFileReferences={onClearFileReferences}
+              toolbarSlot={
+                <ModelPicker value={model} onChange={handleModelChange} />
+              }
             />
           </>
         )}
       </div>
+      <Dialog open={needsModelAlert} onOpenChange={setNeedsModelAlert}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Pick a model</DialogTitle>
+            <DialogDescription>
+              Choose a provider and model before sending. Add API keys in Settings.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setNeedsModelAlert(false)}
+            >
+              Close
+            </Button>
+            <Button
+              onClick={() => {
+                setNeedsModelAlert(false);
+                navigate("/settings");
+              }}
+            >
+              Open Settings
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 });

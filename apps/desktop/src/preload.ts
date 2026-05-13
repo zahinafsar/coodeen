@@ -154,11 +154,24 @@ const electronAPI = {
   providers: {
     connectedModels: () =>
       ipcRenderer.invoke("providers:connectedModels"),
+    list: () => ipcRenderer.invoke("providers:list"),
     hasKey: (id: string) => ipcRenderer.invoke("providers:hasKey", id),
     setApiKey: (id: string, apiKey: string) =>
       ipcRenderer.invoke("providers:setApiKey", id, apiKey),
     deleteApiKey: (id: string) =>
       ipcRenderer.invoke("providers:deleteApiKey", id),
+    addCustom: (input: {
+      id: string;
+      name: string;
+      baseURL: string;
+      models: Array<{ id: string; name?: string; tools?: boolean }>;
+      apiKey?: string;
+      headers?: Record<string, string>;
+    }) => ipcRenderer.invoke("providers:addCustom", input),
+    removeCustom: (id: string) =>
+      ipcRenderer.invoke("providers:removeCustom", id),
+    probeOllama: (baseURL: string) =>
+      ipcRenderer.invoke("providers:probeOllama", baseURL),
   },
 
   // ── Config ────────────────────────────────────────────
@@ -168,6 +181,12 @@ const electronAPI = {
       ipcRenderer.invoke("config:getActiveProvider"),
     setActiveProvider: (value: string) =>
       ipcRenderer.invoke("config:setActiveProvider", value),
+    getSessionModel: (sessionId: string) =>
+      ipcRenderer.invoke("config:getSessionModel", sessionId),
+    setSessionModel: (
+      sessionId: string,
+      model: { providerId: string; modelId: string },
+    ) => ipcRenderer.invoke("config:setSessionModel", sessionId, model),
   },
 
   // ── Actions ───────────────────────────────────────────

@@ -8,6 +8,29 @@ export interface ConnectedModelsItem {
   models: string[];
 }
 
+export interface ProviderListItem {
+  id: string;
+  name: string;
+  source: "env" | "config" | "custom" | "api" | null;
+  hasKey: boolean;
+  authType: string | null;
+  models: Array<{ id: string; name: string }>;
+}
+
+export interface CustomProviderInput {
+  id: string;
+  name: string;
+  baseURL: string;
+  models: Array<{ id: string; name?: string; tools?: boolean }>;
+  apiKey?: string;
+  headers?: Record<string, string>;
+}
+
+export interface SessionModel {
+  providerId: string;
+  modelId: string;
+}
+
 export interface DirListResponse {
   current: string;
   parent: string | null;
@@ -18,6 +41,14 @@ export const api = {
   // ── Config ─────────────────────────────────────────────
 
   getCwd: () => electron.config.getCwd(),
+
+  getSessionModel: (sessionId: string) =>
+    electron.config.getSessionModel(sessionId) as Promise<SessionModel | null>,
+
+  setSessionModel: (sessionId: string, model: SessionModel) =>
+    electron.config.setSessionModel(sessionId, model) as Promise<{
+      ok: boolean;
+    }>,
 
   // ── Filesystem ──────────────────────────────────────────
 
@@ -44,6 +75,9 @@ export const api = {
 
   getConnectedModels: () => electron.providers.connectedModels(),
 
+  listProviders: () =>
+    electron.providers.list() as Promise<ProviderListItem[]>,
+
   providerHasKey: (id: string) => electron.providers.hasKey(id),
 
   setProviderApiKey: (id: string, apiKey: string) =>
@@ -51,6 +85,25 @@ export const api = {
 
   deleteProviderApiKey: (id: string) =>
     electron.providers.deleteApiKey(id),
+
+  addCustomProvider: (input: CustomProviderInput) =>
+    electron.providers.addCustom(input) as Promise<{
+      ok: boolean;
+      error?: string;
+    }>,
+
+  removeCustomProvider: (id: string) =>
+    electron.providers.removeCustom(id) as Promise<{
+      ok: boolean;
+      error?: string;
+    }>,
+
+  probeOllama: (baseURL: string) =>
+    electron.providers.probeOllama(baseURL) as Promise<{
+      ok: boolean;
+      models?: string[];
+      error?: string;
+    }>,
 
   // ── Sessions ──────────────────────────────────────────────
 

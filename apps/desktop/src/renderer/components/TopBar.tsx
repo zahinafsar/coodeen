@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Menu, Loader2, KeyRound, PanelRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Menu, Loader2, Settings as SettingsIcon, PanelRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDrawer } from "../contexts/DrawerContext";
@@ -8,7 +9,6 @@ import { useRightPanel } from "../contexts/RightPanelContext";
 import { api } from "../lib/api";
 import { toast } from "sonner";
 import iconSvg from "../assets/icon.svg";
-import { ApiKeyDialog } from "./chat/ApiKeyDialog";
 
 interface CustomAction {
   label: string;
@@ -19,9 +19,9 @@ export function TopBar() {
   const { toggle } = useDrawer();
   const { projectDir } = useProject();
   const { open: rightOpen, toggle: toggleRight } = useRightPanel();
+  const navigate = useNavigate();
   const [actions, setActions] = useState<CustomAction[]>([]);
   const [runningAction, setRunningAction] = useState<string | null>(null);
-  const [apiKeyOpen, setApiKeyOpen] = useState(false);
 
   // Load actions whenever projectDir changes
   useEffect(() => {
@@ -108,12 +108,12 @@ export function TopBar() {
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              onClick={() => setApiKeyOpen(true)}
+              onClick={() => navigate("/settings")}
             >
-              <KeyRound className="h-4 w-4" />
+              <SettingsIcon className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Set OpenAI API key</TooltipContent>
+          <TooltipContent>Settings</TooltipContent>
         </Tooltip>
 
         <Tooltip>
@@ -131,7 +131,6 @@ export function TopBar() {
           <TooltipContent>{rightOpen ? "Hide preview" : "Show preview"}</TooltipContent>
         </Tooltip>
       </div>
-      <ApiKeyDialog open={apiKeyOpen} onOpenChange={setApiKeyOpen} />
     </header>
   );
 }

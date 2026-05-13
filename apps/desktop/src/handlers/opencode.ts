@@ -208,6 +208,13 @@ export function getBaseUrl(): string | null {
   return baseUrl;
 }
 
+export async function restartOpencodeSidecar(): Promise<OpencodeClient> {
+  stopOpencodeSidecar();
+  // stopOpencodeSidecar nulls everything synchronously; startOpencodeSidecar
+  // boots a fresh child process. Caller awaits ready client.
+  return startOpencodeSidecar();
+}
+
 export function stopOpencodeSidecar(): void {
   stopped = true;
   subscriptionAbort?.abort();

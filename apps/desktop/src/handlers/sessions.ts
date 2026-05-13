@@ -23,62 +23,25 @@ function mergeSession(s: {
 
 export function registerSessionHandlers() {
   ipcMain.handle("sessions:list", async () => {
-    const client = getClient();
+    // GET /experimental/session returns every session across every project
+    // in one call, sorted by updated desc. Replaces the previous N+1 fan-out
+    // over projects, which booted a Provider Instance per directory.
     const base = getBaseUrl();
-    // /session is per-Instance and filters by Instance.project.id.
-    // Iterate every known project (Project.list is global) and route
-    // per-project via the x-opencode-directory header ONLY — passing
-    // ?directory= would also filter SessionTable.directory, which equals
-    // Instance.directory (the picked dir) and can differ from
-    // Project.worktree when the user picked a subdir of a git root.
-    const projRes = await client.project.list();
-    const projects = (projRes.data ?? []) as Array<{
-      id: string;
-      worktree: string;
-    }>;
-
+    if (!base) return [];
     type Row = {
       id: string;
       title: string;
       directory?: string;
       time?: { created: number; updated: number };
+      parentID?: string | null;
     };
-
-    const fetchProjectSessions = async (worktree: string): Promise<Row[]> => {
-      if (!base) return [];
-      const r = await fetch(`${base}/session`, {
-        headers: {
-          "x-opencode-directory": encodeURIComponent(worktree),
-        },
-      });
-      if (!r.ok) {
-        console.warn(
-          `[sessions:list] ${worktree} → ${r.status} ${r.statusText}`,
-        );
-        return [];
-      }
-      return (await r.json()) as Row[];
-    };
-
-    const lists = await Promise.all(
-      projects.map(async (p) => {
-        try {
-          const rows = await fetchProjectSessions(p.worktree);
-          return rows.map(mergeSession);
-        } catch (err) {
-          console.warn(
-            `[sessions:list] failed for ${p.worktree}:`,
-            err instanceof Error ? err.message : err,
-          );
-          return [];
-        }
-      }),
-    );
-
-    const byId = new Map<string, ReturnType<typeof mergeSession>>();
-    for (const s of lists.flat()) byId.set(s.id, s);
-
-    return [...byId.values()].sort((a, b) =>
+    const r = await fetch(`${base}/experimental/session?roots=true&limit=200`);
+    if (!r.ok) {
+      console.warn(`[sessions:list] ${r.status} ${r.statusText}`);
+      return [];
+    }
+    const rows = (await r.json()) as Row[];
+    return rows.map(mergeSession).sort((a, b) =>
       b.updatedAt.localeCompare(a.updatedAt),
     );
   });

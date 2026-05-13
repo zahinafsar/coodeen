@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, type KeyboardEvent, type FormEvent, type ClipboardEvent, type ChangeEvent, type DragEvent } from "react";
+import { useState, useRef, useCallback, useEffect, type KeyboardEvent, type FormEvent, type ClipboardEvent, type ChangeEvent, type DragEvent, type ReactNode } from "react";
 import { Send, Square, X, Folder, ImagePlus, FileCode } from "lucide-react";
 import { useElementSelection } from "../../contexts/ElementSelectionContext";
 import { useProject } from "../../contexts/ProjectContext";
@@ -41,6 +41,7 @@ interface PromptInputProps {
   onAddFileReference?: (ref: FileReference) => void;
   onRemoveFileReference?: (index: number) => void;
   onClearFileReferences?: () => void;
+  toolbarSlot?: ReactNode;
 }
 
 export function PromptInput({
@@ -53,6 +54,7 @@ export function PromptInput({
   onAddFileReference,
   onRemoveFileReference,
   onClearFileReferences,
+  toolbarSlot,
 }: PromptInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -432,6 +434,7 @@ export function PromptInput({
             {projectDir || "Select folder"}
           </span>
         </button>
+        {toolbarSlot}
       </div>
       {variant === "landing" && (
         <FolderPickerDialog

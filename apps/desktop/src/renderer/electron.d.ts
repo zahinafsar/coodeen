@@ -133,6 +133,7 @@ interface ElectronAPI {
   };
   providers: {
     connectedModels: () => Promise<import("./lib/api").ConnectedModelsItem[]>;
+    list: () => Promise<import("./lib/api").ProviderListItem[]>;
     hasKey: (id: string) => Promise<boolean>;
     setApiKey: (id: string, apiKey: string) => Promise<{
       ok: boolean;
@@ -142,11 +143,32 @@ interface ElectronAPI {
       ok: boolean;
       error?: string;
     }>;
+    addCustom: (input: {
+      id: string;
+      name: string;
+      baseURL: string;
+      models: Array<{ id: string; name?: string; tools?: boolean }>;
+      apiKey?: string;
+      headers?: Record<string, string>;
+    }) => Promise<{ ok: boolean; error?: string }>;
+    removeCustom: (id: string) => Promise<{ ok: boolean; error?: string }>;
+    probeOllama: (baseURL: string) => Promise<{
+      ok: boolean;
+      models?: string[];
+      error?: string;
+    }>;
   };
   config: {
     getCwd: () => Promise<{ cwd: string | null }>;
     getActiveProvider: () => Promise<string | null>;
     setActiveProvider: (value: string) => Promise<{ ok: boolean }>;
+    getSessionModel: (
+      sessionId: string,
+    ) => Promise<import("./lib/api").SessionModel | null>;
+    setSessionModel: (
+      sessionId: string,
+      model: import("./lib/api").SessionModel,
+    ) => Promise<{ ok: boolean }>;
   };
   actions: {
     getConfig: (dir: string) => Promise<{
