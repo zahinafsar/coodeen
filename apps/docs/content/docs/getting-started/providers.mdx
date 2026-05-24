@@ -5,7 +5,7 @@ description: How Coodeen talks to model providers.
 
 ## Today's UI
 
-Coodeen's built-in settings dialog (the **key icon** in the top bar) configures one provider: **OpenAI**. Paste a key from [platform.openai.com/api-keys](https://platform.openai.com/api-keys) and save.
+Coodeen's built-in settings dialog (the **key icon** in the top bar) configures three providers: **Anthropic**, **OpenAI**, and **Google**. Pick one, paste its API key, and save. A **Custom** option is also available for OpenAI-compatible endpoints (Ollama, local servers, etc.).
 
 ## Under the Hood
 
@@ -15,7 +15,7 @@ Keys are forwarded to the bundled [opencode](https://github.com/sst/opencode) si
 ~/.local/share/opencode/auth.json
 ```
 
-opencode itself supports many providers; the Coodeen UI just doesn't expose all of them yet. If you need to add another provider now, you can edit `auth.json` directly or use the opencode CLI against the same file — Coodeen will pick up the change after the sidecar's provider cache is disposed (happens automatically on any auth mutation through the UI; otherwise restart the app).
+opencode supports many more providers under the hood; the Coodeen UI only exposes Anthropic, OpenAI, and Google. To wire any other provider, edit `auth.json` directly or use the opencode CLI against the same file — Coodeen picks up the change after the sidecar's provider cache is disposed (happens automatically on any auth mutation through the UI; otherwise restart the app).
 
 ## Model Choice
 

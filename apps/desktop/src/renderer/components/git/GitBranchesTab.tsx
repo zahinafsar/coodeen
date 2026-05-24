@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +24,7 @@ export function GitBranchesTab({ projectDir }: { projectDir: string }) {
     if (!projectDir) return;
     setLoading(true);
     try {
-      const result = await api.getGitBranches(projectDir);
+      const result = await window.electronAPI.git.branches(projectDir);
       setBranches(result.branches);
     } catch (error) {
       console.error("Failed to load branches:", error);
@@ -41,7 +40,7 @@ export function GitBranchesTab({ projectDir }: { projectDir: string }) {
 
   const handleCheckout = async (branchName: string) => {
     try {
-      await api.gitCheckout(projectDir, branchName);
+      await window.electronAPI.git.checkout(projectDir, branchName);
       toast.success(`Switched to ${branchName}`);
       await loadBranches();
     } catch (error) {
@@ -53,7 +52,7 @@ export function GitBranchesTab({ projectDir }: { projectDir: string }) {
   const handleDeleteBranch = async (branchName: string) => {
     if (confirm(`Delete branch "${branchName}"?`)) {
       try {
-        await api.gitDeleteBranch(projectDir, branchName, false);
+        await window.electronAPI.git.deleteBranch(projectDir, branchName, false);
         toast.success(`Deleted branch: ${branchName}`);
         await loadBranches();
       } catch (error) {
@@ -72,7 +71,7 @@ export function GitBranchesTab({ projectDir }: { projectDir: string }) {
 
     try {
       setLoading(true);
-      await api.gitCreateBranch(projectDir, branchName);
+      await window.electronAPI.git.createBranch(projectDir, branchName);
       toast.success(`Created branch: ${branchName}`);
       setNewBranchName("");
       setShowCreateBranch(false);

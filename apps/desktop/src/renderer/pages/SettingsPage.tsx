@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
-import { api, type ProviderListItem } from "../lib/api";
+import type { ProviderListItem } from "../lib/types";
 import { Button } from "@/components/ui/button";
 import { ProvidersSection } from "../components/settings/ProvidersSection";
 
@@ -12,7 +12,7 @@ export function SettingsPage() {
 
   const load = useCallback(async () => {
     try {
-      const list = await api.listProviders();
+      const list = await window.electronAPI.providers.list();
       setProviders(list);
     } catch {
       setProviders([]);

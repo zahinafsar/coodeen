@@ -6,7 +6,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useDrawer } from "../contexts/DrawerContext";
 import { useProject } from "../contexts/ProjectContext";
 import { useRightPanel } from "../contexts/RightPanelContext";
-import { api } from "../lib/api";
 import { toast } from "sonner";
 import iconSvg from "../assets/icon.svg";
 
@@ -32,7 +31,7 @@ export function TopBar() {
 
     const loadActions = async () => {
       try {
-        const result = await api.getActions(projectDir);
+        const result = await window.electronAPI.actions.getConfig(projectDir);
         setActions(result.actions || []);
       } catch (error) {
         console.error("Failed to load actions:", error);
@@ -52,7 +51,7 @@ export function TopBar() {
     console.log(`Running action "${label}" in directory: ${projectDir}`);
     setRunningAction(label);
     try {
-      const result = await api.runAction(projectDir, script);
+      const result = await window.electronAPI.actions.run(projectDir, script);
       console.log(`Action "${label}" result:`, result);
       if (result.ok) {
         toast.success(`${label} completed`);

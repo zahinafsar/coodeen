@@ -176,17 +176,10 @@ const electronAPI = {
 
   // ── Config ────────────────────────────────────────────
   config: {
-    getCwd: () => ipcRenderer.invoke("config:getCwd"),
     getActiveProvider: () =>
       ipcRenderer.invoke("config:getActiveProvider"),
     setActiveProvider: (value: string) =>
       ipcRenderer.invoke("config:setActiveProvider", value),
-    getSessionModel: (sessionId: string) =>
-      ipcRenderer.invoke("config:getSessionModel", sessionId),
-    setSessionModel: (
-      sessionId: string,
-      model: { providerId: string; modelId: string },
-    ) => ipcRenderer.invoke("config:setSessionModel", sessionId, model),
   },
 
   // ── Actions ───────────────────────────────────────────

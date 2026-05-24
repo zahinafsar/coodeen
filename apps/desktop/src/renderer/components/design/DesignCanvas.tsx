@@ -11,7 +11,6 @@ import {
 import "@xyflow/react/dist/style.css";
 import { Eye, Loader2, MousePointer2, MousePointerClick, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { api } from "../../lib/api";
 import type { CoodeenConfig } from "../../lib/types";
 import { PageNode, type PageNodeData } from "./PageNode";
 import { DesignErrorBoundary } from "./DesignErrorBoundary";
@@ -28,6 +27,7 @@ interface DesignCanvasProps {
 
 const NODE_GAP = 60;
 const NODE_W = 1920;
+const NODE_TYPES: NodeTypes = { page: PageNode };
 
 function buildNodes(cfg: CoodeenConfig): Node<PageNodeData>[] {
   if (!cfg.design) return [];
@@ -82,7 +82,7 @@ function DesignCanvasInner({
       }
       if (initial) setLoading(true);
       try {
-        const cfg = await api.getCoodeen(projectDir);
+        const cfg = await window.electronAPI.coodeen.get(projectDir);
         const json = JSON.stringify(cfg);
         // Skip setConfig if the on-disk content matches what we just
         // wrote ourselves — keeps React Flow + iframes from re-rendering.
@@ -102,8 +102,8 @@ function DesignCanvasInner({
 
   useEffect(() => {
     if (!projectDir) return;
-    api.watchCoodeen(projectDir).catch(() => {});
-    const off = api.onCoodeenChanged(({ dir }) => {
+    window.electronAPI.coodeen.watch(projectDir).catch(() => {});
+    const off = window.electronAPI.coodeen.onChanged(({ dir }) => {
       if (dir === projectDir) load(false);
     });
     return () => off();
@@ -115,12 +115,10 @@ function DesignCanvasInner({
       if (!cur || !projectDir) return;
       const merged: CoodeenConfig = { ...cur, design: next };
       lastPersistedRef.current = JSON.stringify(merged);
-      api.setCoodeen(projectDir, merged).catch(() => {});
+      window.electronAPI.coodeen.set(projectDir, merged).catch(() => {});
     },
     [projectDir],
   );
-
-  const nodeTypes: NodeTypes = useMemo(() => ({ page: PageNode }), []);
 
   const nodes = useMemo(
     () => (config ? buildNodes(config) : []),
@@ -179,7 +177,7 @@ function DesignCanvasInner({
           <ReactFlow
             nodes={nodes}
             edges={[]}
-            nodeTypes={nodeTypes}
+            nodeTypes={NODE_TYPES}
             proOptions={{ hideAttribution: true }}
             colorMode="dark"
             minZoom={0.01}

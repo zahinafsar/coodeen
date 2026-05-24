@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Loader2, Plus, Trash2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import { api } from "../../lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,7 +42,7 @@ export function CustomProviderForm({ onCancel, onSaved }: Props) {
     }
     setProbing(true);
     try {
-      const res = await api.probeOllama(url);
+      const res = await window.electronAPI.providers.probeOllama(url);
       if (!res.ok) {
         toast.error(res.error ?? "Probe failed.");
         return;
@@ -101,7 +100,7 @@ export function CustomProviderForm({ onCancel, onSaved }: Props) {
     }
     setSaving(true);
     try {
-      const res = await api.addCustomProvider({
+      const res = await window.electronAPI.providers.addCustom({
         id,
         name,
         baseURL,

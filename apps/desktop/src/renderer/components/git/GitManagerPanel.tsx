@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback } from "react";
-import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { GitChangesTab } from "./GitChangesTab";
 import { GitBranchesTab } from "./GitBranchesTab";
@@ -13,7 +12,7 @@ export function GitManagerPanel({ projectDir }: { projectDir: string }) {
   const loadGitStatus = useCallback(async () => {
     if (!projectDir) return;
     try {
-      const status = await api.getGitStatus(projectDir);
+      const status = await window.electronAPI.git.status(projectDir);
       setIsGitRepo(status.isGitRepo);
     } catch (error) {
       console.error("Failed to load git status:", error);

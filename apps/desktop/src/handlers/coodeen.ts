@@ -1,7 +1,8 @@
-import { ipcMain, BrowserWindow } from "electron";
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { ipcMain } from "electron";
+import { join } from "node:path";
 import chokidar, { type FSWatcher } from "chokidar";
+import { loadJson, saveJson } from "./utils/json-store.js";
+import { broadcast } from "./utils/ipc.js";
 
 export interface CoodeenPage {
   route: string;
@@ -20,25 +21,11 @@ function configPath(dir: string) {
 }
 
 function readConfig(dir: string): CoodeenConfig | null {
-  const p = configPath(dir);
-  if (!existsSync(p)) return null;
-  try {
-    return JSON.parse(readFileSync(p, "utf-8")) as CoodeenConfig;
-  } catch {
-    return null;
-  }
+  return loadJson<CoodeenConfig | null>(configPath(dir), null);
 }
 
 function writeConfig(dir: string, data: CoodeenConfig): void {
-  const p = configPath(dir);
-  mkdirSync(dirname(p), { recursive: true });
-  writeFileSync(p, JSON.stringify(data, null, 2), "utf-8");
-}
-
-function broadcast(channel: string, payload: unknown) {
-  for (const win of BrowserWindow.getAllWindows()) {
-    if (!win.isDestroyed()) win.webContents.send(channel, payload);
-  }
+  saveJson(configPath(dir), data);
 }
 
 const watchers = new Map<string, FSWatcher>();

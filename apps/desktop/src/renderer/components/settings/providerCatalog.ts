@@ -7,8 +7,8 @@ export interface CatalogEntry {
 
 export const CUSTOM_ID = "__custom__";
 
-// Curated popular list with descriptions. Mirrors opencode's hardcoded set.
-// Order = display order in the "Popular" group.
+// Supported providers shown in the "Popular" group.
+// Order = display order.
 export const POPULAR: CatalogEntry[] = [
   {
     id: "anthropic",
@@ -25,31 +25,6 @@ export const POPULAR: CatalogEntry[] = [
     id: "google",
     name: "Google",
     note: "Gemini models for fast, structured responses",
-  },
-  {
-    id: "openrouter",
-    name: "OpenRouter",
-    note: "Unified access to hundreds of models across providers",
-  },
-  {
-    id: "xai",
-    name: "xAI",
-    note: "Grok models from xAI",
-  },
-  {
-    id: "mistral",
-    name: "Mistral",
-    note: "Open-weight and frontier models from Mistral AI",
-  },
-  {
-    id: "groq",
-    name: "Groq",
-    note: "Ultra-fast inference on LPU hardware",
-  },
-  {
-    id: "deepinfra",
-    name: "DeepInfra",
-    note: "Serverless open-source model hosting",
   },
 ];
 

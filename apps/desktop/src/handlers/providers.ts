@@ -1,13 +1,9 @@
 import { ipcMain } from "electron";
-import {
-  readFileSync,
-  writeFileSync,
-  existsSync,
-  mkdirSync,
-} from "node:fs";
+import { existsSync } from "node:fs";
 import { homedir } from "node:os";
-import { join, dirname } from "node:path";
+import { join } from "node:path";
 import { getClient, getBaseUrl, restartOpencodeSidecar } from "./opencode.js";
+import { loadJson, saveJson } from "./utils/json-store.js";
 
 /**
  * Opencode memoizes Provider.list() per Instance — it does NOT refresh
@@ -19,16 +15,7 @@ function authFilePath(): string {
 }
 
 function readAuthFile(): Record<string, { type?: string }> {
-  const p = authFilePath();
-  if (!existsSync(p)) return {};
-  try {
-    return JSON.parse(readFileSync(p, "utf-8")) as Record<
-      string,
-      { type?: string }
-    >;
-  } catch {
-    return {};
-  }
+  return loadJson<Record<string, { type?: string }>>(authFilePath(), {});
 }
 
 // Global opencode config — XDG default `~/.config/opencode/opencode.json`.
@@ -63,19 +50,11 @@ type CustomProviderEntry = {
 };
 
 function readGlobalConfig(): OpencodeJson {
-  const p = globalConfigPath();
-  if (!existsSync(p)) return {};
-  try {
-    return JSON.parse(readFileSync(p, "utf-8")) as OpencodeJson;
-  } catch {
-    return {};
-  }
+  return loadJson<OpencodeJson>(globalConfigPath(), {});
 }
 
 function writeGlobalConfig(data: OpencodeJson): void {
-  const p = globalConfigPath();
-  mkdirSync(dirname(p), { recursive: true });
-  writeFileSync(p, JSON.stringify(data, null, 2), "utf-8");
+  saveJson(globalConfigPath(), data);
 }
 
 type OpencodeProvider = {

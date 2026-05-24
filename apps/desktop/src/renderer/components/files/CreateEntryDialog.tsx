@@ -9,7 +9,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { api } from "../../lib/api";
 import { toast } from "sonner";
 
 interface CreateEntryDialogProps {
@@ -43,7 +42,7 @@ export function CreateEntryDialog({
     setCreating(true);
     try {
       const path = `${parentDir}/${trimmed}`;
-      await api.createEntry(path, type);
+      await window.electronAPI.fs.createEntry(path, type);
       toast.success(`${type === "dir" ? "Folder" : "File"} created`);
       setName("");
       onOpenChange(false);

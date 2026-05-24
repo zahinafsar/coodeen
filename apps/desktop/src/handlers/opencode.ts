@@ -1,8 +1,9 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { app, BrowserWindow } from "electron";
+import { app } from "electron";
 import { createOpencodeClient, type OpencodeClient } from "@opencode-ai/sdk";
+import { broadcast } from "./utils/ipc.js";
 
 let child: ChildProcess | null = null;
 let client: OpencodeClient | null = null;
@@ -103,14 +104,6 @@ export function dirOptions(dir?: string) {
     },
     query: { directory: dir },
   };
-}
-
-function broadcast(channel: string, payload: unknown) {
-  for (const win of BrowserWindow.getAllWindows()) {
-    if (!win.isDestroyed()) {
-      win.webContents.send(channel, payload);
-    }
-  }
 }
 
 async function runSubscription(

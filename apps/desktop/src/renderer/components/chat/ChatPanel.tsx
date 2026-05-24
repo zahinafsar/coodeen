@@ -1,8 +1,7 @@
 import { useState, useCallback, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import type { FileReference, Session } from "../../lib/types";
-import { api, type SessionModel } from "../../lib/api";
+import type { FileReference, Session, SessionModel } from "../../lib/types";
 import { useProject } from "../../contexts/ProjectContext";
 import { MessageList } from "./MessageList";
 import { PromptInput } from "./PromptInput";
@@ -83,10 +82,16 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
       return;
     }
     let cancelled = false;
-    api
-      .getSessionModel(sessionId)
-      .then((m) => {
-        if (!cancelled) setModel(m);
+    window.electronAPI.sessions
+      .list()
+      .then((sessions) => {
+        if (cancelled) return;
+        const s = sessions.find((x) => x.id === sessionId);
+        setModel(
+          s?.providerId && s?.modelId
+            ? { providerId: s.providerId, modelId: s.modelId }
+            : null,
+        );
       })
       .catch(() => {
         if (!cancelled) setModel(null);
@@ -100,7 +105,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     (next: SessionModel) => {
       setModel(next);
       if (sessionId) {
-        api.setSessionModel(sessionId, next).catch(() => {});
+        window.electronAPI.sessions.update(sessionId, next).catch(() => {});
       }
     },
     [sessionId],
@@ -114,7 +119,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
 
     (async () => {
       try {
-        const sessions = await api.getSessions();
+        const sessions = await window.electronAPI.sessions.list();
         const session = sessions.find((s) => s.id === urlSessionId);
         if (!session) {
           navigate("/", { replace: true });
@@ -124,7 +129,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
         if (session.projectDir) setProjectDir(session.projectDir);
         if (session.previewUrl) onPreviewUrlChange(session.previewUrl);
 
-        const msgs = await api.getMessages(session.id);
+        const msgs = await window.electronAPI.sessions.getMessages(session.id);
         hydrateSession(
           session.id,
           msgs as unknown as Array<{ info: Message; parts: Part[] }>,
@@ -143,7 +148,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
       if (session.previewUrl) onPreviewUrlChange(session.previewUrl);
 
       try {
-        const msgs = await api.getMessages(session.id);
+        const msgs = await window.electronAPI.sessions.getMessages(session.id);
         hydrateSession(
           session.id,
           msgs as unknown as Array<{ info: Message; parts: Part[] }>,
@@ -172,7 +177,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     if (previewUrl !== prevPreviewUrl.current) {
       prevPreviewUrl.current = previewUrl;
       if (sessionId) {
-        api.updateSession(sessionId, { previewUrl }).catch(() => {});
+        window.electronAPI.sessions.update(sessionId, { previewUrl }).catch(() => {});
       }
     }
   }, [previewUrl, sessionId]);
@@ -193,7 +198,8 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
       const isFirstMessage = !sid;
       if (!sid) {
         try {
-          const session = await api.createSession({
+          const session = await window.electronAPI.sessions.create({
+            title: "New Session",
             providerId: model.providerId,
             modelId: model.modelId,
             projectDir: projectDir || undefined,
@@ -204,7 +210,6 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
           hydrateSession(sid, []);
           setRefreshKey((k) => k + 1);
           window.history.replaceState(null, "", `#/session/${sid}`);
-          api.setSessionModel(sid, model).catch(() => {});
         } catch (err) {
           toast.error(err instanceof Error ? err.message : "Failed to create session");
           return;
@@ -228,7 +233,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
       } finally {
         if (isFirstMessage && sid) {
           const title = generateSessionTitle(prompt);
-          api.updateSession(sid, { title }).catch(() => {});
+          window.electronAPI.sessions.update(sid, { title }).catch(() => {});
         }
       }
     },

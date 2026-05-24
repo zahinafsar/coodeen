@@ -24,13 +24,13 @@ Other artifacts (if any) are listed under [all releases](https://github.com/zahi
 
 3. Open Coodeen from Applications.
 
-## Add Your OpenAI Key
+## Add a Provider Key
 
 1. Click the **key icon** in the top-right of the top bar.
-2. Paste an OpenAI key (`sk-...`) from [platform.openai.com/api-keys](https://platform.openai.com/api-keys).
+2. Pick a provider — **Anthropic**, **OpenAI**, or **Google** — and paste its API key.
 3. Save — the key is stored in opencode's auth store at `~/.local/share/opencode/auth.json`.
 
-The current UI only wires OpenAI through the dialog. To use other providers, edit opencode's auth file directly.
+The dialog also has a **Custom** option for OpenAI-compatible endpoints (Ollama, local model servers, etc.). Any other provider that opencode supports can be wired in by editing `auth.json` directly.
 
 ## Pick a Project Folder
 

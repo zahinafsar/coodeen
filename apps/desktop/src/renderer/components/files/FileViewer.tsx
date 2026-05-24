@@ -44,7 +44,6 @@ import "prismjs/components/prism-hcl";
 // Dark theme token colors
 import "prismjs/themes/prism-tomorrow.css";
 
-import { api } from "../../lib/api";
 import { Button } from "@/components/ui/button";
 import type { FileReference } from "../../lib/types";
 
@@ -242,7 +241,7 @@ export function FileViewer({ filePath, onFileReference }: FileViewerProps) {
     setLoading(true);
     setError(null);
 
-    api
+    window.electronAPI.fs
       .readFile(filePath)
       .then((data) => {
         if ("binary" in data && data.binary) {
@@ -281,7 +280,7 @@ export function FileViewer({ filePath, onFileReference }: FileViewerProps) {
     if (!filePath || !dirty) return;
     setSaving(true);
     try {
-      await api.writeFile(filePath, code);
+      await window.electronAPI.fs.writeFile(filePath, code);
       setOriginalCode(code);
     } catch {
       // keep dirty state

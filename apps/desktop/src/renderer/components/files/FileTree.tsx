@@ -11,7 +11,6 @@ import {
   Image,
   Trash2,
 } from "lucide-react";
-import { api } from "../../lib/api";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -189,7 +188,7 @@ export function FileTree({ rootPath, selectedFile, onSelectFile, refreshKey = 0,
 
   const loadDir = useCallback(async (dirPath: string) => {
     try {
-      const { entries } = await api.listTree(dirPath);
+      const { entries } = await window.electronAPI.fs.listTree(dirPath);
       setTreeCache((prev) => {
         const next = new Map(prev);
         next.set(dirPath, entries);
@@ -209,7 +208,7 @@ export function FileTree({ rootPath, selectedFile, onSelectFile, refreshKey = 0,
       if (!confirmed) return;
 
       try {
-        await api.deleteEntry(fullPath);
+        await window.electronAPI.fs.deleteEntry(fullPath);
         toast.success(`Deleted ${name}`);
         if (selectedFile === fullPath || selectedFile?.startsWith(fullPath + "/")) {
           onSelectFile("");

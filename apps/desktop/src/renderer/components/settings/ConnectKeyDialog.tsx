@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { api } from "../../lib/api";
 import {
   Dialog,
   DialogContent,
@@ -50,7 +49,7 @@ export function ConnectKeyDialog({
     }
     setSaving(true);
     try {
-      const res = await api.setProviderApiKey(providerId, trimmed);
+      const res = await window.electronAPI.providers.setApiKey(providerId, trimmed);
       if (!res.ok) {
         toast.error(res.error ?? "Failed to save.");
         return;

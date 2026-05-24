@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback } from "react";
-import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -48,7 +47,7 @@ export function GitChangesTab({ projectDir }: { projectDir: string }) {
   const loadStatus = useCallback(async () => {
     if (!projectDir) return;
     try {
-      const status = await api.getGitStatus(projectDir);
+      const status = await window.electronAPI.git.status(projectDir);
       if (status.isGitRepo) {
         setChanges((status.changes as GitChange[]) || []);
         setBranch(status.branch || "");
@@ -72,7 +71,7 @@ export function GitChangesTab({ projectDir }: { projectDir: string }) {
   const handleStage = async (files: string[]) => {
     setActionLoading("stage");
     try {
-      await api.gitStage(projectDir, files);
+      await window.electronAPI.git.stage(projectDir, files);
       await loadStatus();
     } catch {
       toast.error("Failed to stage files");
@@ -84,7 +83,7 @@ export function GitChangesTab({ projectDir }: { projectDir: string }) {
   const handleUnstage = async (files: string[]) => {
     setActionLoading("unstage");
     try {
-      await api.gitUnstage(projectDir, files);
+      await window.electronAPI.git.unstage(projectDir, files);
       await loadStatus();
     } catch {
       toast.error("Failed to unstage files");
@@ -97,7 +96,7 @@ export function GitChangesTab({ projectDir }: { projectDir: string }) {
     if (!confirm(`Discard changes to ${files.length} file${files.length !== 1 ? "s" : ""}? This cannot be undone.`)) return;
     setActionLoading("discard");
     try {
-      await api.gitDiscard(projectDir, files);
+      await window.electronAPI.git.discard(projectDir, files);
       await loadStatus();
       toast.success("Changes discarded");
     } catch {
@@ -114,7 +113,7 @@ export function GitChangesTab({ projectDir }: { projectDir: string }) {
     }
     setActionLoading("commit");
     try {
-      await api.gitCommit(projectDir, commitMessage.trim());
+      await window.electronAPI.git.commit(projectDir, commitMessage.trim());
       toast.success("Changes committed");
       setCommitMessage("");
       await loadStatus();
@@ -128,7 +127,7 @@ export function GitChangesTab({ projectDir }: { projectDir: string }) {
   const handlePush = async () => {
     setActionLoading("push");
     try {
-      await api.gitPush(projectDir);
+      await window.electronAPI.git.push(projectDir);
       toast.success("Pushed to remote");
       await loadStatus();
     } catch {
@@ -141,7 +140,7 @@ export function GitChangesTab({ projectDir }: { projectDir: string }) {
   const handlePull = async () => {
     setActionLoading("pull");
     try {
-      await api.gitPull(projectDir);
+      await window.electronAPI.git.pull(projectDir);
       toast.success("Pulled from remote");
       await loadStatus();
     } catch {

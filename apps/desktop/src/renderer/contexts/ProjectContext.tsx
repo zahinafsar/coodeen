@@ -1,44 +1,17 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, ReactNode } from "react";
 
 interface ProjectContextType {
   projectDir: string;
   setProjectDir: (dir: string) => void;
-  modelId: string;
-  setModelId: (id: string) => void;
-  providerId: string;
-  setProviderId: (id: string) => void;
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 
 export function ProjectProvider({ children }: { children: ReactNode }) {
   const [projectDir, setProjectDir] = useState("");
-  const [modelId, setModelId] = useState("");
-  const [providerId, setProviderId] = useState("");
-
-  const handleSetProjectDir = useCallback((dir: string) => {
-    setProjectDir(dir);
-  }, []);
-
-  const handleSetModelId = useCallback((id: string) => {
-    setModelId(id);
-  }, []);
-
-  const handleSetProviderId = useCallback((id: string) => {
-    setProviderId(id);
-  }, []);
 
   return (
-    <ProjectContext.Provider
-      value={{
-        projectDir,
-        setProjectDir: handleSetProjectDir,
-        modelId,
-        setModelId: handleSetModelId,
-        providerId,
-        setProviderId: handleSetProviderId,
-      }}
-    >
+    <ProjectContext.Provider value={{ projectDir, setProjectDir }}>
       {children}
     </ProjectContext.Provider>
   );

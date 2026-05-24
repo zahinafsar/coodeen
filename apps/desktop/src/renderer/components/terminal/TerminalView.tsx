@@ -3,7 +3,6 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
-import { api } from "../../lib/api";
 
 interface TerminalSession {
   id: string;
@@ -74,11 +73,11 @@ export function TerminalView({ cwd, active }: TerminalViewProps) {
     } catch {}
 
     try {
-      const session = await api.createTerminal({ cwd });
+      const session = await window.electronAPI.pty.create({ cwd });
       sessionRef.current = session;
 
       const { cols, rows } = terminal;
-      await api.resizeTerminal(session.id, cols, rows);
+      await window.electronAPI.pty.resize(session.id, cols, rows);
 
       const removeDataListener = window.electronAPI.pty.onData((msg) => {
         if (msg.id === session.id) terminal.write(msg.data);
@@ -106,7 +105,7 @@ export function TerminalView({ cwd, active }: TerminalViewProps) {
       cleanupRef.current.forEach((fn) => fn());
       cleanupRef.current = [];
       if (sessionRef.current) {
-        api.deleteTerminal(sessionRef.current.id).catch(() => {});
+        window.electronAPI.pty.kill(sessionRef.current.id).catch(() => {});
       }
       terminalRef.current?.dispose();
     };
@@ -120,7 +119,7 @@ export function TerminalView({ cwd, active }: TerminalViewProps) {
           fitAddonRef.current.fit();
           const { cols, rows } = terminalRef.current;
           if (sessionRef.current) {
-            api.resizeTerminal(sessionRef.current.id, cols, rows).catch(() => {});
+            window.electronAPI.pty.resize(sessionRef.current.id, cols, rows).catch(() => {});
           }
         } catch {}
       }
@@ -137,8 +136,8 @@ export function TerminalView({ cwd, active }: TerminalViewProps) {
         fitAddonRef.current?.fit();
         const t = terminalRef.current;
         if (t && sessionRef.current) {
-          api
-            .resizeTerminal(sessionRef.current.id, t.cols, t.rows)
+          window.electronAPI.pty
+            .resize(sessionRef.current.id, t.cols, t.rows)
             .catch(() => {});
         }
         t?.focus();

@@ -159,16 +159,8 @@ interface ElectronAPI {
     }>;
   };
   config: {
-    getCwd: () => Promise<{ cwd: string | null }>;
     getActiveProvider: () => Promise<string | null>;
     setActiveProvider: (value: string) => Promise<{ ok: boolean }>;
-    getSessionModel: (
-      sessionId: string,
-    ) => Promise<import("./lib/api").SessionModel | null>;
-    setSessionModel: (
-      sessionId: string,
-      model: import("./lib/api").SessionModel,
-    ) => Promise<{ ok: boolean }>;
   };
   actions: {
     getConfig: (dir: string) => Promise<{

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { api, type ProviderListItem } from "../../lib/api";
+import type { ProviderListItem } from "../../lib/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -69,7 +69,6 @@ export function ProvidersSection({ providers, loading, onChanged }: Props) {
       <ConnectProviderDialog
         open={catalogOpen}
         onOpenChange={setCatalogOpen}
-        catalog={providers}
         connectedIds={connectedIds}
         onSelectProvider={(entry) => {
           setCatalogOpen(false);
@@ -121,8 +120,8 @@ function ConnectedRow({
     setDeleting(true);
     try {
       const res = isCustom
-        ? await api.removeCustomProvider(provider.id)
-        : await api.deleteProviderApiKey(provider.id);
+        ? await window.electronAPI.providers.removeCustom(provider.id)
+        : await window.electronAPI.providers.deleteApiKey(provider.id);
       if (!res.ok) {
         toast.error(res.error ?? "Failed to disconnect.");
         return;

@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { Search, Settings2, X } from "lucide-react";
-import { type ProviderListItem } from "../../lib/api";
 import {
   Dialog,
   DialogContent,
@@ -10,18 +9,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  POPULAR,
-  displayName,
-  type CatalogEntry,
-} from "./providerCatalog";
+import { POPULAR, type CatalogEntry } from "./providerCatalog";
 import { ProviderAvatar } from "./ProviderAvatar";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  // Full provider list returned by /config/providers.
-  catalog: ProviderListItem[];
   // Already-connected ids — hidden from catalog.
   connectedIds: Set<string>;
   onSelectProvider: (entry: CatalogEntry) => void;
@@ -35,7 +28,6 @@ type Row =
 export function ConnectProviderDialog({
   open,
   onOpenChange,
-  catalog,
   connectedIds,
   onSelectProvider,
   onSelectCustom,
@@ -43,27 +35,16 @@ export function ConnectProviderDialog({
   const [query, setQuery] = useState("");
 
   // Build the master list:
-  //   * Popular entries from our curated set
-  //   * Everything else from /config/providers minus popular & connected
-  //   * Custom row pinned to top of "Other"
+  //   * Popular entries from our curated set (the supported providers)
+  //   * Custom row in "Other" for OpenAI-compatible / local endpoints
   const { popular, other } = useMemo(() => {
-    const popularIds = new Set(POPULAR.map((p) => p.id));
     const popularRows: Row[] = POPULAR.filter(
       (p) => !connectedIds.has(p.id),
     ).map((entry) => ({ kind: "provider", entry, recommended: entry.recommended }));
 
     const otherRows: Row[] = [{ kind: "custom" }];
-    for (const p of catalog) {
-      if (popularIds.has(p.id)) continue;
-      if (connectedIds.has(p.id)) continue;
-      if (p.source === "config") continue;
-      otherRows.push({
-        kind: "provider",
-        entry: { id: p.id, name: displayName(p.id, p.name), note: "" },
-      });
-    }
     return { popular: popularRows, other: otherRows };
-  }, [catalog, connectedIds]);
+  }, [connectedIds]);
 
   const q = query.trim().toLowerCase();
   const matches = (row: Row): boolean => {

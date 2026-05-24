@@ -1,6 +1,6 @@
 import { app } from "electron";
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { join } from "node:path";
+import { loadJson, saveJson } from "./utils/json-store.js";
 
 export interface SessionPrefs {
   providerId?: string;
@@ -13,19 +13,7 @@ function prefsPath(): string {
 }
 
 function load(): Record<string, SessionPrefs> {
-  const p = prefsPath();
-  if (!existsSync(p)) return {};
-  try {
-    return JSON.parse(readFileSync(p, "utf-8")) as Record<string, SessionPrefs>;
-  } catch {
-    return {};
-  }
-}
-
-function save(data: Record<string, SessionPrefs>): void {
-  const p = prefsPath();
-  mkdirSync(dirname(p), { recursive: true });
-  writeFileSync(p, JSON.stringify(data, null, 2), "utf-8");
+  return loadJson<Record<string, SessionPrefs>>(prefsPath(), {});
 }
 
 export function getPrefs(sessionId: string): SessionPrefs {
@@ -35,14 +23,14 @@ export function getPrefs(sessionId: string): SessionPrefs {
 export function setPrefs(sessionId: string, patch: SessionPrefs): SessionPrefs {
   const all = load();
   all[sessionId] = { ...all[sessionId], ...patch };
-  save(all);
+  saveJson(prefsPath(), all);
   return all[sessionId];
 }
 
 export function deletePrefs(sessionId: string): void {
   const all = load();
   delete all[sessionId];
-  save(all);
+  saveJson(prefsPath(), all);
 }
 
 export function allPrefs(): Record<string, SessionPrefs> {

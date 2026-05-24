@@ -301,21 +301,6 @@ function toolSummary(part: ToolPart): string {
   }
 }
 
-function toolTags(part: ToolPart): string[] {
-  const input = (part.state.input ?? {}) as Record<string, unknown>;
-  const tags: string[] = [];
-  switch (part.tool) {
-    case "read":
-      if (input.offset) tags.push(`offset=${input.offset}`);
-      if (input.limit) tags.push(`limit=${input.limit}`);
-      break;
-    case "grep":
-      if (input.path) tags.push(String(input.path));
-      break;
-  }
-  return tags;
-}
-
 function toolOutputSummary(part: ToolPart): string {
   if (part.state.status !== "completed") return "";
   const out = part.state.output ?? "";
@@ -380,7 +365,6 @@ function ThreadTool({ part }: { part: ToolPart }) {
   const Icon = meta.icon;
   const status = part.state.status;
   const summary = toolSummary(part);
-  const tags = toolTags(part);
   let outputSummary = toolOutputSummary(part);
   if (
     !outputSummary &&
@@ -389,8 +373,6 @@ function ThreadTool({ part }: { part: ToolPart }) {
   ) {
     outputSummary = patchSummary(part.state.output ?? "");
   }
-  // unused columns removed
-  void tags;
 
   // todowrite → visible checklist (no expand)
   const todos = extractTodos(part);

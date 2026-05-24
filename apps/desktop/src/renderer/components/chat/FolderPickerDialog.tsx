@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 import { Folder, ArrowUp, Loader2 } from "lucide-react";
-import { api } from "../../lib/api";
 import {
   Dialog,
   DialogContent,
@@ -34,7 +33,7 @@ export function FolderPickerDialog({
   const loadDir = useCallback(async (path?: string) => {
     setLoading(true);
     try {
-      const res = await api.listDirs(path);
+      const res = await window.electronAPI.fs.listDirs(path);
       setCurrentPath(res.current);
       setParentPath(res.parent);
       setDirs(res.dirs);

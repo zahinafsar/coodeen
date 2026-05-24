@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check, Cpu, ExternalLink, Search, X } from "lucide-react";
-import { api, type ProviderListItem, type SessionModel } from "../../lib/api";
+import type { ProviderListItem } from "../../lib/types";
+import type { SessionModel } from "../../lib/types";
 import {
   Popover,
   PopoverContent,
@@ -27,8 +28,8 @@ export function ModelPicker({ value, onChange }: Props) {
       setQuery("");
       return;
     }
-    api
-      .listProviders()
+    window.electronAPI.providers
+      .list()
       .then(setProviders)
       .catch(() => setProviders([]));
   }, [open]);

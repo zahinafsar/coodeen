@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { Plus, Trash2, Pencil, Loader2 } from "lucide-react";
 import type { Session } from "../../lib/types";
-import { api } from "../../lib/api";
 import { useDrawer } from "../../contexts/DrawerContext";
 import {
   Sheet,
@@ -37,7 +36,7 @@ export function SessionDrawer({
   const fetchSessions = useCallback(async () => {
     setLoading(true);
     try {
-      const list = await api.getSessions();
+      const list = await window.electronAPI.sessions.list();
       setSessions(list);
     } catch (err) {
       console.error("[SessionDrawer] fetchSessions failed:", err);
@@ -51,7 +50,7 @@ export function SessionDrawer({
       e.stopPropagation();
       if (!window.confirm("Delete this session?")) return;
       try {
-        await api.deleteSession(sessionId);
+        await window.electronAPI.sessions.delete(sessionId);
         setSessions((prev) => prev.filter((s) => s.id !== sessionId));
         if (sessionId === currentSessionId) {
           onDeleteSession?.(sessionId);
@@ -98,7 +97,7 @@ export function SessionDrawer({
       const trimmed = editingTitle.trim();
       if (trimmed && trimmed !== sessions.find((s) => s.id === sessionId)?.title) {
         try {
-          await api.updateSession(sessionId, { title: trimmed });
+          await window.electronAPI.sessions.update(sessionId, { title: trimmed });
           setSessions((prev) =>
             prev.map((s) => (s.id === sessionId ? { ...s, title: trimmed } : s)),
           );

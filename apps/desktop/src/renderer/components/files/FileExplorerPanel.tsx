@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { FileTree } from "./FileTree";
 import { FileViewer } from "./FileViewer";
 import { CreateEntryDialog } from "./CreateEntryDialog";
-import { api } from "../../lib/api";
 import { toast } from "sonner";
 import type { FileReference } from "../../lib/types";
 
@@ -58,7 +57,11 @@ export function FileExplorerPanel({
 
       for (const file of files) {
         try {
-          await api.uploadFile(projectDir, file);
+          await window.electronAPI.fs.upload(
+            projectDir,
+            file.name,
+            await file.arrayBuffer(),
+          );
           toast.success(`Uploaded ${file.name}`);
         } catch (err) {
           toast.error(`Failed to upload ${file.name}`);
@@ -82,7 +85,11 @@ export function FileExplorerPanel({
 
       for (const file of files) {
         try {
-          await api.uploadFile(projectDir, file);
+          await window.electronAPI.fs.upload(
+            projectDir,
+            file.name,
+            await file.arrayBuffer(),
+          );
           toast.success(`Uploaded ${file.name}`);
         } catch {
           toast.error(`Failed to upload ${file.name}`);

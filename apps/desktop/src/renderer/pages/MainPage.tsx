@@ -11,7 +11,6 @@ import { GitManagerPanel } from "../components/git/GitManagerPanel";
 import { TerminalTabs } from "../components/terminal/TerminalTabs";
 import type { PanelImperativeHandle } from "react-resizable-panels";
 import { DesignCanvas } from "../components/design/DesignCanvas";
-import { api } from "../lib/api";
 import { toast } from "sonner";
 import {
   ElementSelectionProvider,
@@ -77,7 +76,7 @@ function MainPageInner() {
 
   useEffect(() => {
     if (!generating || !projectDir) return;
-    const off = api.onCoodeenChanged(({ dir }) => {
+    const off = window.electronAPI.coodeen.onChanged(({ dir }) => {
       if (dir === projectDir) setGenerating(false);
     });
     return () => off();
