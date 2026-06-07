@@ -3,7 +3,6 @@ import { Save, FileWarning, AtSign } from "lucide-react";
 import Editor from "react-simple-code-editor";
 import Prism from "prismjs";
 
-// Load Prism language grammars (order matters for dependencies)
 import "prismjs/components/prism-markup-templating";
 import "prismjs/components/prism-typescript";
 import "prismjs/components/prism-jsx";
@@ -41,7 +40,6 @@ import "prismjs/components/prism-protobuf";
 import "prismjs/components/prism-clojure";
 import "prismjs/components/prism-hcl";
 
-// Dark theme token colors
 import "prismjs/themes/prism-tomorrow.css";
 
 import { Button } from "@/components/ui/button";
@@ -64,15 +62,10 @@ function escapeHtml(text: string): string {
     .replace(/>/g, "&gt;");
 }
 
-/**
- * Detect Prism.js grammar key from file path.
- * Falls back to "plaintext" for unknown extensions.
- */
 function detectLanguage(filePath: string): string {
   const name = filePath.split("/").pop()?.toLowerCase() ?? "";
   const ext = name.includes(".") ? "." + name.split(".").pop() : "";
 
-  // Special filenames
   if (name === "dockerfile" || name.startsWith("dockerfile.")) return "docker";
   if (name === ".env" || name.startsWith(".env.")) return "bash";
   if (name === ".gitignore" || name === ".dockerignore" || name === ".editorconfig")
@@ -80,24 +73,20 @@ function detectLanguage(filePath: string): string {
   if (name === "tsconfig.json" || name === "jsconfig.json") return "json";
 
   const EXT_MAP: Record<string, string> = {
-    // TypeScript / React
     ".ts": "typescript",
     ".tsx": "tsx",
     ".mts": "typescript",
     ".cts": "typescript",
 
-    // JavaScript / React
     ".js": "javascript",
     ".jsx": "jsx",
     ".mjs": "javascript",
     ".cjs": "javascript",
 
-    // Vue / Svelte / Astro
     ".vue": "markup",
     ".svelte": "markup",
     ".astro": "markup",
 
-    // Web
     ".html": "markup",
     ".htm": "markup",
     ".css": "css",
@@ -105,7 +94,6 @@ function detectLanguage(filePath: string): string {
     ".sass": "scss",
     ".less": "less",
 
-    // Data / Config
     ".json": "json",
     ".jsonc": "json",
     ".json5": "json",
@@ -119,34 +107,27 @@ function detectLanguage(filePath: string): string {
     ".gql": "graphql",
     ".prisma": "graphql",
 
-    // Markdown
     ".md": "markdown",
     ".mdx": "markdown",
     ".rmd": "markdown",
 
-    // Shell
     ".sh": "bash",
     ".bash": "bash",
     ".zsh": "bash",
     ".fish": "bash",
 
-    // Python
     ".py": "python",
     ".pyi": "python",
     ".pyw": "python",
 
-    // Rust
     ".rs": "rust",
 
-    // Go
     ".go": "go",
 
-    // Java / Kotlin
     ".java": "java",
     ".kt": "kotlin",
     ".kts": "kotlin",
 
-    // C / C++ / C# / Objective-C
     ".c": "c",
     ".h": "c",
     ".cpp": "cpp",
@@ -157,49 +138,36 @@ function detectLanguage(filePath: string): string {
     ".cs": "csharp",
     ".m": "objectivec",
 
-    // Swift
     ".swift": "swift",
 
-    // Ruby
     ".rb": "ruby",
     ".rake": "ruby",
     ".gemspec": "ruby",
 
-    // PHP
     ".php": "php",
 
-    // Dart
     ".dart": "dart",
 
-    // Lua
     ".lua": "lua",
 
-    // R
     ".r": "r",
 
-    // SQL
     ".sql": "sql",
 
-    // Perl
     ".pl": "perl",
     ".pm": "perl",
 
-    // Scala
     ".scala": "scala",
 
-    // Clojure
     ".clj": "clojure",
     ".cljs": "clojure",
     ".cljc": "clojure",
 
-    // PowerShell
     ".ps1": "powershell",
     ".psm1": "powershell",
 
-    // Docker
     ".dockerfile": "docker",
 
-    // Infra / Misc
     ".tf": "hcl",
     ".hcl": "hcl",
     ".proto": "protobuf",
@@ -228,7 +196,6 @@ export function FileViewer({ filePath, onFileReference }: FileViewerProps) {
   const lang = filePath ? detectLanguage(filePath) : "plaintext";
   const fileName = filePath?.split("/").pop() ?? "";
 
-  // Load file when path changes
   useEffect(() => {
     if (!filePath) {
       setCode("");
@@ -262,10 +229,8 @@ export function FileViewer({ filePath, onFileReference }: FileViewerProps) {
       .finally(() => setLoading(false));
   }, [filePath]);
 
-  // Syntax highlight function
   const highlightCode = useCallback(
     (value: string) => {
-      // Skip highlighting for very large files
       if (value.length > 100_000) return escapeHtml(value);
       if (lang === "plaintext" || !Prism.languages[lang]) {
         return escapeHtml(value);
@@ -275,7 +240,6 @@ export function FileViewer({ filePath, onFileReference }: FileViewerProps) {
     [lang],
   );
 
-  // Save handler
   const handleSave = useCallback(async () => {
     if (!filePath || !dirty) return;
     setSaving(true);
@@ -283,13 +247,12 @@ export function FileViewer({ filePath, onFileReference }: FileViewerProps) {
       await window.electronAPI.fs.writeFile(filePath, code);
       setOriginalCode(code);
     } catch {
-      // keep dirty state
+      void 0;
     } finally {
       setSaving(false);
     }
   }, [filePath, code, dirty]);
 
-  // Ctrl/Cmd+S shortcut — only when focus is inside this component
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "s") {
@@ -303,7 +266,6 @@ export function FileViewer({ filePath, onFileReference }: FileViewerProps) {
     return () => window.removeEventListener("keydown", handler);
   }, [handleSave]);
 
-  // Reference selected code to prompt
   const handleReference = useCallback(() => {
     const textarea = containerRef.current?.querySelector("textarea");
     if (!textarea || !filePath || !onFileReference) return;
@@ -324,8 +286,6 @@ export function FileViewer({ filePath, onFileReference }: FileViewerProps) {
       content: selectedText,
     });
   }, [filePath, onFileReference]);
-
-  // --- Render states ---
 
   if (!filePath) {
     return (
@@ -370,7 +330,6 @@ export function FileViewer({ filePath, onFileReference }: FileViewerProps) {
       className="flex flex-col h-full overflow-hidden"
       tabIndex={-1}
     >
-      {/* Toolbar */}
       <div className="flex items-center justify-between px-3 py-1.5 border-b bg-card shrink-0">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-xs font-medium truncate">{fileName}</span>
@@ -408,10 +367,8 @@ export function FileViewer({ filePath, onFileReference }: FileViewerProps) {
         </div>
       </div>
 
-      {/* Editor area */}
       <div className="flex-1 min-h-0 overflow-auto bg-[#1d1f21]">
         <div className="flex min-h-full">
-          {/* Line numbers */}
           <div
             className="shrink-0 select-none text-right text-gray-500 border-r border-gray-700/50 sticky left-0 bg-[#1d1f21]"
             style={{
@@ -431,7 +388,6 @@ export function FileViewer({ filePath, onFileReference }: FileViewerProps) {
             ))}
           </div>
 
-          {/* Code editor */}
           <div className="flex-1 min-w-0">
             <Editor
               value={code}

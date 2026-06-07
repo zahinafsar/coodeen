@@ -195,7 +195,7 @@ export function FileTree({ rootPath, selectedFile, onSelectFile, refreshKey = 0,
         return next;
       });
     } catch {
-      // silently fail
+      void 0;
     }
   }, []);
 
@@ -221,7 +221,6 @@ export function FileTree({ rootPath, selectedFile, onSelectFile, refreshKey = 0,
     [selectedFile, onSelectFile, onRefresh],
   );
 
-  // Load root on mount or when rootPath/refreshKey changes
   useEffect(() => {
     if (!rootPath) return;
     setLoading(true);

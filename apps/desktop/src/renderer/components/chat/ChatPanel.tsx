@@ -75,7 +75,6 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     if (!error) lastErrorRef.current = null;
   }, [error]);
 
-  // Hydrate per-session model when session id changes.
   useEffect(() => {
     if (!sessionId) {
       setModel(null);
@@ -111,7 +110,6 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     [sessionId],
   );
 
-  // Load session from URL on mount
   useEffect(() => {
     if (initialLoadDone.current) return;
     if (!urlSessionId) return;

@@ -15,7 +15,6 @@ import { ProviderAvatar } from "./ProviderAvatar";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  // Already-connected ids — hidden from catalog.
   connectedIds: Set<string>;
   onSelectProvider: (entry: CatalogEntry) => void;
   onSelectCustom: () => void;
@@ -34,9 +33,6 @@ export function ConnectProviderDialog({
 }: Props) {
   const [query, setQuery] = useState("");
 
-  // Build the master list:
-  //   * Popular entries from our curated set (the supported providers)
-  //   * Custom row in "Other" for OpenAI-compatible / local endpoints
   const { popular, other } = useMemo(() => {
     const popularRows: Row[] = POPULAR.filter(
       (p) => !connectedIds.has(p.id),

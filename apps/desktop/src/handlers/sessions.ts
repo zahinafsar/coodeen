@@ -23,9 +23,6 @@ function mergeSession(s: {
 
 export function registerSessionHandlers() {
   ipcMain.handle("sessions:list", async () => {
-    // GET /experimental/session returns every session across every project
-    // in one call, sorted by updated desc. Replaces the previous N+1 fan-out
-    // over projects, which booted a Provider Instance per directory.
     const base = getBaseUrl();
     if (!base) return [];
     type Row = {
@@ -37,7 +34,6 @@ export function registerSessionHandlers() {
     };
     const r = await fetch(`${base}/experimental/session?roots=true&limit=200`);
     if (!r.ok) {
-      console.warn(`[sessions:list] ${r.status} ${r.statusText}`);
       return [];
     }
     const rows = (await r.json()) as Row[];
@@ -111,9 +107,6 @@ export function registerSessionHandlers() {
     }) => {
       const client = getClient();
       if (data.title !== undefined) {
-        // Title write goes through Instance, so route must hit the
-        // session's home project — fall back to fetching the session
-        // (ID-scoped, instance-agnostic) to discover its directory.
         let dir = data.projectDir;
         if (!dir) {
           try {

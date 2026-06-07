@@ -38,8 +38,6 @@ export function SessionDrawer({
     try {
       const list = await window.electronAPI.sessions.list();
       setSessions(list);
-    } catch (err) {
-      console.error("[SessionDrawer] fetchSessions failed:", err);
     } finally {
       setLoading(false);
     }
@@ -55,9 +53,7 @@ export function SessionDrawer({
         if (sessionId === currentSessionId) {
           onDeleteSession?.(sessionId);
         }
-      } catch {
-        // silent
-      }
+      } catch {}
     },
     [currentSessionId, onDeleteSession],
   );
@@ -101,9 +97,7 @@ export function SessionDrawer({
           setSessions((prev) =>
             prev.map((s) => (s.id === sessionId ? { ...s, title: trimmed } : s)),
           );
-        } catch {
-          // silent
-        }
+        } catch {}
       }
       setEditingId(null);
       setEditingTitle("");

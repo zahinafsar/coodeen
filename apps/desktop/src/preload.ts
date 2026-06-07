@@ -3,7 +3,6 @@ import { contextBridge, ipcRenderer } from "electron";
 export type ElectronAPI = typeof electronAPI;
 
 const electronAPI = {
-  // ── Sessions ──────────────────────────────────────────
   sessions: {
     list: () => ipcRenderer.invoke("sessions:list"),
     get: (id: string) => ipcRenderer.invoke("sessions:get", id),
@@ -29,7 +28,6 @@ const electronAPI = {
       ipcRenderer.invoke("sessions:getMessages", sessionId),
   },
 
-  // ── Chat ──────────────────────────────────────────────
   chat: {
     prompt: (params: {
       sessionId: string;
@@ -43,7 +41,6 @@ const electronAPI = {
       ipcRenderer.invoke("chat:stop", sessionId),
   },
 
-  // ── Opencode raw event stream ─────────────────────────
   opencode: {
     onEvent: (
       callback: (evt: { type: string; properties?: unknown }) => void,
@@ -68,7 +65,6 @@ const electronAPI = {
     reconnect: () => ipcRenderer.invoke("opencode:reconnect"),
   },
 
-  // ── Filesystem ────────────────────────────────────────
   fs: {
     listDirs: (path?: string) =>
       ipcRenderer.invoke("fs:listDirs", path),
@@ -86,7 +82,6 @@ const electronAPI = {
       ipcRenderer.invoke("fs:upload", dirPath, fileName, data),
   },
 
-  // ── Git ───────────────────────────────────────────────
   git: {
     status: (dir: string) => ipcRenderer.invoke("git:status", dir),
     branches: (dir: string) =>
@@ -115,7 +110,6 @@ const electronAPI = {
       ipcRenderer.invoke("git:discard", dir, files),
   },
 
-  // ── PTY ───────────────────────────────────────────────
   pty: {
     create: (opts?: {
       cwd?: string;
@@ -150,7 +144,6 @@ const electronAPI = {
     },
   },
 
-  // ── Providers ─────────────────────────────────────────
   providers: {
     connectedModels: () =>
       ipcRenderer.invoke("providers:connectedModels"),
@@ -174,7 +167,6 @@ const electronAPI = {
       ipcRenderer.invoke("providers:probeOllama", baseURL),
   },
 
-  // ── Config ────────────────────────────────────────────
   config: {
     getActiveProvider: () =>
       ipcRenderer.invoke("config:getActiveProvider"),
@@ -182,7 +174,6 @@ const electronAPI = {
       ipcRenderer.invoke("config:setActiveProvider", value),
   },
 
-  // ── Actions ───────────────────────────────────────────
   actions: {
     getConfig: (dir: string) =>
       ipcRenderer.invoke("actions:getConfig", dir),
@@ -190,7 +181,6 @@ const electronAPI = {
       ipcRenderer.invoke("actions:run", dir, script),
   },
 
-  // ── Coodeen design config ──────────────────────────────
   coodeen: {
     get: (dir: string) => ipcRenderer.invoke("coodeen:get", dir),
     set: (dir: string, data: unknown) =>
@@ -206,11 +196,9 @@ const electronAPI = {
     },
   },
 
-  // ── Capture ────────────────────────────────────────────
   captureArea: (x: number, y: number, width: number, height: number) =>
     ipcRenderer.invoke("capture:area", x, y, width, height),
 
-  // ── Preview (browser tool) ───────────────────────────
   preview: {
     onAction: (
       callback: (data: {
@@ -229,7 +217,6 @@ const electronAPI = {
     sendResult: (requestId: string, result: unknown) =>
       ipcRenderer.send(`preview:action-result:${requestId}`, result),
   },
-
 };
 
 contextBridge.exposeInMainWorld("electronAPI", electronAPI);

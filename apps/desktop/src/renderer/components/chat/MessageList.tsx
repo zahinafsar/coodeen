@@ -8,11 +8,6 @@ interface MessageListProps {
   working: boolean;
 }
 
-/**
- * Opencode emits one assistant message per LLM step. Visually we want a
- * single "turn" per user request, so collapse consecutive assistant
- * messages into one combined bubble whose parts are concatenated in order.
- */
 function mergeAssistantTurns(
   messages: Array<Message & { parts: Part[] }>,
 ): Array<Message & { parts: Part[] }> {
@@ -24,7 +19,6 @@ function mergeAssistantTurns(
         ...last,
         time: {
           ...last.time,
-          // Turn is complete only when the latest step completes.
           completed: msg.time.completed,
         },
         parts: [...last.parts, ...msg.parts],

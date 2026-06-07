@@ -14,8 +14,8 @@ export function GitManagerPanel({ projectDir }: { projectDir: string }) {
     try {
       const status = await window.electronAPI.git.status(projectDir);
       setIsGitRepo(status.isGitRepo);
-    } catch (error) {
-      console.error("Failed to load git status:", error);
+    } catch {
+      void 0;
     }
   }, [projectDir]);
 
@@ -33,7 +33,6 @@ export function GitManagerPanel({ projectDir }: { projectDir: string }) {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Sub-tab bar */}
       <div className="flex border-b shrink-0">
         <button
           type="button"
@@ -61,7 +60,6 @@ export function GitManagerPanel({ projectDir }: { projectDir: string }) {
         </button>
       </div>
 
-      {/* Sub-tab content */}
       <div className="flex-1 min-h-0">
         {subTab === "changes" ? (
           <GitChangesTab projectDir={projectDir} />

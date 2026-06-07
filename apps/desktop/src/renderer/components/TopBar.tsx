@@ -22,7 +22,6 @@ export function TopBar() {
   const [actions, setActions] = useState<CustomAction[]>([]);
   const [runningAction, setRunningAction] = useState<string | null>(null);
 
-  // Load actions whenever projectDir changes
   useEffect(() => {
     if (!projectDir) {
       setActions([]);
@@ -33,8 +32,7 @@ export function TopBar() {
       try {
         const result = await window.electronAPI.actions.getConfig(projectDir);
         setActions(result.actions || []);
-      } catch (error) {
-        console.error("Failed to load actions:", error);
+      } catch {
         setActions([]);
       }
     };
@@ -48,18 +46,15 @@ export function TopBar() {
       return;
     }
 
-    console.log(`Running action "${label}" in directory: ${projectDir}`);
     setRunningAction(label);
     try {
       const result = await window.electronAPI.actions.run(projectDir, script);
-      console.log(`Action "${label}" result:`, result);
       if (result.ok) {
         toast.success(`${label} completed`);
       } else {
         toast.error(`${label} failed: ${result.error}`);
       }
-    } catch (error) {
-      console.error("Action failed:", error);
+    } catch {
       toast.error(`${label} failed`);
     } finally {
       setRunningAction(null);

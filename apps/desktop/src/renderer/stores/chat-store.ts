@@ -1,7 +1,5 @@
 import { useSyncExternalStore } from "react";
 
-// ── Opencode event + message types (structurally subset) ─────────────────────
-
 export interface Message {
   id: string;
   sessionID: string;
@@ -82,12 +80,10 @@ export type SessionStatus =
   | { type: "idle" }
   | { type: string; [k: string]: unknown };
 
-// ── Store shape ──────────────────────────────────────────────────────────────
-
 interface SessionEntry {
   messageOrder: string[];
   messages: Record<string, Message>;
-  partsByMessage: Record<string, Part[]>; // parts ordered by id (server order preserved)
+  partsByMessage: Record<string, Part[]>;
   status: SessionStatus;
   error?: string;
 }
@@ -106,8 +102,6 @@ function emptySession(): SessionEntry {
     status: { type: "idle" },
   };
 }
-
-// ── Store singleton ──────────────────────────────────────────────────────────
 
 let state: State = { sessions: {} };
 const listeners = new Set<() => void>();
@@ -178,8 +172,6 @@ function upsertPart(msgId: string, sid: string, part: Part) {
       next[idx] = part;
     }
 
-    // If we don't have a message.updated for this messageID yet, synthesize
-    // a minimal assistant message so the UI can render parts as they arrive.
     let messages = s.messages;
     let messageOrder = s.messageOrder;
     if (!messages[msgId]) {
@@ -250,8 +242,6 @@ function removeMessage(sid: string, msgId: string) {
   });
 }
 
-// ── Event reducer ────────────────────────────────────────────────────────────
-
 export function applyOpencodeEvent(evt: {
   type: string;
   properties?: unknown;
@@ -263,8 +253,7 @@ export function applyOpencodeEvent(evt: {
     anyProps?.sessionID ??
     anyProps?.info?.sessionID ??
     anyProps?.part?.sessionID;
-  // eslint-disable-next-line no-console
-  console.log("[opencode event]", evt.type, "sid:", sid);
+  void sid;
   switch (evt.type) {
     case "message.updated": {
       const info = props.info as Message | undefined;
@@ -283,7 +272,6 @@ export function applyOpencodeEvent(evt: {
     case "message.part.updated": {
       const part = props.part as Part | undefined;
       if (!part) return;
-      // v1 SDK: delta is an optional property on this event
       const delta = typeof props.delta === "string" ? (props.delta as string) : "";
       upsertPart(part.messageID, part.sessionID, part);
       if (delta) appendDelta(part.messageID, part.sessionID, part.id, delta);
@@ -328,12 +316,9 @@ export function applyOpencodeEvent(evt: {
       return;
     }
     default:
-      // ignore other events (session.created/updated/deleted handled elsewhere)
       return;
   }
 }
-
-// ── Bulk hydration (from session.messages API) ───────────────────────────────
 
 export function hydrateSession(
   sid: string,
@@ -366,8 +351,6 @@ export function clearSession(sid: string) {
   };
   notify();
 }
-
-// ── Hook ─────────────────────────────────────────────────────────────────────
 
 export interface ChatSessionView {
   messages: Array<Message & { parts: Part[] }>;
@@ -408,8 +391,6 @@ export function useChatSession(sid: string | null): ChatSessionView {
     error: snapshot.error,
   };
 }
-
-// ── Wire global event bus (call once at app boot) ────────────────────────────
 
 let wired = false;
 export function wireChatStore(): void {

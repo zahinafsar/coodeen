@@ -84,8 +84,6 @@ function DesignCanvasInner({
       try {
         const cfg = await window.electronAPI.coodeen.get(projectDir);
         const json = JSON.stringify(cfg);
-        // Skip setConfig if the on-disk content matches what we just
-        // wrote ourselves — keeps React Flow + iframes from re-rendering.
         if (json === lastPersistedRef.current) return;
         lastPersistedRef.current = json;
         setConfig(cfg);

@@ -9,10 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-/** Match any http(s) URL in text */
 const URL_RE = /https?:\/\/\S+/gi;
 
-/** Try to fetch a URL as an image and return a base64 data URL, or null on failure */
 async function fetchImageAsDataUrl(url: string): Promise<string | null> {
   try {
     const res = await fetch(url);
@@ -79,7 +77,6 @@ export function PromptInput({
       const value = textareaRef.current?.value.trim();
       if (!value || disabled) return;
 
-      // Clear input immediately so it feels responsive
       if (textareaRef.current) {
         textareaRef.current.value = "";
         textareaRef.current.style.height = "auto";
@@ -87,7 +84,6 @@ export function PromptInput({
 
       let finalPrompt = value;
 
-      // Prepend file references (path + lines only — agent reads the file)
       if (fileReferences.length > 0) {
         const refLines = fileReferences
           .map((r) =>
@@ -108,10 +104,8 @@ export function PromptInput({
         clearSelections();
       }
 
-      // Collect images from screenshots (pasted / file-picked)
       const allImages = screenshots.map((s) => s.dataUrl);
 
-      // Find URLs in prompt text, try to fetch each as an image
       const urlMatches = value.match(URL_RE);
       if (urlMatches) {
         const unique = [...new Set(urlMatches)];
@@ -123,7 +117,6 @@ export function PromptInput({
             fetchedUrls.push(unique[i]);
           }
         }
-        // Strip successfully fetched image URLs from the prompt text
         if (fetchedUrls.length > 0) {
           for (const url of fetchedUrls) {
             finalPrompt = finalPrompt.replaceAll(url, "");
@@ -165,7 +158,6 @@ export function PromptInput({
     setPendingPrefix("");
   }, [pendingPrefix, setPendingPrefix, handleInput]);
 
-  // Paste image from clipboard
   const handlePaste = useCallback(
     (e: ClipboardEvent<HTMLTextAreaElement>) => {
       const items = e.clipboardData?.items;
@@ -188,7 +180,6 @@ export function PromptInput({
     [addScreenshot],
   );
 
-  // Select image from file system
   const handleFileSelect = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
@@ -203,13 +194,11 @@ export function PromptInput({
         };
         reader.readAsDataURL(file);
       }
-      // Reset so the same file can be selected again
       e.target.value = "";
     },
     [addScreenshot],
   );
 
-  // Drag-drop: images from anywhere + files from tree
   const handleDragOver = useCallback((e: DragEvent) => {
     if (
       e.dataTransfer.types.includes("application/x-file-path") ||
@@ -230,7 +219,6 @@ export function PromptInput({
       e.preventDefault();
       setDragOver(false);
 
-      // Handle native file drops (images from Finder/Explorer/desktop/any folder)
       if (e.dataTransfer.files.length > 0) {
         for (const file of e.dataTransfer.files) {
           if (file.type.startsWith("image/")) {
@@ -246,7 +234,6 @@ export function PromptInput({
         return;
       }
 
-      // Handle internal file tree drops
       const droppedPath = e.dataTransfer.getData("application/x-file-path");
       if (droppedPath && onAddFileReference) {
         onAddFileReference({
@@ -278,7 +265,6 @@ export function PromptInput({
           <span className="text-sm font-medium text-muted-foreground">Drop images here</span>
         </div>
       )}
-      {/* File reference badges */}
       {fileReferences.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {fileReferences.map((ref, i) => {
@@ -312,7 +298,6 @@ export function PromptInput({
         </div>
       )}
 
-      {/* Element selection badges */}
       {selections.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {selections.map((sel, i) => (
@@ -340,7 +325,6 @@ export function PromptInput({
         </div>
       )}
 
-      {/* Screenshot thumbnails */}
       {screenshots.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {screenshots.map((ss) => (

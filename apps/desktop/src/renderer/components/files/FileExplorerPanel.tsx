@@ -73,7 +73,6 @@ export function FileExplorerPanel({
     [projectDir, handleRefresh],
   );
 
-  // Handle drop on the tree area (images from OS)
   const handleDrop = useCallback(
     async (e: React.DragEvent) => {
       e.preventDefault();
@@ -115,7 +114,6 @@ export function FileExplorerPanel({
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Toolbar */}
       <div className="flex items-center gap-1 px-2 py-1.5 border-b bg-card shrink-0">
         <Button
           variant="ghost"
@@ -157,7 +155,6 @@ export function FileExplorerPanel({
         </span>
       </div>
 
-      {/* Split panels */}
       <ResizablePanelGroup orientation="horizontal" className="flex-1 min-h-0">
         <ResizablePanel defaultSize={35} minSize={20}>
           <ScrollArea

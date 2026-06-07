@@ -5,11 +5,6 @@ import { join } from "node:path";
 import { getClient, getBaseUrl, restartOpencodeSidecar } from "./opencode.js";
 import { loadJson, saveJson } from "./utils/json-store.js";
 
-/**
- * Opencode memoizes Provider.list() per Instance — it does NOT refresh
- * when auth.json changes, so asking the server whether a key exists
- * returns stale data until sidecar restart. Read auth.json directly.
- */
 function authFilePath(): string {
   return join(homedir(), ".local", "share", "opencode", "auth.json");
 }
@@ -18,7 +13,6 @@ function readAuthFile(): Record<string, { type?: string }> {
   return loadJson<Record<string, { type?: string }>>(authFilePath(), {});
 }
 
-// Global opencode config — XDG default `~/.config/opencode/opencode.json`.
 function globalConfigDir(): string {
   return (
     process.env.XDG_CONFIG_HOME?.length
@@ -98,8 +92,6 @@ export function registerProviderHandlers() {
   });
 
   ipcMain.handle("providers:hasKey", async (_e, id: string) => {
-    // Read auth.json directly — opencode's Provider cache doesn't refresh
-    // after auth mutations, so its API lies until sidecar restart.
     const auth = readAuthFile();
     return !!auth[id];
   });
@@ -123,7 +115,6 @@ export function registerProviderHandlers() {
   );
 
   ipcMain.handle("providers:deleteApiKey", async (_e, id: string) => {
-    // SDK v1 doesn't expose auth.remove; call the REST endpoint directly.
     const base = getBaseUrl();
     if (!base) return { ok: false, error: "sidecar not ready" };
     try {
@@ -174,8 +165,6 @@ export function registerProviderHandlers() {
         for (const m of input.models) {
           models[m.id] = {
             name: m.name ?? m.id,
-            // Default opencode capability is toolcall=true; only persist the
-            // override when the user explicitly disables tools.
             ...(m.tools === false ? { tool_call: false } : {}),
           };
         }
@@ -221,8 +210,6 @@ export function registerProviderHandlers() {
     }
   });
 
-  // Auto-discover models. Tries Ollama native /api/tags first, then
-  // OpenAI-compatible /v1/models.
   ipcMain.handle("providers:probeOllama", async (_e, baseURL: string) => {
     const trimmed = baseURL.replace(/\/+$/, "");
     const tryTags = trimmed.endsWith("/v1") ? trimmed.slice(0, -3) : trimmed;
@@ -235,9 +222,7 @@ export function registerProviderHandlers() {
           .filter(Boolean);
         if (models.length) return { ok: true, models };
       }
-    } catch {
-      // fall through to /v1/models
-    }
+    } catch {}
     try {
       const base = trimmed.endsWith("/v1") ? trimmed : `${trimmed}/v1`;
       const r = await fetch(`${base}/models`);
@@ -256,19 +241,13 @@ export function registerProviderHandlers() {
   });
 }
 
-/**
- * Force opencode to drop its per-Instance Provider cache so the next
- * request re-reads auth.json. Uses POST /global/dispose — tears down
- * every directory Instance at once. Next call to any endpoint lazily
- * rebuilds that directory's Instance with fresh auth.
- */
 async function disposeOpencodeCache(): Promise<void> {
   const base = getBaseUrl();
   if (!base) return;
   try {
     await fetch(`${base}/global/dispose`, { method: "POST" });
   } catch (err) {
-    console.warn("[providers] failed to dispose opencode cache:", err);
+    void err;
   }
 }
 

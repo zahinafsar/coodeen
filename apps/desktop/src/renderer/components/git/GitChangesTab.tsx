@@ -54,8 +54,8 @@ export function GitChangesTab({ projectDir }: { projectDir: string }) {
         setAhead(status.ahead || 0);
         setBehind(status.behind || 0);
       }
-    } catch (error) {
-      console.error("Failed to load git status:", error);
+    } catch {
+      void 0;
     }
   }, [projectDir]);
 
@@ -63,9 +63,7 @@ export function GitChangesTab({ projectDir }: { projectDir: string }) {
     loadStatus();
   }, [loadStatus]);
 
-  // Staged = files with index status (not ? which means untracked)
   const stagedFiles = changes.filter((c) => c.index && c.index !== "?");
-  // Unstaged = files with workTree status OR untracked (?)
   const unstagedFiles = changes.filter((c) => c.workTree || c.index === "?");
 
   const handleStage = async (files: string[]) => {
@@ -154,7 +152,6 @@ export function GitChangesTab({ projectDir }: { projectDir: string }) {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Sync bar */}
       <div className="flex items-center gap-2 px-3 py-2 border-b shrink-0">
         <span className="text-xs text-muted-foreground truncate flex-1 font-mono">
           {branch}
@@ -200,9 +197,7 @@ export function GitChangesTab({ projectDir }: { projectDir: string }) {
         </Button>
       </div>
 
-      {/* File lists */}
       <ScrollArea className="flex-1">
-        {/* Staged section */}
         {stagedFiles.length > 0 && (
           <div className="px-3 pt-3 pb-1">
             <div className="flex items-center justify-between mb-1.5">
@@ -245,7 +240,6 @@ export function GitChangesTab({ projectDir }: { projectDir: string }) {
           </div>
         )}
 
-        {/* Unstaged section */}
         <div className="px-3 pt-3 pb-1">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-xs font-medium text-muted-foreground">
@@ -317,7 +311,6 @@ export function GitChangesTab({ projectDir }: { projectDir: string }) {
         </div>
       </ScrollArea>
 
-      {/* Commit area */}
       <div className="px-3 py-2 border-t shrink-0 space-y-2">
         <textarea
           placeholder="Commit message..."

@@ -135,17 +135,14 @@ export function SelectionOverlay({
       const iframe = iframeRef.current;
       if (!el || !iframe) return;
 
-      // Hide highlight before capture
       const doc = getDoc(iframe);
       const hl = doc?.getElementById("__coodeen_hl__");
       const tt = doc?.getElementById("__coodeen_tt__");
       if (hl) hl.style.display = "none";
       if (tt) tt.style.display = "none";
 
-      // Wait a frame for highlight to disappear
       await new Promise((r) => requestAnimationFrame(r));
 
-      // Capture the element area via Electron's native capturePage
       let screenshot: string | undefined;
       try {
         const elRect = el.getBoundingClientRect();

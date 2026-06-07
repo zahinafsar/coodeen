@@ -43,20 +43,17 @@ export function PreviewPanel({ url, onUrlChange, terminalOpen, onToggleTerminal,
   const contentRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Viewport
   const [mode, setMode] = useState<ViewportMode>("responsive");
   const [vpWidth, setVpWidth] = useState(0);
   const [vpHeight, setVpHeight] = useState(0);
   const [rotated, setRotated] = useState(false);
 
-  // Container size for scale-to-fit
   const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
 
   useEffect(() => {
     setInputValue(url);
   }, [url]);
 
-  // Observe container size
   useEffect(() => {
     const el = contentRef.current;
     if (!el) return;
@@ -127,7 +124,6 @@ export function PreviewPanel({ url, onUrlChange, terminalOpen, onToggleTerminal,
     return clearLoadTimeout;
   }, [startLoadTimeout, clearLoadTimeout]);
 
-  // ── Browser tool action handler ──────────────────────
   useEffect(() => {
     const unsub = window.electronAPI.preview.onAction(async (data) => {
       const { requestId, action, ...params } = data;
@@ -205,8 +201,6 @@ export function PreviewPanel({ url, onUrlChange, terminalOpen, onToggleTerminal,
     return unsub;
   }, []);
 
-  // --- Viewport helpers ---
-
   const isResponsive = mode === "responsive";
   const effectiveW = rotated ? vpHeight : vpWidth;
   const effectiveH = rotated ? vpWidth : vpHeight;
@@ -220,7 +214,6 @@ export function PreviewPanel({ url, onUrlChange, terminalOpen, onToggleTerminal,
         setRotated(false);
         return;
       }
-      // Toggle off if already active
       if (mode === m) {
         setMode("responsive");
         setVpWidth(0);
@@ -241,7 +234,6 @@ export function PreviewPanel({ url, onUrlChange, terminalOpen, onToggleTerminal,
     setRotated((r) => !r);
   }, [isResponsive]);
 
-  // Scale to fit
   const scale = (() => {
     if (isResponsive || containerSize.w === 0) return 1;
     const pad = 32;
@@ -252,9 +244,7 @@ export function PreviewPanel({ url, onUrlChange, terminalOpen, onToggleTerminal,
 
   return (
     <div className="flex flex-col h-full overflow-hidden relative">
-      {/* Toolbar */}
       <div className="flex items-center gap-1.5 px-2 py-1.5 bg-card border-b shrink-0">
-        {/* Viewport popover */}
         <Popover>
           <PopoverTrigger asChild>
             <Button
@@ -275,7 +265,6 @@ export function PreviewPanel({ url, onUrlChange, terminalOpen, onToggleTerminal,
           <PopoverContent align="start" className="w-52 p-1.5" sideOffset={4}>
             <p className="text-xs font-medium px-2 pt-1.5 pb-1 text-muted-foreground">Viewport</p>
 
-            {/* Device list */}
             <div className="flex flex-col">
               {(
                 [
@@ -305,7 +294,6 @@ export function PreviewPanel({ url, onUrlChange, terminalOpen, onToggleTerminal,
               ))}
             </div>
 
-            {/* Custom dimensions */}
             {!isResponsive && (
               <>
                 <div className="border-t my-1.5" />
@@ -351,7 +339,6 @@ export function PreviewPanel({ url, onUrlChange, terminalOpen, onToggleTerminal,
           </PopoverContent>
         </Popover>
 
-        {/* URL input */}
         <Input
           className="flex-1 h-7 font-mono text-xs min-w-0"
           type="text"
@@ -389,7 +376,6 @@ export function PreviewPanel({ url, onUrlChange, terminalOpen, onToggleTerminal,
         )}
       </div>
 
-      {/* Content area */}
       {error ? (
         <div className="flex-1 flex flex-col items-center justify-center gap-3 p-6 text-center">
           <AlertTriangle className="h-9 w-9 text-amber-500 opacity-70" />
@@ -442,7 +428,6 @@ export function PreviewPanel({ url, onUrlChange, terminalOpen, onToggleTerminal,
             </div>
           )}
 
-          {/* Dimension label */}
           {!isResponsive && (
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] text-muted-foreground bg-card/80 backdrop-blur-sm border rounded px-2 py-0.5 font-mono pointer-events-none">
               {effectiveW} × {effectiveH}

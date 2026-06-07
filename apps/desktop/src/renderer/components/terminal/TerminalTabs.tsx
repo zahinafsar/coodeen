@@ -28,7 +28,6 @@ export function TerminalTabs({ projectDir }: TerminalTabsProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const lastDir = useRef<string>("");
 
-  // When projectDir changes: reuse an existing tab for that dir, else create one.
   useEffect(() => {
     if (!projectDir) return;
     if (lastDir.current === projectDir) return;

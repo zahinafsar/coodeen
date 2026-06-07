@@ -128,7 +128,6 @@ export function TerminalView({ cwd, active }: TerminalViewProps) {
     return () => observer.disconnect();
   }, []);
 
-  // Refit when this view becomes active (size may have been 0 while hidden).
   useEffect(() => {
     if (!active) return;
     requestAnimationFrame(() => {

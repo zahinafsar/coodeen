@@ -7,8 +7,6 @@ export interface CatalogEntry {
 
 export const CUSTOM_ID = "__custom__";
 
-// Supported providers shown in the "Popular" group.
-// Order = display order.
 export const POPULAR: CatalogEntry[] = [
   {
     id: "anthropic",
@@ -28,8 +26,6 @@ export const POPULAR: CatalogEntry[] = [
   },
 ];
 
-// Friendly names for non-popular IDs surfaced by opencode. Anything not listed
-// here falls back to a humanised version of the id.
 const NICE_NAMES: Record<string, string> = {
   azure: "Azure OpenAI",
   "amazon-bedrock": "Amazon Bedrock",
@@ -58,7 +54,6 @@ export function displayName(id: string, fallback?: string): string {
     .join(" ");
 }
 
-// Two-letter initials used by the avatar fallback.
 export function initials(name: string): string {
   const parts = name.split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";
@@ -66,7 +61,6 @@ export function initials(name: string): string {
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
-// Deterministic color per id so the avatar feels stable.
 export function avatarColor(id: string): string {
   let h = 0;
   for (let i = 0; i < id.length; i++) {

@@ -26,8 +26,7 @@ export function GitBranchesTab({ projectDir }: { projectDir: string }) {
     try {
       const result = await window.electronAPI.git.branches(projectDir);
       setBranches(result.branches);
-    } catch (error) {
-      console.error("Failed to load branches:", error);
+    } catch {
       toast.error("Failed to load branches");
     } finally {
       setLoading(false);
@@ -43,8 +42,7 @@ export function GitBranchesTab({ projectDir }: { projectDir: string }) {
       await window.electronAPI.git.checkout(projectDir, branchName);
       toast.success(`Switched to ${branchName}`);
       await loadBranches();
-    } catch (error) {
-      console.error("Checkout failed:", error);
+    } catch {
       toast.error("Failed to checkout branch");
     }
   };
@@ -55,8 +53,7 @@ export function GitBranchesTab({ projectDir }: { projectDir: string }) {
         await window.electronAPI.git.deleteBranch(projectDir, branchName, false);
         toast.success(`Deleted branch: ${branchName}`);
         await loadBranches();
-      } catch (error) {
-        console.error("Delete branch failed:", error);
+      } catch {
         toast.error("Failed to delete branch");
       }
     }
@@ -76,8 +73,7 @@ export function GitBranchesTab({ projectDir }: { projectDir: string }) {
       setNewBranchName("");
       setShowCreateBranch(false);
       await loadBranches();
-    } catch (error) {
-      console.error("Create branch failed:", error);
+    } catch {
       toast.error("Failed to create branch");
     } finally {
       setLoading(false);

@@ -104,7 +104,6 @@ export function registerPtyHandlers(getWindow: () => BrowserWindow | null) {
 
       sessions.set(id, session);
 
-      // Forward PTY output to renderer
       ptyProcess.onData((data) => {
         const win = getWindow();
         win?.webContents.send("pty:data", { id, data });

@@ -39,7 +39,6 @@ export function FolderPickerDialog({
       setDirs(res.dirs);
       setPathInput(res.current);
     } catch {
-      // keep current state on error
     } finally {
       setLoading(false);
     }

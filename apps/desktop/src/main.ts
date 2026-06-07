@@ -42,7 +42,6 @@ function createWindow() {
     mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
   }
 
-
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
@@ -52,7 +51,7 @@ app.whenReady().then(async () => {
   try {
     await startOpencodeSidecar();
   } catch (err) {
-    console.error("[main] failed to start opencode sidecar:", err);
+    void err;
   }
 
   registerSessionHandlers();

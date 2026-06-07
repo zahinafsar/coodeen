@@ -43,16 +43,12 @@ interface MessageBubbleProps {
 const BUBBLE =
   "max-w-[85%] rounded-2xl rounded-bl-sm px-4 py-2 text-sm leading-relaxed break-words bg-muted text-foreground";
 
-// ── Entry ─────────────────────────────────────────────────────────────────
-
 export function MessageBubble({ message }: MessageBubbleProps) {
   if (message.role === "user") {
     return <UserBubble message={message} />;
   }
   return <AssistantStack message={message} />;
 }
-
-// ── User ──────────────────────────────────────────────────────────────────
 
 function UserBubble({ message }: { message: Message & { parts: Part[] } }) {
   const images = message.parts.filter(
@@ -81,8 +77,6 @@ function UserBubble({ message }: { message: Message & { parts: Part[] } }) {
   );
 }
 
-// ── Assistant ─────────────────────────────────────────────────────────────
-
 function AssistantStack({
   message,
 }: {
@@ -93,8 +87,6 @@ function AssistantStack({
 
   if (visible.length === 0 && !isStreaming) return null;
 
-  // Render tool parts as inline rows (grouped under a left rail).
-  // Skip reasoning entirely. Text / image render as own bubbles.
   type Group =
     | { kind: "tools"; items: ToolPart[] }
     | { kind: "text"; part: TextPart }
@@ -119,7 +111,6 @@ function AssistantStack({
       {groups.map((g, i) =>
         g.kind === "tools" ? (
           <div key={`tools-${i}`} className="w-full relative py-1">
-            {/* vertical rail connecting all tool nodes */}
             <div
               className="absolute left-[11px] top-3 bottom-3 w-0.5 bg-border rounded-full"
               aria-hidden
@@ -161,8 +152,6 @@ function renderable(part: Part): boolean {
   }
   return false;
 }
-
-// ── Chain of Thought ──────────────────────────────────────────────────────
 
 function ChainOfThought({
   items,
@@ -218,8 +207,6 @@ function ChainOfThought({
   );
 }
 
-// ── Thread items ──────────────────────────────────────────────────────────
-
 function ThreadReasoning({
   part,
   isStreaming,
@@ -229,7 +216,6 @@ function ThreadReasoning({
 }) {
   const paced = usePacedText(part.text ?? "", isStreaming);
   const [open, setOpen] = useState(false);
-  // First markdown-bolded phrase or first line, used as the inline summary.
   const rawSummary =
     part.text?.match(/\*\*(.+?)\*\*/)?.[1] ??
     (paced.trim().split(/[.\n]/)[0] ?? "").slice(0, 100);
@@ -349,7 +335,6 @@ function isPathLike(tool: string): boolean {
 }
 
 function patchSummary(out: string): string {
-  // Parse apply_patch output lines like "A path", "M path", "D path".
   const files = out
     .split("\n")
     .map((l) => l.trim())
@@ -374,7 +359,6 @@ function ThreadTool({ part }: { part: ToolPart }) {
     outputSummary = patchSummary(part.state.output ?? "");
   }
 
-  // todowrite → visible checklist (no expand)
   const todos = extractTodos(part);
   if (todos && todos.length > 0) {
     const done = todos.filter((t) => t.status === "completed").length;
@@ -466,7 +450,6 @@ function ThreadTool({ part }: { part: ToolPart }) {
           canExpand ? "cursor-pointer" : "cursor-default",
         )}
       >
-        {/* Node marker — solid bg so it punches through the rail line */}
         <span
           className={cn(
             "relative z-10 w-6 h-6 shrink-0 flex items-center justify-center rounded-full bg-background border transition-colors",
@@ -530,8 +513,6 @@ function ToolOutput({
   output: string;
   isError: boolean;
 }) {
-  // For `read`, strip opencode's <path>/<type>/<content> wrapper so only
-  // the file contents (with line numbers) show in the panel.
   let body = output;
   if (tool === "read" && !isError) {
     const m = output.match(/<content>\n?([\s\S]*?)(?:<\/content>|$)/);
@@ -550,8 +531,6 @@ function ToolOutput({
     </pre>
   );
 }
-
-// ── Text + image parts ────────────────────────────────────────────────────
 
 function TextPartView({
   part,

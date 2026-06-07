@@ -1,12 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 
-/**
- * Progressively reveal `target` at roughly ~24ms per frame with adaptive
- * step sizing so bursty deltas still catch up quickly. Mirrors opencode's
- * createPacedValue behaviour.
- *
- * When `isStreaming` is false, the full text is revealed immediately.
- */
 export function usePacedText(target: string, isStreaming: boolean): string {
   const [shown, setShown] = useState("");
   const rafRef = useRef<number | null>(null);
@@ -21,7 +14,6 @@ export function usePacedText(target: string, isStreaming: boolean): string {
     }
 
     if (target.length < shownLenRef.current) {
-      // Content shrunk (rare — e.g. replacement); snap.
       setShown(target);
       shownLenRef.current = target.length;
       return;
@@ -33,7 +25,6 @@ export function usePacedText(target: string, isStreaming: boolean): string {
         timerRef.current = null;
         return;
       }
-      // Adaptive step: bigger chunks when far behind, smaller when close.
       const step = Math.max(
         1,
         Math.min(

@@ -5,10 +5,6 @@ export interface CropRect {
   height: number;
 }
 
-/**
- * Capture the current browser tab via getDisplayMedia,
- * grab one frame, stop stream, return full-tab ImageBitmap.
- */
 export async function captureTabFrame(): Promise<ImageBitmap> {
   const stream = await navigator.mediaDevices.getDisplayMedia({
     video: { displaySurface: "browser" },
@@ -20,7 +16,6 @@ export async function captureTabFrame(): Promise<ImageBitmap> {
   video.muted = true;
   await video.play();
 
-  // Wait for a frame to render
   await new Promise((r) => requestAnimationFrame(r));
 
   const bitmap = await createImageBitmap(video);
@@ -29,12 +24,6 @@ export async function captureTabFrame(): Promise<ImageBitmap> {
   return bitmap;
 }
 
-/**
- * Crop a full-tab bitmap to a viewport rect.
- * Computes the actual scale from bitmap vs viewport dimensions
- * instead of assuming devicePixelRatio. `rect` must be in
- * viewport coordinates (e.g. from getBoundingClientRect / clientX).
- */
 export function cropToDataUrl(bitmap: ImageBitmap, rect: CropRect): string {
   const scaleX = bitmap.width / window.innerWidth;
   const scaleY = bitmap.height / window.innerHeight;

@@ -87,7 +87,6 @@ export const PageNode = memo(function PageNode({ data }: NodeProps) {
     };
   }, []);
 
-  // Inject / remove highlight scaffolding inside iframe based on mode.
   useEffect(() => {
     const el = iframeRef.current;
     const doc = el?.contentDocument ?? null;

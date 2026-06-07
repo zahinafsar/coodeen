@@ -15,10 +15,6 @@ export class DesignErrorBoundary extends Component<
     return { error };
   }
 
-  componentDidCatch(error: Error) {
-    console.error("[DesignCanvas] crash:", error);
-  }
-
   reset = () => this.setState({ error: null });
 
   render() {
