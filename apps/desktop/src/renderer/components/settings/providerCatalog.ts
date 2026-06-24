@@ -24,9 +24,17 @@ export const POPULAR: CatalogEntry[] = [
     name: "Google",
     note: "Gemini models for fast, structured responses",
   },
+  {
+    id: "zai",
+    name: "Z.AI",
+    note: "GLM models for capable, low-cost coding and chat",
+  },
 ];
 
 const NICE_NAMES: Record<string, string> = {
+  zai: "Z.AI",
+  "zai-coding-plan": "Z.AI Coding Plan",
+  zhipuai: "Zhipu AI",
   azure: "Azure OpenAI",
   "amazon-bedrock": "Amazon Bedrock",
   "google-vertex": "Google Vertex",
