@@ -1,10 +1,8 @@
-name: Build Desktop App
+name: Build Electron App (CI only)
 
 on:
   push:
     branches: [main]
-    tags:
-      - "v*"
     paths:
       - "apps/desktop/**"
       - "scripts/**"
@@ -12,47 +10,10 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  # Read version from package.json and check if a tag already exists
-  check-version:
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-      tag_exists: ${{ steps.check.outputs.exists }}
-      is_tag_push: ${{ steps.detect.outputs.is_tag }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Detect trigger type
-        id: detect
-        run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            echo "is_tag=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "is_tag=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Read version
-        id: version
-        run: |
-          VERSION=$(node -p "require('./apps/desktop/package.json').version")
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: Check if tag exists
-        id: check
-        run: |
-          if git rev-parse "v${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
-
   typecheck:
-    needs: check-version
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -65,7 +26,7 @@ jobs:
         run: bun run --cwd apps/desktop typecheck
 
   build:
-    needs: [check-version, typecheck]
+    needs: typecheck
     strategy:
       fail-fast: false
       matrix:
@@ -107,40 +68,8 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: desktop-${{ matrix.os }}-${{ matrix.arch }}
+          name: electron-${{ matrix.os }}-${{ matrix.arch }}
           path: |
             apps/desktop/release/*.dmg
             apps/desktop/release/*.zip
           if-no-files-found: error
-
-  release:
-    needs: [check-version, build]
-    if: needs.check-version.outputs.is_tag_push == 'true' || needs.check-version.outputs.tag_exists == 'false'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Create and push tag
-        if: needs.check-version.outputs.is_tag_push == 'false'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "v${{ needs.check-version.outputs.version }}"
-          git push origin "v${{ needs.check-version.outputs.version }}"
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-          merge-multiple: true
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: "v${{ needs.check-version.outputs.version }}"
-          generate_release_notes: true
-          files: |
-            artifacts/*.dmg
-            artifacts/*.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

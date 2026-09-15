@@ -1,0 +1,73 @@
+name: Coodeen
+options:
+  bundleIdPrefix: com.coodeen
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    MARKETING_VERSION: "0.5.0"
+    CURRENT_PROJECT_VERSION: "1"
+
+packages:
+  SwiftTerm:
+    url: https://github.com/migueldeicaza/SwiftTerm
+    exactVersion: 1.11.2
+  MarkdownUI:
+    url: https://github.com/gonzalezreal/swift-markdown-ui
+    from: 2.4.1
+  HighlightSwift:
+    url: https://github.com/appstefan/HighlightSwift
+    from: 1.1.0
+
+targets:
+  Coodeen:
+    type: application
+    platform: macOS
+    sources:
+      - path: Coodeen
+    dependencies:
+      - package: SwiftTerm
+      - package: MarkdownUI
+      - package: HighlightSwift
+    info:
+      path: Coodeen/Info.plist
+      properties:
+        CFBundleName: Coodeen
+        CFBundleDisplayName: Coodeen
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSApplicationCategoryType: public.app-category.developer-tools
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
+        NSHighResolutionCapable: true
+        NSSupportsAutomaticTermination: false
+        NSSupportsSuddenTermination: false
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+          NSAllowsLocalNetworking: true
+    entitlements:
+      path: Coodeen/Coodeen.entitlements
+      properties:
+        com.apple.security.cs.allow-jit: true
+        com.apple.security.cs.allow-unsigned-executable-memory: true
+        com.apple.security.cs.disable-library-validation: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.coodeen.desktop
+        PRODUCT_NAME: Coodeen
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ENABLE_HARDENED_RUNTIME: YES
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "-"
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+        COMBINE_HIDPI_IMAGES: YES
+        ARCHS: arm64
+        ONLY_ACTIVE_ARCH: NO
+    postBuildScripts:
+      - name: Bundle opencode sidecar
+        script: bash "${SRCROOT}/scripts/bundle-opencode.sh"
+        basedOnDependencyAnalysis: false

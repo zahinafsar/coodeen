@@ -5,8 +5,10 @@ description: Set up the Coodeen dev environment and contribute.
 
 ## Prerequisites
 
-- [Bun](https://bun.sh/) — primary package manager and runtime for scripts
-- [Node.js 18+](https://nodejs.org/) — used by the build scripts
+- macOS 14 Sonoma or later on Apple Silicon
+- [Xcode 26](https://developer.apple.com/xcode/) or later
+- [XcodeGen](https://github.com/yonaskolb/XcodeGen): `brew install xcodegen`
+- [Bun](https://bun.sh/) (only needed to fetch a different opencode binary and to run the docs site)
 - Git
 
 ## Setup
@@ -14,39 +16,37 @@ description: Set up the Coodeen dev environment and contribute.
 ```bash
 git clone https://github.com/zahinafsar/coodeen.git
 cd coodeen
-
-# Install + rebuild native modules for Electron
-bun run setup
 ```
 
-The first desktop build also downloads the matching `opencode` binary into `apps/desktop/resources/bin/` via `scripts/fetch-opencode.js` (hooked up as the `prebuild` script in `apps/desktop/package.json`).
+The opencode binary the app bundles lives in `apps/desktop/resources/bin/opencode` and is committed to the repo, so no download is needed for a normal build.
 
 ## Running Locally
 
 ```bash
-# Electron dev mode (hot reload for renderer)
-bun run dev
+make -C apps/macos run
 ```
 
-On startup the app spawns `opencode serve --hostname=127.0.0.1 --port=0` as a child and wires the renderer to it.
+This generates `apps/macos/Coodeen.xcodeproj` from `project.yml`, builds a Debug app into `apps/macos/build/DerivedData`, quits any running copy, and opens the new build. To work in Xcode instead, run `make -C apps/macos gen` and open `apps/macos/Coodeen.xcodeproj`.
 
-## Type Check
+On startup the app spawns `opencode serve --hostname=127.0.0.1 --port=0` as a child and connects to it over HTTP.
+
+## Building a Release
 
 ```bash
-bun run --cwd apps/desktop typecheck
+make -C apps/macos dist
 ```
 
-## Building
+This builds the Release app for arm64, checks that the bundled sidecar runs and the signature is valid, then writes `Coodeen-mac-arm64.dmg` and `Coodeen-mac-arm64.zip` to `apps/macos/build/dist/`.
 
-```bash
-# Unpacked build
-bun run build
+## Publishing
 
-# Build + package installers for the current platform
-bun run --cwd apps/desktop build:prod
-```
+Releases are produced by `.github/workflows/build-macos.yml`:
 
-`build:prod` runs `electron-vite build`, copies production deps (`scripts/copy-modules.js`), then invokes `electron-builder` with `apps/desktop/electron-builder.yml`. The opencode binary ships as `extraResources` so the packaged app can spawn it from `process.resourcesPath/bin`.
+1. Bump `MARKETING_VERSION` in `apps/macos/project.yml`.
+2. Merge to `main`.
+3. CI builds the app on a `macos-26` runner. If the tag `v<version>` doesn't exist yet, it creates the tag and publishes a GitHub release with the DMG and ZIP.
+
+The homepage download button points at `releases/latest/download/Coodeen-mac-arm64.dmg`, so the new build is live on the site as soon as the release is published. Pull requests that touch `apps/macos` get a build check without publishing.
 
 ## Pinning opencode
 
@@ -54,7 +54,7 @@ bun run --cwd apps/desktop build:prod
 OPENCODE_VERSION=0.x.y bun run --cwd apps/desktop fetch-opencode
 ```
 
-The downloaded version is tracked in `apps/desktop/resources/bin/.opencode-version`.
+The downloaded version is tracked in `apps/desktop/resources/bin/.opencode-version`. Commit the new binary so CI bundles it.
 
 ## Docs Site
 
@@ -66,28 +66,21 @@ Runs Next.js + Fumadocs from `apps/docs/`.
 
 ## Project Structure
 
-| Directory      | Purpose |
-| -------------- | ------- |
-| `apps/desktop` | Electron app — main, preload, IPC handlers, React renderer |
-| `apps/docs`    | Documentation site (Next.js + Fumadocs) |
-| `scripts/`     | `fetch-opencode.js`, `copy-modules.js`, `rebuild-native.js` |
+| Directory | Purpose |
+| --------- | ------- |
+| `apps/macos` | Native macOS app (SwiftUI) |
+| `apps/desktop` | Previous Electron app, plus the bundled opencode binary in `resources/bin` |
+| `apps/docs` | Documentation site (Next.js + Fumadocs) |
+| `scripts/` | `fetch-opencode.js` and Electron build helpers |
 
-## Main-Process Handlers
+## App Layout
 
-Registered in `apps/desktop/src/main.ts`:
+Inside `apps/macos/Coodeen`:
 
-| File | What it does |
-|------|--------------|
-| `opencode.ts` | Spawn + supervise sidecar, event bus, auto-reconnect |
-| `sessions.ts` | CRUD over opencode sessions + local `session-prefs.json` |
-| `chat.ts` | `session.prompt` / `session.abort` forwarding |
-| `providers.ts` | List providers, set / delete API keys, cache invalidation |
-| `fs.ts` | Directory listing, file read/write, create/delete entries |
-| `git.ts` | Status, branches, diff, commit, push, pull, merge, conflicts |
-| `pty.ts` | node-pty terminal sessions |
-| `config.ts` | Active provider + cwd |
-| `actions.ts` | `coodeen.json` discovery + script runner |
-
-## Screen Capture IPC
-
-`capture:area` runs directly in `main.ts`: it calls `mainWindow.webContents.capturePage({x, y, width, height})` and returns a PNG data-URL. The preview's element picker uses this to crop the iframe's on-screen rect.
+| Folder | What it does |
+|--------|--------------|
+| `App/` | App entry, window, menu commands, launch and quit handling |
+| `Sidecar/` | Spawns and supervises opencode, HTTP client, SSE event bus with auto-reconnect, API calls for sessions, prompts, and providers |
+| `Stores/` | Chat store (applies opencode events), workspace state, toasts |
+| `Services/` | Files, git, `coodeen.json` actions and watcher, preferences, shell environment |
+| `Views/` | SwiftUI views for chat, settings, files, git, terminal, preview, and design canvas |

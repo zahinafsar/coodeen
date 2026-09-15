@@ -9,13 +9,13 @@ The pointer button in the preview toolbar toggles an **element picker**. When ac
 
 1. Hover over the preview — the element under the cursor gets an outline and a tag tooltip (tag name, id, classes).
 2. Click an element.
-3. Coodeen calls `webContents.capturePage` on the iframe's on-screen rect, crops to the clicked element's bounding box, and attaches the result as a PNG data-URL to your next prompt.
+3. Coodeen snapshots the clicked element's bounding box from the preview and attaches it as a PNG to your next prompt.
 
 The thumbnail appears in the composer. Send the message and the image is delivered as a `file` part alongside the prompt text.
 
 ## Requirements
 
-- The preview iframe needs to be inspectable via `iframe.contentDocument`. Local dev servers normally allow this; heavily cross-origin content may not.
+- The picker injects a small script into the preview page. Local dev servers allow this; pages with a strict Content-Security-Policy may block it.
 - For the AI to actually *see* the image, the active model must accept image inputs. If it doesn't, the provider drops the image part silently.
 
 ## What's Captured
@@ -23,4 +23,4 @@ The thumbnail appears in the composer. Send the message and the image is deliver
 - A cropped PNG of the element's rendered rectangle.
 - Tag name, `id`, class list, short text excerpt, and a generated CSS selector (`#id` or `tag.class.class`).
 
-Nothing outside the iframe rectangle is captured.
+Nothing outside the element's rectangle (plus a few pixels of padding) is captured.

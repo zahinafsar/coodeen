@@ -5,7 +5,7 @@ description: Install Coodeen and send your first prompt.
 
 ## Download
 
-The homepage currently serves the macOS (Apple Silicon) build:
+The homepage serves the native macOS build for Apple Silicon. It requires macOS 14 Sonoma or later.
 
 | Platform | Download |
 |----------|----------|
@@ -26,15 +26,15 @@ Other artifacts (if any) are listed under [all releases](https://github.com/zahi
 
 ## Add a Provider Key
 
-1. Click the **key icon** in the top-right of the top bar.
-2. Pick a provider — **Anthropic**, **OpenAI**, or **Google** — and paste its API key.
-3. Save — the key is stored in opencode's auth store at `~/.local/share/opencode/auth.json`.
+1. Click the **gear icon** in the top-right of the toolbar (or press `Cmd+,`) to open Settings.
+2. Click **Add provider**, pick **Anthropic**, **OpenAI**, **Google**, or **Z.AI**, and paste its API key.
+3. Click **Connect**. The key is stored in opencode's auth store at `~/.local/share/opencode/auth.json`.
 
 The dialog also has a **Custom** option for OpenAI-compatible endpoints (Ollama, local model servers, etc.). Any other provider that opencode supports can be wired in by editing `auth.json` directly.
 
 ## Pick a Project Folder
 
-Coodeen starts in the process's cwd. Use the project picker (folder UI inside the app) to point the agent at your repo. Every opencode request is scoped to that directory.
+Click **Select folder** under the composer and choose your repo. Every opencode request in the session is scoped to that directory.
 
 ## First Prompt
 
