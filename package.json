@@ -10,6 +10,8 @@
     "dev": "cd apps/desktop && bun run dev",
     "build": "cd apps/desktop && bun run build",
     "dev:docs": "bun run --cwd apps/docs dev",
+    "dev:macos": "make -C apps/macos run",
+    "build:macos": "make -C apps/macos release",
     "lint": "eslint ."
   },
   "devDependencies": {

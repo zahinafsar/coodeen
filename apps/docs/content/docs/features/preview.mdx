@@ -5,11 +5,11 @@ description: See your running application side-by-side with the AI chat.
 
 ## Overview
 
-The Preview tab shows your app inside an `<iframe>` on the right panel. Point it at any URL — typically a local dev server — and use it as visual context while the agent edits code.
+The Preview tab shows your app in an embedded WebKit browser on the right panel. Point it at any URL — typically a local dev server — and use it as visual context while the agent edits code.
 
 ## URL Bar
 
-Type any URL and press Enter. The field is persisted per session (`session-prefs.json`). If the iframe hasn't signalled `load` within 10 seconds, a retry panel appears with the failing URL.
+Type any URL and press Enter. The field is persisted per session (`session-prefs.json`). If the page hasn't finished loading within 10 seconds, a retry panel appears with the failing URL.
 
 The default URL is `http://localhost:3000`.
 
@@ -26,11 +26,11 @@ Non-responsive modes support a custom width × height input and a rotate button 
 
 ## Reload
 
-The refresh button clears and re-assigns `iframe.src` so the preview reloads cleanly after a code change the dev server didn't hot-swap.
+The refresh button reloads the page after a code change the dev server didn't hot-swap.
 
 ## Terminal Toggle
 
-The terminal icon on the right of the toolbar opens a node-pty terminal below the preview. See the [Terminal](/docs/features/terminal) page.
+The terminal icon on the right of the toolbar opens a terminal below the preview. See the [Terminal](/docs/features/terminal) page.
 
 ## Element Selection → Screenshot
 

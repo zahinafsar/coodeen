@@ -5,22 +5,16 @@ description: Where Coodeen stores state, how project scoping works, and what's t
 
 ## Data Storage
 
-State is split between Electron and the bundled opencode sidecar:
+State is split between the app and the bundled opencode sidecar:
 
 | What | Location |
 |------|----------|
 | Sessions, messages, tool history | opencode — `~/.local/share/opencode/` |
 | Provider API keys | opencode — `~/.local/share/opencode/auth.json` |
-| Per-session preview URL | Electron userData — `session-prefs.json` |
-| Active provider selection | Electron userData — `app-config.json` |
+| Per-session model and preview URL | App support folder, `session-prefs.json` |
+| Last selected model | App support folder, `app-config.json` |
 
-Electron userData paths:
-
-| Platform | Path |
-|----------|------|
-| macOS | `~/Library/Application Support/coodeen/` |
-| Windows | `%APPDATA%/coodeen/` |
-| Linux | `~/.config/coodeen/` |
+The app support folder is `~/Library/Application Support/Coodeen/`. On first launch, existing preferences from the previous Electron build are copied over automatically.
 
 Nothing leaves your machine except requests to the AI provider endpoint.
 
@@ -28,7 +22,7 @@ Nothing leaves your machine except requests to the AI provider endpoint.
 
 Each session is scoped to a project directory. Opencode requests get an `x-opencode-directory` header (encoded) and a `directory` query param, so the agent's reads, writes, and shell commands stay inside that folder.
 
-You pick a folder via the folder button in the chat composer before sending the first message of a session. Once a session has been started, the folder is locked — opencode binds it to the session at create time and there's no in-place rename. Sessions remember their own project dir in opencode and surface it again when you reopen the session via URL or sidebar.
+You pick a folder via the folder button in the chat composer before sending the first message of a session. Once a session has been started, the folder is locked — opencode binds it to the session at create time and there's no in-place rename. Sessions remember their own project dir in opencode and surface it again when you reopen the session from the drawer.
 
 The session list pulls every known project from opencode's global project table, then issues one `/session` request per project (header-only routing) and merges the results. So a session created against any directory shows up in the sidebar regardless of which folder is currently active.
 
@@ -61,4 +55,4 @@ Optional file at the project root. Two independent blocks:
 }
 ```
 
-The main process watches the file via chokidar and broadcasts a `coodeen:changed` event so the design canvas refreshes live whenever the file is rewritten by you or the agent.
+The app watches the file with FSEvents, so the top bar actions and the design canvas refresh live whenever the file is rewritten by you or the agent.

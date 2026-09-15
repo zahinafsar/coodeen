@@ -5,21 +5,19 @@ description: Processes, data flow, and where state lives.
 
 ## Overview
 
-Coodeen is an Electron shell around the [opencode](https://github.com/sst/opencode) agent. On launch the main process spawns `opencode serve --hostname=127.0.0.1 --port=0` as a child and connects to it with `@opencode-ai/sdk`. The renderer (React + Tailwind + Radix) drives the split-pane UI.
+Coodeen is a native macOS app (SwiftUI with AppKit bridges) around the [opencode](https://github.com/sst/opencode) agent. On launch it spawns the bundled `opencode serve --hostname=127.0.0.1 --port=0` as a child process and talks to it over HTTP.
 
 ## Processes
 
-- **Electron main** — Supervises the opencode sidecar, registers IPC handlers for filesystem, git, terminal (node-pty), and opencode RPC.
-- **Electron renderer** — React UI: chat on the left; Preview / Files / Git tabs plus togglable terminal on the right.
-- **opencode sidecar** — Child process. Owns the agent, sessions, messages, tool execution, and provider auth.
+- **Coodeen app** (`apps/macos`): supervises the opencode sidecar and handles the filesystem, git, terminal (SwiftTerm), web preview (WKWebView), and the SwiftUI interface.
+- **opencode sidecar**: child process that owns the agent, sessions, messages, tool execution, and provider auth.
 
 ## Data Flow
 
-1. Renderer fires an IPC call (`chat:prompt`, `sessions:list`, `fs:readFile`, etc.).
-2. The matching handler in `apps/desktop/src/handlers/` either runs locally (fs, git, pty) or forwards through the opencode SDK.
+1. A view calls into `OpencodeAPI` (sessions, prompts, providers) or a local service (files, git, actions).
+2. `OpencodeClient` sends the HTTP request to the sidecar, scoped to the project directory.
 3. opencode streams events (`message.part.updated`, tool call lifecycle, status) over `/global/event` (SSE).
-4. `handlers/opencode.ts` rebroadcasts each event on the `opencode:event` IPC channel.
-5. The renderer's chat store reduces events into the view model.
+4. `EventBus` decodes each event and hands it to `ChatStore`, which updates the chat view model.
 
 The event bus runs in a reconnect loop with a 15s heartbeat and exponential backoff (0.5s → 5s).
 
@@ -29,16 +27,10 @@ The event bus runs in a reconnect loop with a 15s heartbeat and exponential back
 |------|----------|
 | Sessions, messages, tool history | opencode — `~/.local/share/opencode/` |
 | Provider API keys | opencode — `~/.local/share/opencode/auth.json` |
-| Per-session preview URL | Electron userData — `session-prefs.json` |
-| Active provider selection | Electron userData — `app-config.json` |
+| Per-session model and preview URL | App support folder, `session-prefs.json` |
+| Last selected model | App support folder, `app-config.json` |
 
-Electron userData paths:
-
-| Platform | Location |
-|----------|----------|
-| macOS | `~/Library/Application Support/coodeen/` |
-| Windows | `%APPDATA%/coodeen/` |
-| Linux | `~/.config/coodeen/` |
+The app support folder is `~/Library/Application Support/Coodeen/`. On first launch, existing preferences from the previous Electron build are copied over automatically.
 
 ## Directory Scoping
 

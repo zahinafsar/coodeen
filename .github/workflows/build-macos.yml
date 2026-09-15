@@ -1,0 +1,147 @@
+name: Build macOS App
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - "v*"
+    paths:
+      - "apps/macos/**"
+      - "apps/desktop/resources/bin/**"
+      - ".github/workflows/build-macos.yml"
+  pull_request:
+    paths:
+      - "apps/macos/**"
+      - ".github/workflows/build-macos.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-macos-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag_exists: ${{ steps.check.outputs.exists }}
+      is_tag_push: ${{ steps.detect.outputs.is_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect trigger type
+        id: detect
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "is_tag=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_tag=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Read version
+        id: version
+        run: |
+          VERSION=$(sed -n 's/^ *MARKETING_VERSION: *"\(.*\)"/\1/p' apps/macos/project.yml)
+          if [ -z "$VERSION" ]; then
+            echo "MARKETING_VERSION not found in apps/macos/project.yml"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check if tag exists
+        id: check
+        run: |
+          if git rev-parse "v${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify tag matches version
+        if: steps.detect.outputs.is_tag == 'true'
+        run: |
+          if [ "${{ github.ref_name }}" != "v${{ steps.version.outputs.version }}" ]; then
+            echo "Tag ${{ github.ref_name }} does not match MARKETING_VERSION ${{ steps.version.outputs.version }}"
+            exit 1
+          fi
+
+  build:
+    needs: check-version
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Check bundled opencode sidecar
+        run: |
+          BIN=apps/desktop/resources/bin/opencode
+          test -f "$BIN"
+          chmod +x "$BIN"
+          file "$BIN" | grep -q arm64
+          "$BIN" --version
+
+      - name: Cache Swift packages
+        uses: actions/cache@v4
+        with:
+          path: apps/macos/build/DerivedData/SourcePackages
+          key: spm-${{ runner.os }}-${{ hashFiles('apps/macos/project.yml') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      - name: Build and package
+        working-directory: apps/macos
+        run: make dist
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64
+          path: |
+            apps/macos/build/dist/*.dmg
+            apps/macos/build/dist/*.zip
+          if-no-files-found: error
+
+  release:
+    needs: [check-version, build]
+    if: github.event_name != 'pull_request' && (needs.check-version.outputs.is_tag_push == 'true' || needs.check-version.outputs.tag_exists == 'false')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create and push tag
+        if: needs.check-version.outputs.is_tag_push == 'false'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "v${{ needs.check-version.outputs.version }}"
+          git push origin "v${{ needs.check-version.outputs.version }}"
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-arm64
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ needs.check-version.outputs.version }}"
+          make_latest: true
+          generate_release_notes: true
+          files: |
+            artifacts/Coodeen-mac-arm64.dmg
+            artifacts/Coodeen-mac-arm64.zip
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

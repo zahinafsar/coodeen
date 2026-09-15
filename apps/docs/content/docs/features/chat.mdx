@@ -17,7 +17,7 @@ The composer's status row shows the agent mode ("Agent"), the active model, and 
 
 ## Streaming
 
-The sidecar emits events (`message.part.updated`, tool call lifecycles, status changes) to `/global/event`. The Electron main process forwards them on the `opencode:event` IPC channel; a Zustand store in the renderer applies them so text, tool calls, and their outputs appear incrementally.
+The sidecar emits events (`message.part.updated`, tool call lifecycles, status changes) to `/global/event`. The app subscribes to that stream and applies each event to its chat store, so text, tool calls, and their outputs appear incrementally.
 
 ## Tool Calls
 
@@ -25,7 +25,7 @@ Every tool invocation renders inline with its arguments and result. Opencode's b
 
 ## Sessions
 
-- **New session** — session drawer (hamburger icon, top-left).
+- **New session**: open the session drawer (sidebar icon, top-left) and click **New**, or press `Cmd+N`.
 - **Switch** — pick a session from the drawer; its project directory and preview URL are restored.
 - **Delete** — removes it from opencode's store.
 
@@ -33,4 +33,4 @@ New chats receive an auto-generated title based on the first prompt (first ~60 c
 
 ## Model
 
-Coodeen currently uses a fixed model per prompt — there's no model dropdown yet. The current model is shown in the composer's status row. Switching models requires editing the source (`apps/desktop/src/renderer/components/chat/ChatPanel.tsx`).
+Pick the model from the model button under the composer. It lists every model from the providers you've connected in Settings. Each session remembers its model, and new sessions start with the last model you picked.

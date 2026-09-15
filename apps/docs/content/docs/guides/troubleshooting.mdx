@@ -17,35 +17,33 @@ Then open the app again.
 
 Coodeen fails if it can't spawn the bundled `opencode` binary.
 
-- **Dev**: ensure `apps/desktop/resources/bin/opencode` exists. Re-run `bun run --cwd apps/desktop fetch-opencode`.
-- **Packaged app**: the binary ships under `<app>/Contents/Resources/bin/opencode` (macOS) or `resources/bin/opencode.exe` (Windows). If missing, reinstall.
+- **Dev**: ensure `apps/desktop/resources/bin/opencode` exists. Re-run `bun run --cwd apps/desktop fetch-opencode`, then rebuild with `make -C apps/macos run`.
+- **Installed app**: the binary ships at `/Applications/Coodeen.app/Contents/Resources/bin/opencode`. Run it with `--version` to check it works. If it's missing, reinstall.
 
-Look for `[opencode] sidecar ready at http://127.0.0.1:<port>` in the console.
+If the sidecar fails to start, the error appears as a notification in the bottom-right corner of the window.
 
 ## Fresh Start
 
-Wipe both stores:
+Quit Coodeen, then delete both stores:
 
-| Platform | Electron userData | opencode data |
-|----------|-------------------|---------------|
-| macOS | `~/Library/Application Support/coodeen/` | `~/.local/share/opencode/` |
-| Windows | `%APPDATA%/coodeen/` | `%APPDATA%/opencode/` |
-| Linux | `~/.config/coodeen/` | `~/.local/share/opencode/` |
+| What | Location |
+|------|----------|
+| App preferences | `~/Library/Application Support/Coodeen/` |
+| opencode data | `~/.local/share/opencode/` |
 
 ## Preview Not Loading
 
 - Check your dev server is actually up at the URL shown.
-- Some servers set `X-Frame-Options` / `Content-Security-Policy` that block iframe embedding.
 - Click the refresh icon in the preview toolbar.
 - If the 10s load timeout fires, the retry panel appears — click **Retry**.
 
 ## Element Picker Doesn't Pick Anything
 
-The picker relies on `iframe.contentDocument`. Heavily cross-origin content (some third-party sites) hides that. Point the preview at your local dev server instead.
+The picker injects a small script into the preview page. Pages with a strict Content-Security-Policy can block it. Point the preview at your local dev server instead.
 
 ## Screenshots Don't Reach the AI
 
-The current app uses a fixed model. If that model doesn't accept images, the provider drops the image part. The agent still receives the selected element's DOM metadata (tag, id, classes, selector).
+If the selected model doesn't accept images, the provider drops the image part. The agent still receives the selected element's DOM metadata (tag, id, classes, selector).
 
 ## API Key Rejected
 

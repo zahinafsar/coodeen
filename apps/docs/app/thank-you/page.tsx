@@ -107,6 +107,10 @@ function ThankYouContent() {
             <CopyButton value={XATTR_COMMAND} />
           </div>
 
+          <p className="mb-2 text-xs leading-relaxed text-white/40">
+            Requires macOS 14 Sonoma or later on an Apple Silicon Mac.
+          </p>
+
           <p className="text-xs leading-relaxed text-white/40">
             Coodeen isn&apos;t code-signed yet, so macOS may otherwise refuse to launch it. This command is safe — it removes the quarantine flag only for the app you installed.
           </p>
